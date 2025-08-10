@@ -1,0 +1,8 @@
+{
+  "/page": "app/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/settings/roles/create/page": "app/settings/roles/create/page.js",
+  "/servers/page": "app/servers/page.js",
+  "/server-groups/page": "app/server-groups/page.js",
+  "/deployments/page": "app/deployments/page.js"
+}

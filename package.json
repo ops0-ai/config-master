@@ -1,0 +1,26 @@
+{
+  "name": "config-management-saas",
+  "version": "1.0.0",
+  "description": "Enterprise SaaS platform for configuration management with conversational AI and Ansible integration",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "db:push": "cd apps/api && npm run db:push",
+    "db:studio": "cd apps/api && npm run db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^1.10.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  }
+}

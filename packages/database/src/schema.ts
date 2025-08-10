@@ -1,0 +1,296 @@
+import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, varchar } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+
+export const organizations = pgTable('organizations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  ownerId: uuid('owner_id').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  passwordHash: text('password_hash').notNull(),
+  role: varchar('role', { length: 50 }).notNull().default('user'),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const pemKeys = pgTable('pem_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  encryptedPrivateKey: text('encrypted_private_key').notNull(),
+  publicKey: text('public_key'),
+  fingerprint: varchar('fingerprint', { length: 255 }),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const serverGroups = pgTable('server_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  defaultPemKeyId: uuid('default_pem_key_id').references(() => pemKeys.id),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const servers = pgTable('servers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  hostname: varchar('hostname', { length: 255 }).notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }).notNull(),
+  port: integer('port').notNull().default(22),
+  username: varchar('username', { length: 255 }).notNull().default('root'),
+  operatingSystem: varchar('operating_system', { length: 100 }),
+  osVersion: varchar('os_version', { length: 100 }),
+  status: varchar('status', { length: 50 }).notNull().default('unknown'),
+  lastSeen: timestamp('last_seen'),
+  groupId: uuid('group_id').references(() => serverGroups.id),
+  pemKeyId: uuid('pem_key_id').references(() => pemKeys.id),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const configurations = pgTable('configurations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  type: varchar('type', { length: 100 }).notNull(),
+  ansiblePlaybook: text('ansible_playbook').notNull(),
+  variables: jsonb('variables'),
+  tags: jsonb('tags'),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  isTemplate: boolean('is_template').notNull().default(false),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const deployments = pgTable('deployments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  section: varchar('section', { length: 100 }).default('general'),
+  version: integer('version').notNull().default(1),
+  parentDeploymentId: uuid('parent_deployment_id'),
+  configurationId: uuid('configuration_id').references(() => configurations.id).notNull(),
+  targetType: varchar('target_type', { length: 50 }).notNull(),
+  targetId: uuid('target_id').notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('pending'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  logs: text('logs'),
+  output: text('output'),
+  errorMessage: text('error_message'),
+  executedBy: uuid('executed_by').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const configurationStates = pgTable('configuration_states', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  serverId: uuid('server_id').references(() => servers.id).notNull(),
+  configurationId: uuid('configuration_id').references(() => configurations.id).notNull(),
+  expectedState: jsonb('expected_state').notNull(),
+  actualState: jsonb('actual_state'),
+  status: varchar('status', { length: 50 }).notNull().default('unknown'),
+  lastChecked: timestamp('last_checked'),
+  driftDetected: boolean('drift_detected').notNull().default(false),
+  driftDetails: jsonb('drift_details'),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const conversations = pgTable('conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 255 }),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').references(() => conversations.id).notNull(),
+  role: varchar('role', { length: 20 }).notNull(),
+  content: text('content').notNull(),
+  generatedConfiguration: text('generated_configuration'),
+  configurationId: uuid('configuration_id').references(() => configurations.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  action: varchar('action', { length: 100 }).notNull(),
+  resource: varchar('resource', { length: 100 }).notNull(),
+  resourceId: uuid('resource_id'),
+  details: jsonb('details'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// RBAC Tables for Role-Based Access Control
+export const roles = pgTable('roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  isSystem: boolean('is_system').notNull().default(false), // System roles cannot be deleted
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+});
+
+export const permissions = pgTable('permissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  resource: varchar('resource', { length: 100 }).notNull(), // e.g., 'servers', 'deployments', 'settings'
+  action: varchar('action', { length: 50 }).notNull(), // e.g., 'read', 'write', 'delete', 'execute'
+  description: text('description'),
+  isSystem: boolean('is_system').notNull().default(true), // System permissions cannot be modified
+});
+
+export const rolePermissions = pgTable('role_permissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  roleId: uuid('role_id').references(() => roles.id).notNull(),
+  permissionId: uuid('permission_id').references(() => permissions.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const userRoles = pgTable('user_roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  roleId: uuid('role_id').references(() => roles.id).notNull(),
+  assignedBy: uuid('assigned_by').references(() => users.id),
+  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, { fields: [users.organizationId], references: [organizations.id] }),
+  ownedOrganizations: many(organizations),
+  configurations: many(configurations),
+  deployments: many(deployments),
+  conversations: many(conversations),
+  auditLogs: many(auditLogs),
+  userRoles: many(userRoles),
+  createdRoles: many(roles, { relationName: 'createdRoles' }),
+  assignedRoles: many(userRoles, { relationName: 'assignedRoles' }),
+}));
+
+export const organizationsRelations = relations(organizations, ({ many, one }) => ({
+  owner: one(users, { fields: [organizations.ownerId], references: [users.id] }),
+  users: many(users),
+  pemKeys: many(pemKeys),
+  serverGroups: many(serverGroups),
+  servers: many(servers),
+  configurations: many(configurations),
+  deployments: many(deployments),
+  configurationStates: many(configurationStates),
+  conversations: many(conversations),
+  auditLogs: many(auditLogs),
+  roles: many(roles),
+}));
+
+export const pemKeysRelations = relations(pemKeys, ({ one, many }) => ({
+  organization: one(organizations, { fields: [pemKeys.organizationId], references: [organizations.id] }),
+  servers: many(servers),
+  serverGroups: many(serverGroups),
+}));
+
+export const serverGroupsRelations = relations(serverGroups, ({ one, many }) => ({
+  organization: one(organizations, { fields: [serverGroups.organizationId], references: [organizations.id] }),
+  defaultPemKey: one(pemKeys, { fields: [serverGroups.defaultPemKeyId], references: [pemKeys.id] }),
+  servers: many(servers),
+}));
+
+export const serversRelations = relations(servers, ({ one, many }) => ({
+  organization: one(organizations, { fields: [servers.organizationId], references: [organizations.id] }),
+  group: one(serverGroups, { fields: [servers.groupId], references: [serverGroups.id] }),
+  pemKey: one(pemKeys, { fields: [servers.pemKeyId], references: [pemKeys.id] }),
+  configurationStates: many(configurationStates),
+}));
+
+export const configurationsRelations = relations(configurations, ({ one, many }) => ({
+  organization: one(organizations, { fields: [configurations.organizationId], references: [organizations.id] }),
+  createdBy: one(users, { fields: [configurations.createdBy], references: [users.id] }),
+  deployments: many(deployments),
+  configurationStates: many(configurationStates),
+  messages: many(messages),
+}));
+
+export const deploymentsRelations = relations(deployments, ({ one }) => ({
+  configuration: one(configurations, { fields: [deployments.configurationId], references: [configurations.id] }),
+  executedBy: one(users, { fields: [deployments.executedBy], references: [users.id] }),
+  organization: one(organizations, { fields: [deployments.organizationId], references: [organizations.id] }),
+  parentDeployment: one(deployments, { 
+    fields: [deployments.parentDeploymentId], 
+    references: [deployments.id],
+    relationName: 'deploymentVersions'
+  }),
+}));
+
+export const configurationStatesRelations = relations(configurationStates, ({ one }) => ({
+  server: one(servers, { fields: [configurationStates.serverId], references: [servers.id] }),
+  configuration: one(configurations, { fields: [configurationStates.configurationId], references: [configurations.id] }),
+  organization: one(organizations, { fields: [configurationStates.organizationId], references: [organizations.id] }),
+}));
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  user: one(users, { fields: [conversations.userId], references: [users.id] }),
+  organization: one(organizations, { fields: [conversations.organizationId], references: [organizations.id] }),
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, { fields: [messages.conversationId], references: [conversations.id] }),
+  configuration: one(configurations, { fields: [messages.configurationId], references: [configurations.id] }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
+  organization: one(organizations, { fields: [auditLogs.organizationId], references: [organizations.id] }),
+}));
+
+// RBAC Relations
+export const rolesRelations = relations(roles, ({ one, many }) => ({
+  organization: one(organizations, { fields: [roles.organizationId], references: [organizations.id] }),
+  createdBy: one(users, { fields: [roles.createdBy], references: [users.id] }),
+  rolePermissions: many(rolePermissions),
+  userRoles: many(userRoles),
+}));
+
+export const permissionsRelations = relations(permissions, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  role: one(roles, { fields: [rolePermissions.roleId], references: [roles.id] }),
+  permission: one(permissions, { fields: [rolePermissions.permissionId], references: [permissions.id] }),
+}));
+
+export const userRolesRelations = relations(userRoles, ({ one }) => ({
+  user: one(users, { fields: [userRoles.userId], references: [users.id] }),
+  role: one(roles, { fields: [userRoles.roleId], references: [roles.id] }),
+  assignedBy: one(users, { fields: [userRoles.assignedBy], references: [users.id] }),
+}));

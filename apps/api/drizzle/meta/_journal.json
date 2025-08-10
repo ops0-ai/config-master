@@ -1,0 +1,27 @@
+{
+  "version": "5",
+  "dialect": "pg",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1754712032994,
+      "tag": "0000_rich_warlock",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1754768650556,
+      "tag": "0001_rainy_aaron_stack",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1754769995852,
+      "tag": "0002_cooing_impossible_man",
+      "breakpoints": true
+    }
+  ]
+}
