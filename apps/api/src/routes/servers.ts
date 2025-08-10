@@ -264,6 +264,17 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
 
 router.post('/:id/test-connection', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
+    // Check if user has execute permission for servers
+    const { hasPermission } = await import('../utils/rbacSeeder');
+    const canExecute = await hasPermission(req.user!.id, 'servers', 'execute');
+    
+    if (!canExecute) {
+      return res.status(403).json({ 
+        error: 'Insufficient permissions',
+        required: { resource: 'servers', action: 'execute' }
+      });
+    }
+    
     const server = await db
       .select()
       .from(servers)

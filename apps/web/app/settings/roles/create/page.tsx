@@ -375,104 +375,200 @@ export default function CreateEditRolePage() {
 
           <div className="p-6">
             {activeTab === 'permissions' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Side - Resources */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Resources</h3>
-                  <div className="space-y-4">
-                    {resources.map(resource => {
-                      const resourcePermissions = permissions[resource] || [];
-                      const selectedCount = resourcePermissions.filter(p => formData.permissions.includes(p.id)).length;
-                      
-                      return (
-                        <div key={resource} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium text-gray-900">
-                              {RESOURCE_DISPLAY_NAMES[resource] || resource}
-                            </h4>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              selectedCount === resourcePermissions.length 
-                                ? 'bg-green-100 text-green-800' 
-                                : selectedCount > 0 
-                                  ? 'bg-yellow-100 text-yellow-800' 
-                                  : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {selectedCount}/{resourcePermissions.length}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            {actions.map(action => {
-                              const permission = resourcePermissions.find(p => p.action === action);
-                              if (!permission) return (
-                                <div key={action} className="text-center py-2 text-gray-400 text-sm">
-                                  No {ACTION_DISPLAY_NAMES[action]}
-                                </div>
-                              );
-                              
-                              const isChecked = formData.permissions.includes(permission.id);
-                              
-                              return (
-                                <label key={action} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50">
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => togglePermission(permission.id)}
-                                    className="form-checkbox h-4 w-4 text-blue-600"
-                                  />
-                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${ACTION_COLORS[action]}`}>
-                                    {ACTION_DISPLAY_NAMES[action]}
+              <div>
+                {/* Permissions Matrix Table */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Permissions Matrix</h3>
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm text-gray-600">
+                        {formData.permissions.length} of {Object.values(permissions).flat().length} permissions selected
+                      </span>
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allPermissionIds = Object.values(permissions).flat().map(p => p.id);
+                            setFormData(prev => ({ ...prev, permissions: allPermissionIds }));
+                          }}
+                          className="text-sm px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, permissions: [] }))}
+                          className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+                              Resource
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              View/Read
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Create/Edit
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Delete
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Execute/Export
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Selected
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {resources.map((resource, resourceIndex) => {
+                            const resourcePermissions = permissions[resource] || [];
+                            const selectedCount = resourcePermissions.filter(p => formData.permissions.includes(p.id)).length;
+                            const totalCount = resourcePermissions.length;
+                            
+                            return (
+                              <tr key={resource} className={resourceIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 z-10" 
+                                    style={{ backgroundColor: resourceIndex % 2 === 0 ? 'white' : '#f9fafb' }}>
+                                  {RESOURCE_DISPLAY_NAMES[resource] || resource}
+                                </td>
+                                {['read', 'write', 'delete', 'execute'].map(action => {
+                                  // Handle special action mappings for certain resources
+                                  let actualAction = action;
+                                  let permission = resourcePermissions.find(p => p.action === actualAction);
+                                  
+                                  // Special mappings
+                                  if (!permission && action === 'read' && resource === 'audit-logs') {
+                                    actualAction = 'view';
+                                    permission = resourcePermissions.find(p => p.action === actualAction);
+                                  }
+                                  
+                                  if (!permission) {
+                                    // Check if this resource has any non-standard actions we should show
+                                    const nonStandardActions = resourcePermissions.filter(p => 
+                                      !['read', 'write', 'delete', 'execute', 'view'].includes(p.action)
+                                    );
+                                    
+                                    // For audit-logs, show export in the execute column
+                                    if (action === 'execute' && resource === 'audit-logs') {
+                                      const exportPermission = resourcePermissions.find(p => p.action === 'export');
+                                      if (exportPermission) {
+                                        const isChecked = formData.permissions.includes(exportPermission.id);
+                                        return (
+                                          <td key={action} className="px-4 py-4 text-center">
+                                            <label className="inline-flex items-center cursor-pointer">
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => togglePermission(exportPermission.id)}
+                                                className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                              />
+                                            </label>
+                                          </td>
+                                        );
+                                      }
+                                    }
+                                    
+                                    return (
+                                      <td key={action} className="px-4 py-4 text-center">
+                                        <div className="w-5 h-5 bg-gray-100 rounded border-2 border-gray-200 mx-auto opacity-50"></div>
+                                      </td>
+                                    );
+                                  }
+                                  
+                                  const isChecked = formData.permissions.includes(permission.id);
+                                  
+                                  return (
+                                    <td key={action} className="px-4 py-4 text-center">
+                                      <label className="inline-flex items-center cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => togglePermission(permission.id)}
+                                          className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                      </label>
+                                    </td>
+                                  );
+                                })}
+                                <td className="px-4 py-4 text-center">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    selectedCount === totalCount && totalCount > 0
+                                      ? 'bg-green-100 text-green-800'
+                                      : selectedCount > 0
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {selectedCount}/{totalCount}
                                   </span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right Side - Actions Summary */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Selected Permissions</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-4">
-                      {formData.permissions.length} of {Object.values(permissions).flat().length} permissions selected
-                    </div>
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['read', 'write', 'delete', 'execute'].map(action => {
+                    const actionPermissions = Object.values(permissions).flat().filter(p => p.action === action);
+                    const selectedActionPermissions = actionPermissions.filter(p => formData.permissions.includes(p.id));
                     
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {actions.map(action => {
-                        const actionPermissions = Object.entries(permissions).flatMap(([resource, perms]) => 
-                          perms.filter(p => p.action === action && formData.permissions.includes(p.id))
-                            .map(p => ({ ...p, resource }))
-                        );
-                        
-                        if (actionPermissions.length === 0) return null;
-                        
-                        return (
-                          <div key={action}>
-                            <h4 className={`text-sm font-medium mb-2 inline-flex items-center px-2 py-1 rounded ${ACTION_COLORS[action]}`}>
-                              {ACTION_DISPLAY_NAMES[action]} ({actionPermissions.length})
-                            </h4>
-                            <ul className="ml-4 space-y-1">
-                              {actionPermissions.map(perm => (
-                                <li key={perm.id} className="text-sm text-gray-600">
-                                  {RESOURCE_DISPLAY_NAMES[perm.resource] || perm.resource}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        );
-                      })}
-                      
-                      {formData.permissions.length === 0 && (
-                        <div className="text-center text-gray-500 py-8">
-                          No permissions selected
+                    return (
+                      <div key={action} className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {ACTION_DISPLAY_NAMES[action]}
+                          </h4>
+                          <span className="text-xs text-gray-500">
+                            {selectedActionPermissions.length}/{actionPermissions.length}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const actionPermissionIds = actionPermissions.map(p => p.id);
+                              setFormData(prev => ({
+                                ...prev,
+                                permissions: Array.from(new Set([...prev.permissions, ...actionPermissionIds]))
+                              }));
+                            }}
+                            className="flex-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                          >
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const actionPermissionIds = actionPermissions.map(p => p.id);
+                              setFormData(prev => ({
+                                ...prev,
+                                permissions: prev.permissions.filter(id => !actionPermissionIds.includes(id))
+                              }));
+                            }}
+                            className="flex-1 text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
+                          >
+                            None
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -17,6 +17,7 @@ import { deploymentRoutes } from './routes/deployments';
 import { conversationRoutes } from './routes/conversations';
 import { ansibleRoutes } from './routes/ansible';
 import { auditRoutes } from './routes/audit';
+import auditLogRoutes from './routes/auditLogs';
 import { roleRoutes } from './routes/roles';
 import { userRoutes } from './routes/users';
 
@@ -63,6 +64,7 @@ app.use('/api/deployments', authMiddleware, rbacMiddleware(), auditMiddleware, d
 app.use('/api/conversations', authMiddleware, rbacMiddleware(), auditMiddleware, conversationRoutes);
 app.use('/api/ansible', authMiddleware, rbacMiddleware(), auditMiddleware, ansibleRoutes);
 app.use('/api/audit', authMiddleware, auditMiddleware, auditRoutes);
+app.use('/api/audit-logs', authMiddleware, rbacMiddleware(), auditMiddleware, auditLogRoutes);
 app.use('/api/roles', authMiddleware, rbacMiddleware(), auditMiddleware, roleRoutes);
 app.use('/api/users', authMiddleware, rbacMiddleware(), auditMiddleware, userRoutes);
 

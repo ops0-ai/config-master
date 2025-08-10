@@ -11,11 +11,19 @@ import {
   CheckCircleIcon,
   UserGroupIcon,
   ShieldCheckIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import RoleMatrixManagement from './RoleMatrixManagement';
 import UsersManagement from './UsersManagement';
+import dynamic from 'next/dynamic';
+
+const AuditLogsPage = dynamic(() => import('../app/settings/audit-logs/page'), {
+  loading: () => <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+  </div>
+});
 
 interface Settings {
   claudeApiKey?: string;
@@ -25,7 +33,7 @@ interface Settings {
   deploymentTimeout?: number;
 }
 
-type SettingsTab = 'general' | 'users' | 'roles';
+type SettingsTab = 'general' | 'users' | 'roles' | 'audit-logs';
 
 export default function SettingsPage() {
   const { user, organization } = useAuth();
@@ -164,6 +172,12 @@ export default function SettingsPage() {
       name: 'Roles & Permissions', 
       icon: ShieldCheckIcon,
       description: 'Define roles and access controls'
+    },
+    { 
+      id: 'audit-logs' as SettingsTab, 
+      name: 'Audit Logs', 
+      icon: ClipboardDocumentListIcon,
+      description: 'View system activity and user actions'
     },
   ];
 
@@ -527,6 +541,8 @@ export default function SettingsPage() {
 
       {/* Roles Management Tab */}
       {activeTab === 'roles' && <RoleMatrixManagement />}
+
+      {activeTab === 'audit-logs' && <AuditLogsPage />}
 
     </div>
   );

@@ -24,21 +24,25 @@ const systemPermissions = [
   // Server management permissions
   { resource: 'servers', action: 'read', description: 'View servers' },
   { resource: 'servers', action: 'write', description: 'Create and modify servers' },
+  { resource: 'servers', action: 'execute', description: 'Test server connections' },
   { resource: 'servers', action: 'delete', description: 'Delete servers' },
   
   // Server group permissions
   { resource: 'server-groups', action: 'read', description: 'View server groups' },
   { resource: 'server-groups', action: 'write', description: 'Create and modify server groups' },
+  { resource: 'server-groups', action: 'execute', description: 'Manage server group operations' },
   { resource: 'server-groups', action: 'delete', description: 'Delete server groups' },
   
   // PEM key permissions
   { resource: 'pem-keys', action: 'read', description: 'View PEM keys' },
   { resource: 'pem-keys', action: 'write', description: 'Upload and modify PEM keys' },
+  { resource: 'pem-keys', action: 'execute', description: 'Test PEM key connections' },
   { resource: 'pem-keys', action: 'delete', description: 'Delete PEM keys' },
   
   // Configuration permissions
   { resource: 'configurations', action: 'read', description: 'View configurations' },
   { resource: 'configurations', action: 'write', description: 'Create and modify configurations' },
+  { resource: 'configurations', action: 'execute', description: 'Validate and test configurations' },
   { resource: 'configurations', action: 'delete', description: 'Delete configurations' },
   
   // Deployment permissions
@@ -53,6 +57,10 @@ const systemPermissions = [
   // Chat permissions
   { resource: 'chat', action: 'read', description: 'View configuration chat' },
   { resource: 'chat', action: 'write', description: 'Use AI configuration assistant' },
+  
+  // Audit log permissions
+  { resource: 'audit-logs', action: 'view', description: 'View audit logs' },
+  { resource: 'audit-logs', action: 'export', description: 'Export audit logs' },
 ];
 
 // Define system roles with their permissions
@@ -64,12 +72,13 @@ const systemRoles = {
       'dashboard:read', 'settings:read', 'settings:write',
       'users:read', 'users:write', 'users:delete',
       'roles:read', 'roles:write', 'roles:delete',
-      'servers:read', 'servers:write', 'servers:delete',
-      'server-groups:read', 'server-groups:write', 'server-groups:delete',
-      'pem-keys:read', 'pem-keys:write', 'pem-keys:delete',
-      'configurations:read', 'configurations:write', 'configurations:delete',
+      'servers:read', 'servers:write', 'servers:execute', 'servers:delete',
+      'server-groups:read', 'server-groups:write', 'server-groups:execute', 'server-groups:delete',
+      'pem-keys:read', 'pem-keys:write', 'pem-keys:execute', 'pem-keys:delete',
+      'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:delete',
       'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
-      'training:read', 'chat:read', 'chat:write'
+      'training:read', 'chat:read', 'chat:write',
+      'audit-logs:view', 'audit-logs:export'
     ]
   },
   operator: {
@@ -77,12 +86,13 @@ const systemRoles = {
     description: 'Can manage infrastructure and execute deployments',
     permissions: [
       'dashboard:read', 'settings:read',
-      'servers:read', 'servers:write',
-      'server-groups:read', 'server-groups:write',
-      'pem-keys:read', 'pem-keys:write',
-      'configurations:read', 'configurations:write',
+      'servers:read', 'servers:write', 'servers:execute',
+      'server-groups:read', 'server-groups:write', 'server-groups:execute',
+      'pem-keys:read', 'pem-keys:write', 'pem-keys:execute',
+      'configurations:read', 'configurations:write', 'configurations:execute',
       'deployments:read', 'deployments:write', 'deployments:execute',
-      'training:read', 'chat:read', 'chat:write'
+      'training:read', 'chat:read', 'chat:write',
+      'audit-logs:view'
     ]
   },
   viewer: {
