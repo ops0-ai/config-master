@@ -20,6 +20,7 @@ import { auditRoutes } from './routes/audit';
 import auditLogRoutes from './routes/auditLogs';
 import { roleRoutes } from './routes/roles';
 import { userRoutes } from './routes/users';
+import { awsRoutes } from './routes/aws';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -67,6 +68,7 @@ app.use('/api/audit', authMiddleware, auditMiddleware, auditRoutes);
 app.use('/api/audit-logs', authMiddleware, rbacMiddleware(), auditMiddleware, auditLogRoutes);
 app.use('/api/roles', authMiddleware, rbacMiddleware(), auditMiddleware, roleRoutes);
 app.use('/api/users', authMiddleware, rbacMiddleware(), auditMiddleware, userRoutes);
+app.use('/api/aws', authMiddleware, rbacMiddleware(), auditMiddleware, awsRoutes);
 
 app.use(errorHandler);
 

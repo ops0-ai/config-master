@@ -100,6 +100,19 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'GET:/api/audit-logs/resources': { resource: 'audit-logs', action: 'view' },
   'GET:/api/audit-logs/stats': { resource: 'audit-logs', action: 'view' },
   'POST:/api/audit-logs/export': { resource: 'audit-logs', action: 'export' },
+  
+  // AWS Integrations
+  'GET:/api/aws': { resource: 'aws-integrations', action: 'read' },
+  'GET:/api/aws/regions': { resource: 'aws-integrations', action: 'read' },
+  'GET:/api/aws/iam-policy': { resource: 'aws-integrations', action: 'read' },
+  'POST:/api/aws/test-connection': { resource: 'aws-integrations', action: 'read' },
+  'GET:/api/aws/*': { resource: 'aws-integrations', action: 'read' },
+  'POST:/api/aws': { resource: 'aws-integrations', action: 'write' },
+  'PUT:/api/aws/*': { resource: 'aws-integrations', action: 'write' },
+  'DELETE:/api/aws/*': { resource: 'aws-integrations', action: 'delete' },
+  'POST:/api/aws/*/sync': { resource: 'aws-integrations', action: 'sync' },
+  'GET:/api/aws/*/instances': { resource: 'aws-integrations', action: 'read' },
+  'POST:/api/aws/*/instances/*/import': { resource: 'aws-integrations', action: 'import' },
 };
 
 // Routes that don't require authorization

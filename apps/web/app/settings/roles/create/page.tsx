@@ -47,6 +47,8 @@ const RESOURCE_DISPLAY_NAMES: { [key: string]: string } = {
   'deployments': 'Deployments',
   'training': 'Training',
   'chat': 'AI Chat',
+  'audit-logs': 'Audit Logs',
+  'aws-integrations': 'Integrations',
 };
 
 const ACTION_DISPLAY_NAMES: { [key: string]: string } = {
@@ -475,6 +477,43 @@ export default function CreateEditRolePage() {
                                                 className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                               />
                                             </label>
+                                          </td>
+                                        );
+                                      }
+                                    }
+                                    
+                                    // For aws-integrations, show sync and import permissions in the execute column, but grey out the execute action
+                                    if (action === 'execute' && resource === 'aws-integrations') {
+                                      const syncPermission = resourcePermissions.find(p => p.action === 'sync');
+                                      const importPermission = resourcePermissions.find(p => p.action === 'import');
+                                      
+                                      if (syncPermission && importPermission) {
+                                        const syncChecked = formData.permissions.includes(syncPermission.id);
+                                        const importChecked = formData.permissions.includes(importPermission.id);
+                                        
+                                        return (
+                                          <td key={action} className="px-4 py-4 text-center">
+                                            <div className="space-y-1">
+                                              <label className="inline-flex items-center cursor-pointer" title="Sync AWS instances">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={syncChecked}
+                                                  onChange={() => togglePermission(syncPermission.id)}
+                                                  className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <span className="ml-1 text-xs text-gray-600">Sync</span>
+                                              </label>
+                                              <br />
+                                              <label className="inline-flex items-center cursor-pointer" title="Import AWS instances as servers">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={importChecked}
+                                                  onChange={() => togglePermission(importPermission.id)}
+                                                  className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <span className="ml-1 text-xs text-gray-600">Import</span>
+                                              </label>
+                                            </div>
                                           </td>
                                         );
                                       }

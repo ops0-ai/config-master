@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userRolesRelations = exports.rolePermissionsRelations = exports.permissionsRelations = exports.rolesRelations = exports.auditLogsRelations = exports.messagesRelations = exports.conversationsRelations = exports.configurationStatesRelations = exports.deploymentsRelations = exports.configurationsRelations = exports.serversRelations = exports.serverGroupsRelations = exports.pemKeysRelations = exports.organizationsRelations = exports.usersRelations = exports.userRoles = exports.rolePermissions = exports.permissions = exports.roles = exports.auditLogs = exports.messages = exports.conversations = exports.configurationStates = exports.deployments = exports.configurations = exports.servers = exports.serverGroups = exports.pemKeys = exports.users = exports.organizations = void 0;
+exports.awsInstancesRelations = exports.awsIntegrationsRelations = exports.awsInstances = exports.awsIntegrations = exports.userRolesRelations = exports.rolePermissionsRelations = exports.permissionsRelations = exports.rolesRelations = exports.auditLogsRelations = exports.messagesRelations = exports.conversationsRelations = exports.configurationStatesRelations = exports.deploymentsRelations = exports.configurationsRelations = exports.serversRelations = exports.serverGroupsRelations = exports.pemKeysRelations = exports.organizationsRelations = exports.usersRelations = exports.userRoles = exports.rolePermissions = exports.permissions = exports.roles = exports.auditLogs = exports.messages = exports.conversations = exports.configurationStates = exports.deployments = exports.configurations = exports.servers = exports.serverGroups = exports.pemKeys = exports.users = exports.organizations = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 const drizzle_orm_1 = require("drizzle-orm");
 exports.organizations = (0, pg_core_1.pgTable)('organizations', {
@@ -266,5 +266,50 @@ exports.userRolesRelations = (0, drizzle_orm_1.relations)(exports.userRoles, ({ 
     user: one(exports.users, { fields: [exports.userRoles.userId], references: [exports.users.id] }),
     role: one(exports.roles, { fields: [exports.userRoles.roleId], references: [exports.roles.id] }),
     assignedBy: one(exports.users, { fields: [exports.userRoles.assignedBy], references: [exports.users.id] }),
+}));
+// AWS Integration Tables
+exports.awsIntegrations = (0, pg_core_1.pgTable)('aws_integrations', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    organizationId: (0, pg_core_1.uuid)('organization_id').references(() => exports.organizations.id).notNull(),
+    name: (0, pg_core_1.varchar)('name', { length: 255 }).notNull(),
+    roleArn: (0, pg_core_1.text)('role_arn').notNull(),
+    externalId: (0, pg_core_1.varchar)('external_id', { length: 255 }).notNull(),
+    regions: (0, pg_core_1.jsonb)('regions').$type().notNull().default([]),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    lastSyncAt: (0, pg_core_1.timestamp)('last_sync_at'),
+    syncStatus: (0, pg_core_1.varchar)('sync_status', { length: 50 }).default('pending'),
+    createdAt: (0, pg_core_1.timestamp)('created_at').notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at').notNull().defaultNow(),
+});
+exports.awsInstances = (0, pg_core_1.pgTable)('aws_instances', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    integrationId: (0, pg_core_1.uuid)('integration_id').references(() => exports.awsIntegrations.id, { onDelete: 'cascade' }).notNull(),
+    instanceId: (0, pg_core_1.varchar)('instance_id', { length: 255 }).notNull(),
+    region: (0, pg_core_1.varchar)('region', { length: 50 }).notNull(),
+    name: (0, pg_core_1.varchar)('name', { length: 255 }),
+    state: (0, pg_core_1.varchar)('state', { length: 50 }),
+    instanceType: (0, pg_core_1.varchar)('instance_type', { length: 50 }),
+    publicIp: (0, pg_core_1.varchar)('public_ip', { length: 45 }),
+    privateIp: (0, pg_core_1.varchar)('private_ip', { length: 45 }),
+    publicDns: (0, pg_core_1.text)('public_dns'),
+    privateDns: (0, pg_core_1.text)('private_dns'),
+    keyName: (0, pg_core_1.varchar)('key_name', { length: 255 }),
+    vpcId: (0, pg_core_1.varchar)('vpc_id', { length: 255 }),
+    subnetId: (0, pg_core_1.varchar)('subnet_id', { length: 255 }),
+    securityGroups: (0, pg_core_1.jsonb)('security_groups').$type().default([]),
+    tags: (0, pg_core_1.jsonb)('tags').$type().default({}),
+    platform: (0, pg_core_1.varchar)('platform', { length: 50 }),
+    launchTime: (0, pg_core_1.timestamp)('launch_time'),
+    metadata: (0, pg_core_1.jsonb)('metadata').$type().default({}),
+    createdAt: (0, pg_core_1.timestamp)('created_at').notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at').notNull().defaultNow(),
+});
+// AWS Integration Relations
+exports.awsIntegrationsRelations = (0, drizzle_orm_1.relations)(exports.awsIntegrations, ({ one, many }) => ({
+    organization: one(exports.organizations, { fields: [exports.awsIntegrations.organizationId], references: [exports.organizations.id] }),
+    instances: many(exports.awsInstances),
+}));
+exports.awsInstancesRelations = (0, drizzle_orm_1.relations)(exports.awsInstances, ({ one }) => ({
+    integration: one(exports.awsIntegrations, { fields: [exports.awsInstances.integrationId], references: [exports.awsIntegrations.id] }),
 }));
 //# sourceMappingURL=schema.js.map

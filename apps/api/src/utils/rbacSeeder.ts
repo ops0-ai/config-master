@@ -61,6 +61,13 @@ const systemPermissions = [
   // Audit log permissions
   { resource: 'audit-logs', action: 'view', description: 'View audit logs' },
   { resource: 'audit-logs', action: 'export', description: 'Export audit logs' },
+  
+  // AWS integration permissions
+  { resource: 'aws-integrations', action: 'read', description: 'View AWS integrations' },
+  { resource: 'aws-integrations', action: 'write', description: 'Create and modify AWS integrations' },
+  { resource: 'aws-integrations', action: 'delete', description: 'Delete AWS integrations' },
+  { resource: 'aws-integrations', action: 'sync', description: 'Sync AWS instances' },
+  { resource: 'aws-integrations', action: 'import', description: 'Import AWS instances as servers' },
 ];
 
 // Define system roles with their permissions
@@ -78,7 +85,9 @@ const systemRoles = {
       'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:delete',
       'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
       'training:read', 'chat:read', 'chat:write',
-      'audit-logs:view', 'audit-logs:export'
+      'audit-logs:view', 'audit-logs:export',
+      'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 
+      'aws-integrations:sync', 'aws-integrations:import'
     ]
   },
   operator: {
@@ -92,6 +101,7 @@ const systemRoles = {
       'configurations:read', 'configurations:write', 'configurations:execute',
       'deployments:read', 'deployments:write', 'deployments:execute',
       'training:read', 'chat:read', 'chat:write',
+      'aws-integrations:read', 'aws-integrations:sync', 'aws-integrations:import',
       'audit-logs:view'
     ]
   },

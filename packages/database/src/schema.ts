@@ -294,3 +294,52 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
   role: one(roles, { fields: [userRoles.roleId], references: [roles.id] }),
   assignedBy: one(users, { fields: [userRoles.assignedBy], references: [users.id] }),
 }));
+
+// AWS Integration Tables
+export const awsIntegrations = pgTable('aws_integrations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  roleArn: text('role_arn').notNull(),
+  externalId: varchar('external_id', { length: 255 }).notNull(),
+  regions: jsonb('regions').$type<string[]>().notNull().default([]),
+  isActive: boolean('is_active').notNull().default(true),
+  lastSyncAt: timestamp('last_sync_at'),
+  syncStatus: varchar('sync_status', { length: 50 }).default('pending'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const awsInstances = pgTable('aws_instances', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  integrationId: uuid('integration_id').references(() => awsIntegrations.id, { onDelete: 'cascade' }).notNull(),
+  instanceId: varchar('instance_id', { length: 255 }).notNull(),
+  region: varchar('region', { length: 50 }).notNull(),
+  name: varchar('name', { length: 255 }),
+  state: varchar('state', { length: 50 }),
+  instanceType: varchar('instance_type', { length: 50 }),
+  publicIp: varchar('public_ip', { length: 45 }),
+  privateIp: varchar('private_ip', { length: 45 }),
+  publicDns: text('public_dns'),
+  privateDns: text('private_dns'),
+  keyName: varchar('key_name', { length: 255 }),
+  vpcId: varchar('vpc_id', { length: 255 }),
+  subnetId: varchar('subnet_id', { length: 255 }),
+  securityGroups: jsonb('security_groups').$type<any[]>().default([]),
+  tags: jsonb('tags').$type<Record<string, string>>().default({}),
+  platform: varchar('platform', { length: 50 }),
+  launchTime: timestamp('launch_time'),
+  metadata: jsonb('metadata').$type<any>().default({}),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// AWS Integration Relations
+export const awsIntegrationsRelations = relations(awsIntegrations, ({ one, many }) => ({
+  organization: one(organizations, { fields: [awsIntegrations.organizationId], references: [organizations.id] }),
+  instances: many(awsInstances),
+}));
+
+export const awsInstancesRelations = relations(awsInstances, ({ one }) => ({
+  integration: one(awsIntegrations, { fields: [awsInstances.integrationId], references: [awsIntegrations.id] }),
+}));

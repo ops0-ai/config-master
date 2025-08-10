@@ -1,3 +1,12 @@
+
+> api@0.1.0 dev
+> nodemon src/index.ts
+
+[33m[nodemon] 3.1.10[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: ts,json[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
 🔍 Drift detection service started with hourly scans
 🔍 Checking Ansible availability...
 🌱 Seeding RBAC permissions and roles...
@@ -11,458 +20,366 @@
 ✅ Ansible installed successfully via pip3.
 ✅ Ansible installation completed successfully.
 🔧 Platform ready with Ansible integration and RBAC
-::ffff:127.0.0.1 - - [09/Aug/2025:20:32:02 +0000] "GET /health HTTP/1.1" 200 54 "-" "curl/8.1.2"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:32:46 +0000] "GET /api/roles/permissions/all HTTP/1.1" 200 114756 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:32:46 +0000] "GET /api/roles HTTP/1.1" 200 7691 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:32:46 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:32:46 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:32:52 +0000] "GET /api/users HTTP/1.1" 200 379 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:32:52 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:32:52 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:32:52 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:08 +0000] "POST /api/users HTTP/1.1" 400 197 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:12 +0000] "POST /api/users HTTP/1.1" 400 197 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:18 +0000] "POST /api/users HTTP/1.1" 400 197 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:19 +0000] "POST /api/users HTTP/1.1" 400 197 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:21 +0000] "POST /api/users HTTP/1.1" 400 197 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:28 +0000] "POST /api/users HTTP/1.1" 201 182 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:28 +0000] "GET /api/users HTTP/1.1" 200 573 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:33:32 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:32 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:33:32 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:32 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:43 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:43 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:43 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:43 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: POST:/api/roles/assign
-::1 - - [09/Aug/2025:20:33:47 +0000] "POST /api/roles/assign HTTP/1.1" 201 249 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:47 +0000] "GET /api/users HTTP/1.1" 200 746 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:33:56 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:07 +0000] "POST /api/auth/login HTTP/1.1" 200 509 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:16 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:16 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to POST:/api/pem-keys (required: pem-keys:write)
-::1 - - [09/Aug/2025:20:34:27 +0000] "POST /api/pem-keys HTTP/1.1" 403 88 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/pem-keys/2d71955e-dda7-4087-9fe8-4317a5fda4d8
-::1 - - [09/Aug/2025:20:34:32 +0000] "DELETE /api/pem-keys/2d71955e-dda7-4087-9fe8-4317a5fda4d8 HTTP/1.1" 400 139 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:34 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:34 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:34 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:34 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:34 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:34 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:41 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: POST:/api/deployments/d9028da2-9f9f-4f2a-946d-397b4a96ffee/run
-Creating new deployment version for redeployment of nginx-new
-::1 - - [09/Aug/2025:20:34:43 +0000] "POST /api/deployments/d9028da2-9f9f-4f2a-946d-397b4a96ffee/run HTTP/1.1" 200 32 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:43 +0000] "GET /api/deployments HTTP/1.1" 200 8122450 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-✅ Found ansible-playbook at: /Users/chaitanyasistla/Library/Python/3.9/bin/ansible-playbook
-📝 Generating inventory for 1 targets
-🎯 Processing target: 54.90.249.246 (54.90.249.246)
-   • User: ec2-user
-   • PEM Key ID: 53db70b6-c726-4210-a280-2db59ed3e937
-🔍 Looking up PEM key: 53db70b6-c726-4210-a280-2db59ed3e937
-🔐 Secure key storage initialized
-📋 Found PEM key: "new" (53db70b6-c726-4210-a280-2db59ed3e937)
-🔓 Attempting to decrypt PEM key "new" for server 54.90.249.246
-❌ PEM key decryption failed for "new" on 54.90.249.246:
-   Error: Key decryption failed: error:1C800064:Provider routines::bad decrypt
-   Stack: Error: Key decryption failed: error:1C800064:Provider routines::bad decrypt
-    at SecureKeyManager.decryptPemKey (/Users/chaitanyasistla/Desktop/config-management/apps/api/dist/utils/keyManagement.js:77:19)
-    at AnsibleExecutionService.generateInventory (/Users/chaitanyasistla/Desktop/config-management/apps/api/dist/services/ansibleExecution.js:151:61)
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async AnsibleExecutionService.executePlaybook (/Users/chaitanyasistla/Desktop/config-management/apps/api/dist/services/ansibleExecution.js:77:38)
-    at async /Users/chaitanyasistla/Desktop/config-management/apps/api/dist/routes/deployments.js:254:17
-🔑 Falling back to password authentication for 54.90.249.246
-🔐 Using DEFAULT_SSH_PASSWORD for 54.90.249.246
-📝 Added to inventory: 54.90.249.246 ansible_host=54.90.249.246 ansible_port=22 ansible_user=ec2-user ansible_ssh_pass=demo123
-📋 Generated inventory:
-[servers]
-54.90.249.246 ansible_host=54.90.249.246 ansible_port=22 ansible_user=ec2-user ansible_ssh_pass=demo123
-
-[servers:vars]
-ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-
-(node:45353) [DEP0106] DeprecationWarning: crypto.createDecipher is deprecated.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-✅ Found ansible at: /Users/chaitanyasistla/Library/Python/3.9/bin/ansible
-✅ Found ansible-playbook at: /Users/chaitanyasistla/Library/Python/3.9/bin/ansible-playbook
-::1 - - [09/Aug/2025:20:34:49 +0000] "GET /api/deployments HTTP/1.1" 200 8124343 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/deployments/a1585ac8-bab3-459d-a0d1-9c5f1a5f0e8c
-::1 - - [09/Aug/2025:20:34:49 +0000] "GET /api/deployments/a1585ac8-bab3-459d-a0d1-9c5f1a5f0e8c HTTP/1.1" 200 2540 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/deployments/b8a077f4-0a6b-4765-b5ca-e2f1a2dd45b5
-::1 - - [09/Aug/2025:20:34:54 +0000] "DELETE /api/deployments/b8a077f4-0a6b-4765-b5ca-e2f1a2dd45b5 HTTP/1.1" 204 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:54 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:54 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:54 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:54 +0000] "GET /api/deployments HTTP/1.1" 200 8123619 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:59 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:34:59 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to POST:/api/configurations (required: configurations:write)
-::1 - - [09/Aug/2025:20:35:06 +0000] "POST /api/configurations HTTP/1.1" 403 94 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/configurations/6ea4902b-853e-466a-95cd-c9a664a6765d
-Error deleting configuration: PostgresError: update or delete on table "configurations" violates foreign key constraint "deployments_configuration_id_configurations_id_fk" on table "deployments"
-    at ErrorResponse (/Users/chaitanyasistla/Desktop/config-management/node_modules/postgres/cjs/src/connection.js:794:26)
-    at handle (/Users/chaitanyasistla/Desktop/config-management/node_modules/postgres/cjs/src/connection.js:480:6)
-    at Socket.data (/Users/chaitanyasistla/Desktop/config-management/node_modules/postgres/cjs/src/connection.js:315:9)
-    at Socket.emit (node:events:519:28)
-    at addChunk (node:internal/streams/readable:559:12)
-    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
-    at Readable.push (node:internal/streams/readable:390:5)
-    at TCP.onStreamRead (node:internal/stream_base_commons:191:23) {
-  severity_local: 'ERROR',
-  severity: 'ERROR',
-  code: '23503',
-  detail: 'Key (id)=(6ea4902b-853e-466a-95cd-c9a664a6765d) is still referenced from table "deployments".',
-  schema_name: 'public',
-  table_name: 'deployments',
-  constraint_name: 'deployments_configuration_id_configurations_id_fk',
-  file: 'ri_triggers.c',
-  line: '2553',
-  routine: 'ri_ReportViolation'
+::ffff:127.0.0.1 - - [10/Aug/2025:18:19:24 +0000] "GET /health HTTP/1.1" 200 54 "-" "curl/8.1.2"
+::1 - - [10/Aug/2025:18:20:11 +0000] "GET /api/roles HTTP/1.1" 200 12848 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:11 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:14 +0000] "GET /api/roles/permissions/all HTTP/1.1" 200 5764 "http://localhost:3000/settings/roles/create?id=c526160d-7248-4cee-aa31-110408448292" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:14 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings/roles/create?id=c526160d-7248-4cee-aa31-110408448292" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:14 +0000] "GET /api/roles/c526160d-7248-4cee-aa31-110408448292 HTTP/1.1" 304 - "http://localhost:3000/settings/roles/create?id=c526160d-7248-4cee-aa31-110408448292" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:14 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings/roles/create?id=c526160d-7248-4cee-aa31-110408448292" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:14 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings/roles/create?id=c526160d-7248-4cee-aa31-110408448292" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:14 +0000] "GET /api/roles/c526160d-7248-4cee-aa31-110408448292 HTTP/1.1" 304 - "http://localhost:3000/settings/roles/create?id=c526160d-7248-4cee-aa31-110408448292" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/audit-logs/resources HTTP/1.1" 200 392 "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/audit-logs/actions HTTP/1.1" 304 - "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/audit-logs?page=1&limit=50 HTTP/1.1" 200 30477 "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/audit-logs/actions HTTP/1.1" 304 - "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/audit-logs/resources HTTP/1.1" 304 - "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:23 +0000] "GET /api/audit-logs?page=1&limit=50 HTTP/1.1" 200 30442 "http://localhost:3000/settings?tab=roles" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:32 +0000] "GET /api/aws HTTP/1.1" 200 2 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:32 +0000] "GET /api/aws HTTP/1.1" 304 - "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+Error fetching AWS regions: UnauthorizedOperation: You are not authorized to perform this operation. User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: ec2:DescribeRegions because no identity-based policy allows the ec2:DescribeRegions action
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-ec2/dist-cjs/index.js:17271:10)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.getAvailableRegions (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:55:24)
+    at async /Users/chaitanyasistla/Desktop/config-management/apps/api/src/routes/aws.ts:44:21 {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '241fb4be-7cd0-4e8b-9423-b5f6b6a5ddef',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Code: 'UnauthorizedOperation'
 }
-::1 - - [09/Aug/2025:20:35:11 +0000] "DELETE /api/configurations/6ea4902b-853e-466a-95cd-c9a664a6765d HTTP/1.1" 500 33 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:15 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:18 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:18 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:18 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:18 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:18 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:18 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:19 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:19 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:19 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:19 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:19 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:19 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:20 +0000] "GET /api/conversations HTTP/1.1" 200 2 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:20 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:20 +0000] "GET /api/conversations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:20 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:22 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:22 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:22 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:22 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:22 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:22 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:35:26 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/users (required: users:read)
-::1 - - [09/Aug/2025:20:35:26 +0000] "GET /api/users HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:35:26 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/users (required: users:read)
-::1 - - [09/Aug/2025:20:35:26 +0000] "GET /api/users HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:35:30 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:30 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:35:30 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:30 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:47 +0000] "POST /api/auth/login HTTP/1.1" 200 532 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:55 +0000] "GET /api/conversations HTTP/1.1" 200 538 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:55 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages
-::1 - - [09/Aug/2025:20:35:55 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:55 +0000] "GET /api/conversations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:55 +0000] "GET /api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages
-::1 - - [09/Aug/2025:20:35:55 +0000] "GET /api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:58 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:58 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:58 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:58 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:58 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:35:58 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:00 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:00 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:00 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:00 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:00 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:00 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:02 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:02 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:04 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:04 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:36:07 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:07 +0000] "GET /api/roles HTTP/1.1" 200 7691 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:36:07 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:36:07 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:13 +0000] "GET /api/users HTTP/1.1" 200 746 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:13 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:13 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:13 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4
-::1 - - [09/Aug/2025:20:38:18 +0000] "DELETE /api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4 HTTP/1.1" 200 50 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:18 +0000] "GET /api/users HTTP/1.1" 200 573 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: POST:/api/roles/assign
-::1 - - [09/Aug/2025:20:38:19 +0000] "POST /api/roles/assign HTTP/1.1" 201 249 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:19 +0000] "GET /api/users HTTP/1.1" 200 723 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4
-::1 - - [09/Aug/2025:20:38:21 +0000] "DELETE /api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4 HTTP/1.1" 200 50 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:21 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4
-::1 - - [09/Aug/2025:20:38:21 +0000] "DELETE /api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4 HTTP/1.1" 200 50 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:21 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4
-::1 - - [09/Aug/2025:20:38:22 +0000] "DELETE /api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4 HTTP/1.1" 200 50 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:22 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4
-::1 - - [09/Aug/2025:20:38:22 +0000] "DELETE /api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4 HTTP/1.1" 200 50 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:22 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: DELETE:/api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4
-::1 - - [09/Aug/2025:20:38:22 +0000] "DELETE /api/roles/assign/b4de5580-016d-4137-b2f1-a86bdf464f28/ed29b54c-f4b0-4c63-a3a9-68f914de32d4 HTTP/1.1" 200 50 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:22 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: POST:/api/roles/assign
-::1 - - [09/Aug/2025:20:38:24 +0000] "POST /api/roles/assign HTTP/1.1" 400 38 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:38:45 +0000] "POST /api/auth/login HTTP/1.1" 200 509 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:51 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/conversations (required: chat:read)
-::1 - - [09/Aug/2025:20:38:51 +0000] "GET /api/conversations HTTP/1.1" 403 83 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:51 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/conversations (required: chat:read)
-::1 - - [09/Aug/2025:20:38:51 +0000] "GET /api/conversations HTTP/1.1" 403 83 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:53 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:53 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:38:53 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:38:53 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:38:53 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:38:53 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:38:55 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:55 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:38:55 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:55 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:38:55 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:38:55 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:38:57 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:38:57 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/deployments (required: deployments:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/deployments HTTP/1.1" 403 90 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/deployments (required: deployments:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/deployments HTTP/1.1" 403 90 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:38:58 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/users (required: users:read)
-::1 - - [09/Aug/2025:20:39:03 +0000] "GET /api/users HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:39:03 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:39:03 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/users (required: users:read)
-::1 - - [09/Aug/2025:20:39:03 +0000] "GET /api/users HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:39:04 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:39:04 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/roles (required: roles:read)
-::1 - - [09/Aug/2025:20:39:04 +0000] "GET /api/roles HTTP/1.1" 403 84 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:39:04 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/deployments (required: deployments:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/deployments HTTP/1.1" 403 90 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/deployments (required: deployments:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/deployments HTTP/1.1" 403 90 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:15 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:17 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:17 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:18 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:18 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:20 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:20 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:20 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:20 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:20 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:20 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/conversations (required: chat:read)
-::1 - - [09/Aug/2025:20:39:22 +0000] "GET /api/conversations HTTP/1.1" 403 83 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:22 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/conversations (required: chat:read)
-::1 - - [09/Aug/2025:20:39:22 +0000] "GET /api/conversations HTTP/1.1" 403 83 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:22 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:23 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:23 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:23 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:23 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:23 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:23 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/deployments (required: deployments:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/deployments HTTP/1.1" 403 90 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/deployments (required: deployments:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/deployments HTTP/1.1" 403 90 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/configurations (required: configurations:read)
-::1 - - [09/Aug/2025:20:39:33 +0000] "GET /api/configurations HTTP/1.1" 403 93 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:38 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:38 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:39 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:39 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:39 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:39 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:39 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:39 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:40 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/conversations (required: chat:read)
-::1 - - [09/Aug/2025:20:39:40 +0000] "GET /api/conversations HTTP/1.1" 403 83 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/conversations (required: chat:read)
-::1 - - [09/Aug/2025:20:39:40 +0000] "GET /api/conversations HTTP/1.1" 403 83 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:40 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:41 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:41 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:41 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/servers (required: servers:read)
-::1 - - [09/Aug/2025:20:39:41 +0000] "GET /api/servers HTTP/1.1" 403 86 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/pem-keys (required: pem-keys:read)
-::1 - - [09/Aug/2025:20:39:41 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-🚫 Access denied for user b4de5580-016d-4137-b2f1-a86bdf464f28 to GET:/api/server-groups (required: server-groups:read)
-::1 - - [09/Aug/2025:20:39:41 +0000] "GET /api/server-groups HTTP/1.1" 403 92 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:39:51 +0000] "POST /api/auth/login HTTP/1.1" 200 532 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:23 +0000] "POST /api/auth/login HTTP/1.1" 200 532 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:27 +0000] "GET /api/conversations HTTP/1.1" 200 538 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:27 +0000] "GET /api/servers HTTP/1.1" 200 594 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages
-::1 - - [09/Aug/2025:20:42:27 +0000] "GET /api/conversations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:27 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:27 +0000] "GET /api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages
-::1 - - [09/Aug/2025:20:42:27 +0000] "GET /api/conversations/90793eff-0b63-4375-97f4-240bde3fe4a5/messages HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:29 +0000] "GET /api/pem-keys HTTP/1.1" 200 841 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:29 +0000] "GET /api/pem-keys HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:31 +0000] "GET /api/configurations HTTP/1.1" 200 4624 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:31 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/server-groups HTTP/1.1" 200 274 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/server-groups HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/configurations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/servers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/deployments HTTP/1.1" 200 8123619 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:33 +0000] "GET /api/deployments HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:35 +0000] "GET /api/users HTTP/1.1" 200 723 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:35 +0000] "GET /api/roles HTTP/1.1" 200 7691 "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:35 +0000] "GET /api/users HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:35 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:42:38 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:38 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::1 - - [09/Aug/2025:20:42:38 +0000] "GET /api/roles/permissions/all HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-::1 - - [09/Aug/2025:20:42:38 +0000] "GET /api/roles HTTP/1.1" 304 - "http://localhost:3000/settings" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::ffff:127.0.0.1 - - [09/Aug/2025:20:45:07 +0000] "GET /api/roles/permissions/all HTTP/1.1" 200 114756 "-" "curl/8.1.2"
-⚠️ No RBAC rule defined for route: GET:/api/roles/permissions/all
-::ffff:127.0.0.1 - - [09/Aug/2025:20:45:36 +0000] "GET /api/roles/permissions/all HTTP/1.1" 200 114756 "-" "curl/8.1.2"
+::1 - - [10/Aug/2025:18:20:32 +0000] "GET /api/aws/regions HTTP/1.1" 200 164 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+Error fetching AWS regions: UnauthorizedOperation: You are not authorized to perform this operation. User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: ec2:DescribeRegions because no identity-based policy allows the ec2:DescribeRegions action
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-ec2/dist-cjs/index.js:17271:10)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.getAvailableRegions (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:55:24)
+    at async /Users/chaitanyasistla/Desktop/config-management/apps/api/src/routes/aws.ts:44:21 {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '5babc46d-0bc7-4804-b000-d5d46265748e',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Code: 'UnauthorizedOperation'
+}
+::1 - - [10/Aug/2025:18:20:32 +0000] "GET /api/aws/regions HTTP/1.1" 304 - "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+::1 - - [10/Aug/2025:18:20:34 +0000] "GET /api/aws/iam-policy HTTP/1.1" 200 989 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🔐 Testing AWS connection with assume role...
+🔑 Assuming AWS role: arn:aws:iam::359375618857:role/config-master
+❌ Failed to assume AWS role: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: 'ab2c8054-05b0-46af-89ee-8276a6b8eaa1',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+❌ AWS connection test failed: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: 'ab2c8054-05b0-46af-89ee-8276a6b8eaa1',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+::1 - - [10/Aug/2025:18:22:38 +0000] "POST /api/aws/test-connection HTTP/1.1" 400 177 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🔐 Testing AWS connection with assume role...
+🔑 Assuming AWS role: arn:aws:iam::359375618857:role/config-master
+❌ Failed to assume AWS role: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '82e924f6-5a1d-4b73-ad97-c5f1f9be4445',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+❌ AWS connection test failed: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '82e924f6-5a1d-4b73-ad97-c5f1f9be4445',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+::1 - - [10/Aug/2025:18:24:40 +0000] "POST /api/aws/test-connection HTTP/1.1" 400 177 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🔐 Testing AWS connection with assume role...
+🔑 Assuming AWS role: arn:aws:iam::359375618857:role/config-master
+❌ Failed to assume AWS role: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '9fe847af-5b44-416d-a860-f5506f2806d9',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+❌ AWS connection test failed: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '9fe847af-5b44-416d-a860-f5506f2806d9',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+::1 - - [10/Aug/2025:18:24:42 +0000] "POST /api/aws/test-connection HTTP/1.1" 400 177 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🔐 Testing AWS connection with assume role...
+🔑 Assuming AWS role: arn:aws:iam::359375618857:role/config-master
+❌ Failed to assume AWS role: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: 'd20e9201-18ca-439e-8460-ae44a3f39267',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+❌ AWS connection test failed: AccessDenied: User: arn:aws:iam::359375618857:user/ops0-user is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::359375618857:role/config-master
+    at throwDefaultError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:388:20)
+    at /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/smithy-client/dist-cjs/index.js:397:5
+    at de_CommandError (/Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/client-sts/dist-cjs/index.js:514:14)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-serde/dist-cjs/index.js:36:20
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/core/dist-cjs/index.js:193:18
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /Users/chaitanyasistla/Desktop/config-management/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async AWSService.assumeRole (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:141:24)
+    at async AWSService.testConnection (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/services/awsService.ts:80:27) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: 'd20e9201-18ca-439e-8460-ae44a3f39267',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  Type: 'Sender',
+  Code: 'AccessDenied'
+}
+::1 - - [10/Aug/2025:18:24:43 +0000] "POST /api/aws/test-connection HTTP/1.1" 400 177 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/pem-keys (required: pem-keys:read)
+::1 - - [10/Aug/2025:18:26:33 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/pem-keys (required: pem-keys:read)
+::1 - - [10/Aug/2025:18:26:33 +0000] "GET /api/pem-keys HTTP/1.1" 403 87 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws/regions (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:38 +0000] "GET /api/aws/regions HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:38 +0000] "GET /api/aws HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:38 +0000] "GET /api/aws HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws/regions (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:38 +0000] "GET /api/aws/regions HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:42 +0000] "GET /api/aws HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws/regions (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:42 +0000] "GET /api/aws/regions HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws/regions (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:42 +0000] "GET /api/aws/regions HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:42 +0000] "GET /api/aws HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+🚫 Access denied for user d5431ee7-0690-4597-aa0f-108a2c1b2c88 to GET:/api/aws/iam-policy (required: aws-integrations:read)
+::1 - - [10/Aug/2025:18:26:43 +0000] "GET /api/aws/iam-policy HTTP/1.1" 403 95 "http://localhost:3000/settings/integrations/cloud/aws" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+🔍 Drift detection service started with hourly scans
+🔍 Checking Ansible availability...
+🌱 Seeding RBAC permissions and roles...
+📝 Creating system permissions...
+Error: listen EADDRINUSE: address already in use :::5005
+    at Server.setupListenHandle [as _listen2] (node:net:1904:16)
+    at listenInCluster (node:net:1961:12)
+    at Server.listen (node:net:2063:7)
+    at Object.<anonymous> (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/index.ts:100:8)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1618:23)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5005
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+🔍 Drift detection service started with hourly scans
+🔍 Checking Ansible availability...
+🌱 Seeding RBAC permissions and roles...
+📝 Creating system permissions...
+Error: listen EADDRINUSE: address already in use :::5005
+    at Server.setupListenHandle [as _listen2] (node:net:1904:16)
+    at listenInCluster (node:net:1961:12)
+    at Server.listen (node:net:2063:7)
+    at Object.<anonymous> (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/index.ts:100:8)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1618:23)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5005
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+🔍 Drift detection service started with hourly scans
+🔍 Checking Ansible availability...
+🌱 Seeding RBAC permissions and roles...
+📝 Creating system permissions...
+Error: listen EADDRINUSE: address already in use :::5005
+    at Server.setupListenHandle [as _listen2] (node:net:1904:16)
+    at listenInCluster (node:net:1961:12)
+    at Server.listen (node:net:2063:7)
+    at Object.<anonymous> (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/index.ts:100:8)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1618:23)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5005
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+npm error Lifecycle script `dev` failed with error:
+npm error code 143
+npm error path /Users/chaitanyasistla/Desktop/config-management/apps/api
+npm error workspace api@0.1.0
+npm error location /Users/chaitanyasistla/Desktop/config-management/apps/api
+npm error command failed
+npm error command sh -c nodemon src/index.ts
