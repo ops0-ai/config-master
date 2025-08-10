@@ -1,5 +1,10 @@
-import ConversationalInterface from '@/components/ConversationalInterface';
+import Layout from '@/components/Layout';
+import ChatInterface from '@/components/ChatInterface';
 
 export default function ChatPage() {
-  return <ConversationalInterface />;
+  return (
+    <Layout>
+      <ChatInterface />
+    </Layout>
+  );
 }
