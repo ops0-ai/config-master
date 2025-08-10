@@ -5,7 +5,9 @@ import { pemKeys } from '@config-management/database';
 import { db } from '../index';
 import { eq } from 'drizzle-orm';
 
-const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+// Use a consistent master key with fallbacks for stability
+const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY || 
+                   'config-management-master-key-2024-v2-stable-encryption-system-secure';
 const ALGORITHM = 'aes-256-cbc';
 const KEY_STORAGE_DIR = process.env.PEM_KEYS_DIR || './secure/pem-keys';
 
@@ -116,10 +118,13 @@ export class SecureKeyManager {
           
           // Try with different master keys (common fallbacks)
           const fallbackMasterKeys = [
-            crypto.randomBytes(32).toString('hex'), // Random key
+            'config-management-master-key-2024-v2-stable-encryption-system-secure', // Current standard
+            'your-master-encryption-key-32ch', // Original default from .env
+            'default_master_key_config_management_system_v1', // v1 pattern
+            'config-management-master-key-v1', // Alternative v1
+            process.env.ENCRYPTION_KEY || 'your-32-char-secret-key-here!!!', // Fallback to ENCRYPTION_KEY
             '0'.repeat(64), // All zeros
             '1'.repeat(64), // All ones
-            'default_master_key_config_management_system_v1', // Default pattern
           ];
           
           for (const fallbackMaster of fallbackMasterKeys) {

@@ -33,13 +33,17 @@ export declare class SecureKeyManager {
      */
     rotateOrganizationKeys(organizationId: string): Promise<void>;
     /**
-     * Validate PEM key integrity
+     * Validate PEM key integrity with comprehensive checks
      */
     validateKeyIntegrity(keyId: string, organizationId: string): Promise<{
         isValid: boolean;
         fingerprint: string;
         details: any;
     }>;
+    /**
+     * Comprehensive PEM key validation
+     */
+    private comprehensiveKeyValidation;
     /**
      * Clean up expired temporary key files
      */

@@ -10,7 +10,9 @@ const path_1 = __importDefault(require("path"));
 const database_1 = require("@config-management/database");
 const index_1 = require("../index");
 const drizzle_orm_1 = require("drizzle-orm");
-const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY || crypto_1.default.randomBytes(32).toString('hex');
+// Use a consistent master key with fallbacks for stability
+const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY ||
+    'config-management-master-key-2024-v2-stable-encryption-system-secure';
 const ALGORITHM = 'aes-256-cbc';
 const KEY_STORAGE_DIR = process.env.PEM_KEYS_DIR || './secure/pem-keys';
 class SecureKeyManager {
@@ -43,15 +45,19 @@ class SecureKeyManager {
             const keyId = crypto_1.default.randomUUID();
             // Create organization-specific encryption key
             const orgKey = this.deriveOrganizationKey(organizationId);
-            // Simple but working encryption approach
-            const cipher = crypto_1.default.createCipher('aes256', orgKey.toString('hex'));
+            // Generate a random IV for this encryption
+            const iv = crypto_1.default.randomBytes(16);
+            // Use the modern createCipheriv method with proper IV
+            const cipher = crypto_1.default.createCipheriv(ALGORITHM, orgKey, iv);
             // Encrypt the private key
             let encrypted = cipher.update(privateKey, 'utf8', 'hex');
             encrypted += cipher.final('hex');
+            // Combine IV and encrypted data (IV is needed for decryption)
+            const combined = iv.toString('hex') + ':' + encrypted;
             // Generate fingerprint
             const fingerprint = this.generateFingerprint(privateKey);
             return {
-                encryptedKey: encrypted,
+                encryptedKey: combined,
                 keyId,
                 fingerprint,
                 keyDetails
@@ -66,15 +72,95 @@ class SecureKeyManager {
      */
     decryptPemKey(encryptedKey, organizationId) {
         try {
-            // Simple decryption that matches encryption
             const orgKey = this.deriveOrganizationKey(organizationId);
-            const decipher = crypto_1.default.createDecipher('aes256', orgKey.toString('hex'));
-            let decrypted = decipher.update(encryptedKey, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
-            return decrypted;
+            // Check if this is the new format (with IV)
+            if (encryptedKey.includes(':')) {
+                // New format: IV:encryptedData
+                const parts = encryptedKey.split(':');
+                if (parts.length !== 2) {
+                    throw new Error('Invalid encrypted key format');
+                }
+                const iv = Buffer.from(parts[0], 'hex');
+                const encrypted = parts[1];
+                // Try current encryption settings first
+                try {
+                    const decipher = crypto_1.default.createDecipheriv(ALGORITHM, orgKey, iv);
+                    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+                    decrypted += decipher.final('utf8');
+                    return decrypted;
+                }
+                catch (currentError) {
+                    console.log('⚠️  Current decryption failed, trying compatibility modes...');
+                    // Try with different master keys (common fallbacks)
+                    const fallbackMasterKeys = [
+                        'config-management-master-key-2024-v2-stable-encryption-system-secure', // Current standard
+                        'your-master-encryption-key-32ch', // Original default from .env
+                        'default_master_key_config_management_system_v1', // v1 pattern
+                        'config-management-master-key-v1', // Alternative v1
+                        process.env.ENCRYPTION_KEY || 'your-32-char-secret-key-here!!!', // Fallback to ENCRYPTION_KEY
+                        '0'.repeat(64), // All zeros
+                        '1'.repeat(64), // All ones
+                    ];
+                    for (const fallbackMaster of fallbackMasterKeys) {
+                        try {
+                            const fallbackOrgKey = crypto_1.default.createHash('sha256')
+                                .update(fallbackMaster + organizationId)
+                                .digest();
+                            const decipher = crypto_1.default.createDecipheriv(ALGORITHM, fallbackOrgKey, iv);
+                            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+                            decrypted += decipher.final('utf8');
+                            console.log('✅ Successfully decrypted with fallback master key');
+                            return decrypted;
+                        }
+                        catch (fallbackError) {
+                            // Continue to next fallback
+                        }
+                    }
+                    throw currentError;
+                }
+            }
+            else {
+                // Old format: try legacy decryption with multiple approaches
+                const legacyMethods = [
+                    () => {
+                        const decipher = crypto_1.default.createDecipher('aes256', orgKey.toString('hex'));
+                        let decrypted = decipher.update(encryptedKey, 'hex', 'utf8');
+                        decrypted += decipher.final('utf8');
+                        return decrypted;
+                    },
+                    () => {
+                        const decipher = crypto_1.default.createDecipher('aes256', organizationId);
+                        let decrypted = decipher.update(encryptedKey, 'hex', 'utf8');
+                        decrypted += decipher.final('utf8');
+                        return decrypted;
+                    },
+                    () => {
+                        const decipher = crypto_1.default.createDecipher('aes256', MASTER_KEY);
+                        let decrypted = decipher.update(encryptedKey, 'hex', 'utf8');
+                        decrypted += decipher.final('utf8');
+                        return decrypted;
+                    }
+                ];
+                for (let i = 0; i < legacyMethods.length; i++) {
+                    try {
+                        console.log(`Trying legacy decryption method ${i + 1}...`);
+                        return legacyMethods[i]();
+                    }
+                    catch (legacyError) {
+                        if (i === legacyMethods.length - 1) {
+                            throw new Error('Unable to decrypt key with any legacy method');
+                        }
+                    }
+                }
+                // This should never be reached due to the throw above, but TypeScript requires it
+                throw new Error('Unexpected error in legacy decryption');
+            }
         }
         catch (error) {
-            throw new Error(`Key decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            const errorMsg = `Key decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            console.error('❌', errorMsg);
+            console.log('💡 This key may need to be re-uploaded with the current encryption system');
+            throw new Error(errorMsg);
         }
     }
     /**
@@ -153,43 +239,123 @@ class SecureKeyManager {
         }
     }
     /**
-     * Validate PEM key integrity
+     * Validate PEM key integrity with comprehensive checks
      */
-    validateKeyIntegrity(keyId, organizationId) {
-        return new Promise(async (resolve) => {
-            try {
-                const pemKey = await index_1.db
-                    .select()
-                    .from(database_1.pemKeys)
-                    .where((0, drizzle_orm_1.eq)(database_1.pemKeys.id, keyId))
-                    .limit(1);
-                if (!pemKey[0]) {
-                    resolve({ isValid: false, fingerprint: '', details: { error: 'Key not found' } });
-                    return;
-                }
-                const decryptedKey = this.decryptPemKey(pemKey[0].encryptedPrivateKey, organizationId);
-                const calculatedFingerprint = this.generateFingerprint(decryptedKey);
-                const keyDetails = this.analyzePemKey(decryptedKey);
-                const isValid = calculatedFingerprint === pemKey[0].fingerprint;
-                resolve({
-                    isValid,
-                    fingerprint: calculatedFingerprint,
-                    details: {
-                        storedFingerprint: pemKey[0].fingerprint,
-                        calculatedFingerprint,
-                        keyType: keyDetails.keyType,
-                        keySize: keyDetails.keySize
-                    }
-                });
+    async validateKeyIntegrity(keyId, organizationId) {
+        try {
+            const pemKey = await index_1.db
+                .select()
+                .from(database_1.pemKeys)
+                .where((0, drizzle_orm_1.eq)(database_1.pemKeys.id, keyId))
+                .limit(1);
+            if (!pemKey[0]) {
+                return { isValid: false, fingerprint: '', details: { error: 'Key not found' } };
             }
-            catch (error) {
-                resolve({
+            const decryptedKey = this.decryptPemKey(pemKey[0].encryptedPrivateKey, organizationId);
+            // Perform comprehensive validation
+            const validation = this.comprehensiveKeyValidation(decryptedKey);
+            if (!validation.isValid) {
+                return {
                     isValid: false,
                     fingerprint: '',
-                    details: { error: error instanceof Error ? error.message : 'Unknown error' }
-                });
+                    details: { error: validation.error, validationDetails: validation }
+                };
             }
-        });
+            const calculatedFingerprint = this.generateFingerprint(decryptedKey);
+            const keyDetails = this.analyzePemKey(decryptedKey);
+            const isValid = calculatedFingerprint === pemKey[0].fingerprint;
+            return {
+                isValid,
+                fingerprint: calculatedFingerprint,
+                details: {
+                    storedFingerprint: pemKey[0].fingerprint,
+                    calculatedFingerprint,
+                    keyType: keyDetails.keyType,
+                    keySize: keyDetails.keySize,
+                    validation
+                }
+            };
+        }
+        catch (error) {
+            return {
+                isValid: false,
+                fingerprint: '',
+                details: { error: error instanceof Error ? error.message : 'Unknown error' }
+            };
+        }
+    }
+    /**
+     * Comprehensive PEM key validation
+     */
+    comprehensiveKeyValidation(pemKey) {
+        const checks = {
+            hasContent: false,
+            hasValidFormat: false,
+            hasValidStructure: false,
+            hasValidEncoding: false,
+            lineCount: 0,
+            keyType: 'unknown'
+        };
+        try {
+            // Check 1: Has content
+            if (!pemKey || typeof pemKey !== 'string' || pemKey.trim().length === 0) {
+                return { isValid: false, error: 'Key is empty or invalid type', checks };
+            }
+            checks.hasContent = true;
+            // Check 2: Has valid PEM format
+            if (!pemKey.includes('BEGIN') || !pemKey.includes('PRIVATE KEY') ||
+                !pemKey.includes('END') || !pemKey.includes('PRIVATE KEY')) {
+                return { isValid: false, error: 'Key does not have valid PEM format', checks };
+            }
+            checks.hasValidFormat = true;
+            // Check 3: Has valid structure
+            const lines = pemKey.split('\n').filter(line => line.trim());
+            checks.lineCount = lines.length;
+            if (lines.length < 3) {
+                return { isValid: false, error: 'Key has insufficient lines (corrupted?)', checks };
+            }
+            const firstLine = lines[0].trim();
+            const lastLine = lines[lines.length - 1].trim();
+            if (!firstLine.startsWith('-----BEGIN') || !firstLine.endsWith('PRIVATE KEY-----')) {
+                return { isValid: false, error: 'Invalid PEM header', checks };
+            }
+            if (!lastLine.startsWith('-----END') || !lastLine.endsWith('PRIVATE KEY-----')) {
+                return { isValid: false, error: 'Invalid PEM footer', checks };
+            }
+            checks.hasValidStructure = true;
+            // Check 4: Determine key type
+            if (pemKey.includes('RSA PRIVATE KEY')) {
+                checks.keyType = 'RSA';
+            }
+            else if (pemKey.includes('EC PRIVATE KEY') || pemKey.includes('ECDSA')) {
+                checks.keyType = 'ECDSA';
+            }
+            else if (pemKey.includes('OPENSSH PRIVATE KEY') || pemKey.includes('ED25519')) {
+                checks.keyType = 'ED25519';
+            }
+            else if (pemKey.includes('PRIVATE KEY')) {
+                checks.keyType = 'PKCS#8';
+            }
+            // Check 5: Validate base64 encoding in body
+            const keyBody = lines.slice(1, -1).join('');
+            if (keyBody.length === 0) {
+                return { isValid: false, error: 'Key body is empty', checks };
+            }
+            // Basic base64 validation
+            const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+            if (!base64Regex.test(keyBody)) {
+                return { isValid: false, error: 'Key body contains invalid base64 characters', checks };
+            }
+            checks.hasValidEncoding = true;
+            return { isValid: true, checks };
+        }
+        catch (error) {
+            return {
+                isValid: false,
+                error: `Validation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                checks
+            };
+        }
     }
     /**
      * Clean up expired temporary key files

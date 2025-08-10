@@ -22,6 +22,7 @@ const deployments_1 = require("./routes/deployments");
 const conversations_1 = require("./routes/conversations");
 const ansible_1 = require("./routes/ansible");
 const audit_1 = require("./routes/audit");
+const auditLogs_1 = __importDefault(require("./routes/auditLogs"));
 const roles_1 = require("./routes/roles");
 const users_1 = require("./routes/users");
 const auth_2 = require("./middleware/auth");
@@ -61,6 +62,7 @@ app.use('/api/deployments', auth_2.authMiddleware, (0, rbacMiddleware_1.rbacMidd
 app.use('/api/conversations', auth_2.authMiddleware, (0, rbacMiddleware_1.rbacMiddleware)(), audit_2.auditMiddleware, conversations_1.conversationRoutes);
 app.use('/api/ansible', auth_2.authMiddleware, (0, rbacMiddleware_1.rbacMiddleware)(), audit_2.auditMiddleware, ansible_1.ansibleRoutes);
 app.use('/api/audit', auth_2.authMiddleware, audit_2.auditMiddleware, audit_1.auditRoutes);
+app.use('/api/audit-logs', auth_2.authMiddleware, (0, rbacMiddleware_1.rbacMiddleware)(), audit_2.auditMiddleware, auditLogs_1.default);
 app.use('/api/roles', auth_2.authMiddleware, (0, rbacMiddleware_1.rbacMiddleware)(), audit_2.auditMiddleware, roles_1.roleRoutes);
 app.use('/api/users', auth_2.authMiddleware, (0, rbacMiddleware_1.rbacMiddleware)(), audit_2.auditMiddleware, users_1.userRoutes);
 app.use(errorHandler_1.errorHandler);

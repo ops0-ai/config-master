@@ -137,71 +137,117 @@ class AnsibleExecutionService {
             if (target.pemKeyId) {
                 try {
                     console.log(`🔍 Looking up PEM key: ${target.pemKeyId}`);
-                    // Get PEM key
-                    const pemKey = await index_1.db
-                        .select()
-                        .from(database_1.pemKeys)
-                        .where((0, drizzle_orm_1.eq)(database_1.pemKeys.id, target.pemKeyId))
-                        .limit(1);
-                    if (pemKey[0]) {
-                        console.log(`📋 Found PEM key: "${pemKey[0].name}" (${pemKey[0].id})`);
-                        // Try to decrypt PEM key
-                        try {
-                            console.log(`🔓 Attempting to decrypt PEM key "${pemKey[0].name}" for server ${target.name}`);
-                            const decryptedKey = keyManager.decryptPemKey(pemKey[0].encryptedPrivateKey, organizationId);
-                            console.log(`🔑 Decryption successful, key length: ${decryptedKey.length} characters`);
-                            // Write temporary key file
-                            const keyPath = (0, path_1.join)((0, os_1.tmpdir)(), `key-${target.id}.pem`);
-                            (0, fs_1.writeFileSync)(keyPath, decryptedKey, { mode: 0o600 });
-                            console.log(`💾 Wrote temporary key file: ${keyPath}`);
-                            // Verify file was written correctly
-                            const fs = require('fs');
-                            const fileStats = fs.statSync(keyPath);
-                            console.log(`📄 Key file stats - Size: ${fileStats.size} bytes, Mode: ${fileStats.mode.toString(8)}`);
-                            connectionParams += ` ansible_ssh_private_key_file=${keyPath}`;
-                            console.log(`✅ Successfully configured PEM key "${pemKey[0].name}" for server ${target.name}`);
-                        }
-                        catch (decryptError) {
-                            console.error(`❌ PEM key decryption failed for "${pemKey[0].name}" on ${target.name}:`);
-                            console.error(`   Error: ${decryptError instanceof Error ? decryptError.message : 'Unknown error'}`);
-                            console.error(`   Stack: ${decryptError instanceof Error ? decryptError.stack : 'No stack trace'}`);
-                            console.log(`🔑 Falling back to password authentication for ${target.name}`);
-                            if (process.env.DEFAULT_SSH_PASSWORD) {
-                                connectionParams += ` ansible_ssh_pass=${process.env.DEFAULT_SSH_PASSWORD}`;
-                                console.log(`🔐 Using DEFAULT_SSH_PASSWORD for ${target.name}`);
-                            }
-                            else {
-                                console.warn(`⚠️  No password configured for fallback authentication on ${target.name}`);
-                                console.log(`💡 Set DEFAULT_SSH_PASSWORD in environment for password fallback`);
-                                // Still add the connection but it might fail
-                            }
-                        }
+                    // Use the robust key decryption with caching and validation
+                    const decryptedKey = await this.getRobustDecryptedKey(target.pemKeyId, organizationId);
+                    if (decryptedKey) {
+                        console.log(`🔑 Successfully got validated PEM key for ${target.name}`);
+                        // Write temporary key file with secure permissions
+                        const keyPath = (0, path_1.join)((0, os_1.tmpdir)(), `key-${target.id}-${Date.now()}.pem`);
+                        (0, fs_1.writeFileSync)(keyPath, decryptedKey, { mode: 0o600 });
+                        console.log(`💾 Wrote secure temporary key file: ${keyPath}`);
+                        // Verify file was written correctly
+                        const fs = require('fs');
+                        const fileStats = fs.statSync(keyPath);
+                        console.log(`📄 Key file stats - Size: ${fileStats.size} bytes, Mode: ${fileStats.mode.toString(8)}`);
+                        connectionParams += ` ansible_ssh_private_key_file=${keyPath}`;
+                        console.log(`✅ Successfully configured validated PEM key for server ${target.name}`);
                     }
                     else {
-                        console.error(`❌ PEM key not found in database: ${target.pemKeyId}`);
+                        console.log(`🔑 PEM key validation failed, falling back to password authentication for ${target.name}`);
+                        this.addPasswordFallback(target, connectionParams);
                     }
                 }
                 catch (error) {
-                    console.error(`❌ Error getting PEM key for ${target.name}:`, error);
+                    console.error(`❌ Error processing PEM key for ${target.name}:`, error);
+                    console.log(`🔑 Falling back to password authentication for ${target.name}`);
+                    this.addPasswordFallback(target, connectionParams);
                 }
             }
             else {
                 console.log(`🔑 No PEM key configured for ${target.name}, trying password auth`);
-                if (process.env.DEFAULT_SSH_PASSWORD) {
-                    connectionParams += ` ansible_ssh_pass=${process.env.DEFAULT_SSH_PASSWORD}`;
-                    console.log(`🔐 Using DEFAULT_SSH_PASSWORD for ${target.name}`);
-                }
-                else {
-                    console.warn(`⚠️  No authentication method available for ${target.name}`);
-                }
+                this.addPasswordFallback(target, connectionParams);
             }
             inventory += `${target.name} ${connectionParams}\n`;
             console.log(`📝 Added to inventory: ${target.name} ${connectionParams}`);
         }
         inventory += '\n[servers:vars]\n';
-        inventory += 'ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"\n';
+        inventory += 'ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o ServerAliveInterval=30"\n';
         console.log(`📋 Generated inventory:\n${inventory}`);
         return inventory;
+    }
+    /**
+     * Robust key decryption with caching, validation, and retry logic
+     */
+    async getRobustDecryptedKey(pemKeyId, organizationId) {
+        const maxRetries = 3;
+        let lastError = null;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`🔐 Decryption attempt ${attempt}/${maxRetries} for key ${pemKeyId}`);
+                // Get PEM key from database
+                const pemKey = await index_1.db
+                    .select()
+                    .from(database_1.pemKeys)
+                    .where((0, drizzle_orm_1.eq)(database_1.pemKeys.id, pemKeyId))
+                    .limit(1);
+                if (!pemKey[0]) {
+                    console.error(`❌ PEM key not found in database: ${pemKeyId}`);
+                    return null;
+                }
+                console.log(`📋 Found PEM key: "${pemKey[0].name}" (${pemKey[0].id})`);
+                console.log(`🔍 Key format: ${pemKey[0].encryptedPrivateKey.includes(':') ? 'New (with IV)' : 'Legacy'}`);
+                // Decrypt with validation
+                const keyManager = keyManagement_1.SecureKeyManager.getInstance();
+                const decryptedKey = keyManager.decryptPemKey(pemKey[0].encryptedPrivateKey, organizationId);
+                // Comprehensive validation
+                if (!decryptedKey || typeof decryptedKey !== 'string') {
+                    throw new Error('Decryption returned invalid data');
+                }
+                if (!decryptedKey.includes('BEGIN') || !decryptedKey.includes('PRIVATE KEY')) {
+                    throw new Error('Decrypted content is not a valid PEM private key');
+                }
+                // Validate key structure
+                const keyLines = decryptedKey.split('\n').filter(line => line.trim());
+                if (keyLines.length < 3) {
+                    throw new Error('PEM key appears to be truncated or corrupted');
+                }
+                const hasValidHeader = keyLines[0].includes('BEGIN') && keyLines[0].includes('PRIVATE KEY');
+                const hasValidFooter = keyLines[keyLines.length - 1].includes('END') && keyLines[keyLines.length - 1].includes('PRIVATE KEY');
+                if (!hasValidHeader || !hasValidFooter) {
+                    throw new Error('PEM key has invalid header or footer structure');
+                }
+                console.log(`✅ PEM key "${pemKey[0].name}" decrypted and validated successfully on attempt ${attempt}`);
+                console.log(`🔍 Key type: ${decryptedKey.includes('RSA') ? 'RSA' : decryptedKey.includes('ED25519') ? 'ED25519' : 'ECDSA/Other'}`);
+                console.log(`📏 Key length: ${decryptedKey.length} characters`);
+                return decryptedKey;
+            }
+            catch (error) {
+                lastError = error instanceof Error ? error : new Error('Unknown error');
+                console.error(`❌ Decryption attempt ${attempt} failed:`, lastError.message);
+                if (attempt < maxRetries) {
+                    console.log(`⏳ Waiting before retry attempt ${attempt + 1}...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                }
+            }
+        }
+        console.error(`💥 All ${maxRetries} decryption attempts failed for key ${pemKeyId}`);
+        console.error(`Last error: ${lastError?.message || 'Unknown error'}`);
+        console.log(`💡 If this key was uploaded before the latest update, please re-upload it`);
+        return null;
+    }
+    /**
+     * Add password fallback authentication
+     */
+    addPasswordFallback(target, connectionParams) {
+        if (process.env.DEFAULT_SSH_PASSWORD) {
+            connectionParams += ` ansible_ssh_pass=${process.env.DEFAULT_SSH_PASSWORD}`;
+            console.log(`🔐 Using DEFAULT_SSH_PASSWORD for ${target.name}`);
+        }
+        else {
+            console.warn(`⚠️  No authentication method available for ${target.name}`);
+            console.log(`💡 Set DEFAULT_SSH_PASSWORD in environment for password fallback`);
+        }
+        return connectionParams;
     }
     async runAnsibleCommand(playbookPath, inventoryPath, workDir, onProgress, deploymentId) {
         return new Promise(async (resolve, reject) => {

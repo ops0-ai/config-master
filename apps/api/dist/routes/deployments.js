@@ -196,6 +196,15 @@ router.post('/', async (req, res) => {
 });
 router.post('/:id/run', async (req, res) => {
     try {
+        // Check if user has execute permission for deployments
+        const { hasPermission } = await Promise.resolve().then(() => __importStar(require('../utils/rbacSeeder')));
+        const canExecute = await hasPermission(req.user.id, 'deployments', 'execute');
+        if (!canExecute) {
+            return res.status(403).json({
+                error: 'Insufficient permissions',
+                required: { resource: 'deployments', action: 'execute' }
+            });
+        }
         const deployment = await index_1.db
             .select()
             .from(database_1.deployments)
@@ -316,6 +325,15 @@ router.post('/:id/run', async (req, res) => {
 });
 router.post('/:id/cancel', async (req, res) => {
     try {
+        // Check if user has execute permission for deployments
+        const { hasPermission } = await Promise.resolve().then(() => __importStar(require('../utils/rbacSeeder')));
+        const canExecute = await hasPermission(req.user.id, 'deployments', 'execute');
+        if (!canExecute) {
+            return res.status(403).json({
+                error: 'Insufficient permissions',
+                required: { resource: 'deployments', action: 'execute' }
+            });
+        }
         const deployment = await index_1.db
             .select()
             .from(database_1.deployments)

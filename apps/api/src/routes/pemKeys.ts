@@ -158,6 +158,111 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
+// Endpoint to fix/migrate existing PEM keys
+router.post('/migrate/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const pemKeyId = req.params.id;
+    
+    // Get the existing key
+    const existingPemKey = await db
+      .select()
+      .from(pemKeys)
+      .where(
+        and(
+          eq(pemKeys.id, pemKeyId),
+          eq(pemKeys.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingPemKey[0]) {
+      return res.status(404).json({ error: 'PEM key not found' });
+    }
+
+    const keyManager = SecureKeyManager.getInstance();
+    
+    try {
+      // Try to decrypt the existing key
+      console.log('🔄 Attempting to decrypt existing PEM key for migration...');
+      const decryptedKey = keyManager.decryptPemKey(
+        existingPemKey[0].encryptedPrivateKey, 
+        req.user!.organizationId
+      );
+      
+      if (!decryptedKey) {
+        throw new Error('Failed to decrypt existing key');
+      }
+      
+      // Re-encrypt with current encryption system
+      console.log('🔒 Re-encrypting with current system...');
+      const encryptionResult = keyManager.encryptPemKey(decryptedKey, req.user!.organizationId);
+      
+      // Update the key in database
+      const updatedPemKey = await db
+        .update(pemKeys)
+        .set({
+          encryptedPrivateKey: encryptionResult.encryptedKey,
+          fingerprint: encryptionResult.fingerprint,
+          updatedAt: new Date(),
+        })
+        .where(eq(pemKeys.id, pemKeyId))
+        .returning({
+          id: pemKeys.id,
+          name: pemKeys.name,
+          description: pemKeys.description,
+          fingerprint: pemKeys.fingerprint,
+          updatedAt: pemKeys.updatedAt,
+        });
+
+      console.log('✅ PEM key migration completed successfully');
+      
+      res.json({
+        success: true,
+        message: 'PEM key successfully migrated to current encryption system',
+        key: updatedPemKey[0]
+      });
+      
+    } catch (decryptError) {
+      console.error('❌ Failed to migrate PEM key:', decryptError);
+      
+      res.status(400).json({
+        error: 'Unable to migrate PEM key. The key may be corrupted or encrypted with an incompatible system.',
+        details: decryptError instanceof Error ? decryptError.message : 'Unknown error',
+        suggestion: 'Please delete this key and re-upload the original PEM file.'
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error in PEM key migration:', error);
+    res.status(500).json({ error: 'Internal server error during migration' });
+  }
+});
+
+// Endpoint to test PEM key functionality
+router.post('/test/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const pemKeyId = req.params.id;
+    const keyManager = SecureKeyManager.getInstance();
+    
+    // Validate key integrity
+    const validation = await keyManager.validateKeyIntegrity(pemKeyId, req.user!.organizationId);
+    
+    res.json({
+      success: validation.isValid,
+      fingerprint: validation.fingerprint,
+      details: validation.details,
+      canConnect: validation.isValid
+    });
+    
+  } catch (error) {
+    console.error('Error testing PEM key:', error);
+    res.status(500).json({ 
+      error: 'Internal server error during key test',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const existingPemKey = await db

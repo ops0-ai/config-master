@@ -13,6 +13,14 @@ export declare class AnsibleExecutionService {
     executePlaybook(options: AnsibleExecutionOptions): Promise<void>;
     private getTargetServers;
     private generateInventory;
+    /**
+     * Robust key decryption with caching, validation, and retry logic
+     */
+    private getRobustDecryptedKey;
+    /**
+     * Add password fallback authentication
+     */
+    private addPasswordFallback;
     private runAnsibleCommand;
     private testConnectivity;
     cancelDeployment(deploymentId: string): boolean;

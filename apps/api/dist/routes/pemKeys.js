@@ -137,6 +137,89 @@ router.put('/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+// Endpoint to fix/migrate existing PEM keys
+router.post('/migrate/:id', async (req, res) => {
+    try {
+        const pemKeyId = req.params.id;
+        // Get the existing key
+        const existingPemKey = await index_1.db
+            .select()
+            .from(database_1.pemKeys)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(database_1.pemKeys.id, pemKeyId), (0, drizzle_orm_1.eq)(database_1.pemKeys.organizationId, req.user.organizationId)))
+            .limit(1);
+        if (!existingPemKey[0]) {
+            return res.status(404).json({ error: 'PEM key not found' });
+        }
+        const keyManager = keyManagement_1.SecureKeyManager.getInstance();
+        try {
+            // Try to decrypt the existing key
+            console.log('🔄 Attempting to decrypt existing PEM key for migration...');
+            const decryptedKey = keyManager.decryptPemKey(existingPemKey[0].encryptedPrivateKey, req.user.organizationId);
+            if (!decryptedKey) {
+                throw new Error('Failed to decrypt existing key');
+            }
+            // Re-encrypt with current encryption system
+            console.log('🔒 Re-encrypting with current system...');
+            const encryptionResult = keyManager.encryptPemKey(decryptedKey, req.user.organizationId);
+            // Update the key in database
+            const updatedPemKey = await index_1.db
+                .update(database_1.pemKeys)
+                .set({
+                encryptedPrivateKey: encryptionResult.encryptedKey,
+                fingerprint: encryptionResult.fingerprint,
+                updatedAt: new Date(),
+            })
+                .where((0, drizzle_orm_1.eq)(database_1.pemKeys.id, pemKeyId))
+                .returning({
+                id: database_1.pemKeys.id,
+                name: database_1.pemKeys.name,
+                description: database_1.pemKeys.description,
+                fingerprint: database_1.pemKeys.fingerprint,
+                updatedAt: database_1.pemKeys.updatedAt,
+            });
+            console.log('✅ PEM key migration completed successfully');
+            res.json({
+                success: true,
+                message: 'PEM key successfully migrated to current encryption system',
+                key: updatedPemKey[0]
+            });
+        }
+        catch (decryptError) {
+            console.error('❌ Failed to migrate PEM key:', decryptError);
+            res.status(400).json({
+                error: 'Unable to migrate PEM key. The key may be corrupted or encrypted with an incompatible system.',
+                details: decryptError instanceof Error ? decryptError.message : 'Unknown error',
+                suggestion: 'Please delete this key and re-upload the original PEM file.'
+            });
+        }
+    }
+    catch (error) {
+        console.error('Error in PEM key migration:', error);
+        res.status(500).json({ error: 'Internal server error during migration' });
+    }
+});
+// Endpoint to test PEM key functionality
+router.post('/test/:id', async (req, res) => {
+    try {
+        const pemKeyId = req.params.id;
+        const keyManager = keyManagement_1.SecureKeyManager.getInstance();
+        // Validate key integrity
+        const validation = await keyManager.validateKeyIntegrity(pemKeyId, req.user.organizationId);
+        res.json({
+            success: validation.isValid,
+            fingerprint: validation.fingerprint,
+            details: validation.details,
+            canConnect: validation.isValid
+        });
+    }
+    catch (error) {
+        console.error('Error testing PEM key:', error);
+        res.status(500).json({
+            error: 'Internal server error during key test',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
 router.delete('/:id', async (req, res) => {
     try {
         const existingPemKey = await index_1.db
