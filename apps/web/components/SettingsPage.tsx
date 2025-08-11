@@ -178,13 +178,25 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
+      <div className="h-full flex flex-col">
+        {/* Fixed Header Skeleton */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+          </div>
+        </div>
+        
+        {/* Scrollable Content Skeleton */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 max-w-6xl mx-auto">
+            <div className="animate-pulse space-y-6">
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-32 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -231,49 +243,56 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="page-title">Settings</h1>
-        <p className="text-muted mt-1">
-          Configure your organization, API keys, and user management
-        </p>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="mb-8">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    isActive
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <tab.icon
-                    className={`mr-2 h-5 w-5 ${
-                      isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
-                    }`}
-                  />
-                  {tab.name}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-        
-        {/* Tab Description */}
-        <div className="mt-4">
-          <p className="text-sm text-gray-600">
-            {tabs.find(tab => tab.id === activeTab)?.description}
+    <div className="h-full flex flex-col">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-6xl mx-auto">
+          <h1 className="page-title">Settings</h1>
+          <p className="text-muted mt-1">
+            Configure your organization, API keys, and user management
           </p>
+          
+          {/* Tab Navigation */}
+          <div className="mt-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        isActive
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <tab.icon
+                        className={`mr-2 h-5 w-5 ${
+                          isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                        }`}
+                      />
+                      {tab.name}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+            
+            {/* Tab Description */}
+            <div className="mt-4">
+              <p className="text-sm text-gray-600">
+                {tabs.find(tab => tab.id === activeTab)?.description}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-6xl mx-auto">
 
       {/* Tab Content */}
       {activeTab === 'general' && (
@@ -568,6 +587,8 @@ export default function SettingsPage() {
       {/* PEM Keys Tab */}
       {activeTab === 'pem-keys' && <PemKeysPageComponent />}
 
+        </div>
+      </div>
     </div>
   );
 }

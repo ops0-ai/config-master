@@ -586,13 +586,25 @@ export default function ConfigurationsPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 bg-gray-200 rounded"></div>
-            ))}
+      <div className="h-full flex flex-col">
+        {/* Fixed Header Skeleton */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+          </div>
+        </div>
+        
+        {/* Scrollable Content Skeleton */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 max-w-7xl mx-auto">
+            <div className="animate-pulse space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-48 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -600,26 +612,29 @@ export default function ConfigurationsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <div className="flex items-center space-x-3">
-            <h1 className="page-title">Configurations</h1>
-            <button
-              onClick={() => loadConfigurations(true)}
-              disabled={refreshing}
-              className="btn btn-ghost btn-sm"
-              title="Refresh configurations"
-            >
-              <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-          <p className="text-muted mt-1">
-            Create and manage Ansible playbooks, roles, and tasks ({filteredConfigurations.length} of {allConfigurations.length})
-          </p>
-        </div>
-        
-        <div className="flex space-x-3">
+    <div className="h-full flex flex-col">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="flex items-center space-x-3">
+                <h1 className="page-title">Configurations</h1>
+                <button
+                  onClick={() => loadConfigurations(true)}
+                  disabled={refreshing}
+                  className="btn btn-ghost btn-sm"
+                  title="Refresh configurations"
+                >
+                  <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <p className="text-muted mt-1">
+                Create and manage Ansible playbooks, roles, and tasks ({filteredConfigurations.length} of {allConfigurations.length})
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
           {user?.role === 'admin' && (
             <button
               onClick={() => setShowApprovals(true)}
@@ -643,10 +658,16 @@ export default function ConfigurationsPage() {
             <PlusIcon className="h-5 w-5 mr-2" />
             New Configuration
           </button>
+          </div>
         </div>
       </div>
+      </div>
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-7xl mx-auto">
 
-      {/* Search and Filters */}
+          {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
@@ -1203,6 +1224,9 @@ export default function ConfigurationsPage() {
           </div>
         </div>
       )}
+        
+        </div>
+      </div>
     </div>
   );
 }

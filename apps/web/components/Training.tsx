@@ -140,16 +140,23 @@ export default function Training() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="page-title flex items-center space-x-3">
-          <AcademicCapIcon className="h-8 w-8 text-blue-600" />
-          <span>Infrastructure Awareness Training</span>
-        </h1>
-        <p className="text-muted mt-1">
-          Master cloud infrastructure, security best practices, and configuration management
-        </p>
+    <div className="h-full flex flex-col">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="page-title flex items-center space-x-3">
+            <AcademicCapIcon className="h-8 w-8 text-blue-600" />
+            <span>Infrastructure Awareness Training</span>
+          </h1>
+          <p className="text-muted mt-1">
+            Master cloud infrastructure, security best practices, and configuration management
+          </p>
+        </div>
       </div>
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-7xl mx-auto">
 
       {/* Progress Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -319,6 +326,8 @@ export default function Training() {
               ~7.5 hours total
             </div>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

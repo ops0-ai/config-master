@@ -568,13 +568,25 @@ export default function DeploymentsPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
-            ))}
+      <div className="h-full flex flex-col">
+        {/* Fixed Header Skeleton */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+          </div>
+        </div>
+        
+        {/* Scrollable Content Skeleton */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 max-w-7xl mx-auto">
+            <div className="animate-pulse space-y-6">
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -582,23 +594,32 @@ export default function DeploymentsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="page-title">Deployments</h1>
-          <p className="text-muted mt-1">
-            Deploy configurations to servers and monitor execution
-          </p>
+    <div className="h-full flex flex-col">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="page-title">Deployments</h1>
+              <p className="text-muted mt-1">
+                Deploy configurations to servers and monitor execution
+              </p>
+            </div>
+            
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn btn-primary btn-md"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              New Deployment
+            </button>
+          </div>
         </div>
-        
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary btn-md"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          New Deployment
-        </button>
       </div>
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-7xl mx-auto">
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -1254,6 +1275,8 @@ export default function DeploymentsPage() {
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
