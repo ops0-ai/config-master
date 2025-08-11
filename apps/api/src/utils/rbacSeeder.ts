@@ -57,6 +57,7 @@ const systemPermissions = [
   // Chat permissions
   { resource: 'chat', action: 'read', description: 'View configuration chat' },
   { resource: 'chat', action: 'write', description: 'Use AI configuration assistant' },
+  { resource: 'chat', action: 'delete', description: 'Delete chat conversations' },
   
   // Audit log permissions
   { resource: 'audit-logs', action: 'view', description: 'View audit logs' },
@@ -84,7 +85,7 @@ const systemRoles = {
       'pem-keys:read', 'pem-keys:write', 'pem-keys:execute', 'pem-keys:delete',
       'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:delete',
       'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
-      'training:read', 'chat:read', 'chat:write',
+      'training:read', 'chat:read', 'chat:write', 'chat:delete',
       'audit-logs:view', 'audit-logs:export',
       'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 
       'aws-integrations:sync', 'aws-integrations:import'
@@ -100,7 +101,7 @@ const systemRoles = {
       'pem-keys:read', 'pem-keys:write', 'pem-keys:execute',
       'configurations:read', 'configurations:write', 'configurations:execute',
       'deployments:read', 'deployments:write', 'deployments:execute',
-      'training:read', 'chat:read', 'chat:write',
+      'training:read', 'chat:read', 'chat:write', 'chat:delete',
       'aws-integrations:read', 'aws-integrations:sync', 'aws-integrations:import',
       'audit-logs:view'
     ]

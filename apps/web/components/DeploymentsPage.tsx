@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   PlusIcon,
   PlayIcon,
@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { deploymentsApi, configurationsApi, serversApi, serverGroupsApi } from '@/lib/api';
+import DeploymentScheduler from './DeploymentScheduler';
 
 interface Deployment {
   id: string;
@@ -33,6 +34,13 @@ interface Deployment {
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
+  scheduleType?: 'immediate' | 'scheduled' | 'recurring';
+  scheduledFor?: string;
+  cronExpression?: string;
+  timezone?: string;
+  isActive?: boolean;
+  nextRunAt?: string;
+  lastRunAt?: string;
   configuration?: {
     id: string;
     name: string;
@@ -95,7 +103,27 @@ export default function DeploymentsPage() {
     configurationId: '',
     targetType: 'server' as 'server' | 'serverGroup',
     targetId: '',
+    scheduleType: 'immediate' as 'immediate' | 'scheduled' | 'recurring',
+    scheduledFor: '',
+    cronExpression: '',
+    timezone: 'UTC',
   });
+
+  // Define the schedule change handler outside of conditional rendering
+  const handleScheduleChange = useCallback((schedule: {
+    scheduleType: 'immediate' | 'scheduled' | 'recurring';
+    scheduledFor?: string;
+    cronExpression?: string;
+    timezone?: string;
+  }) => {
+    setDeploymentForm(prev => ({
+      ...prev,
+      scheduleType: schedule.scheduleType,
+      scheduledFor: schedule.scheduledFor || '',
+      cronExpression: schedule.cronExpression || '',
+      timezone: schedule.timezone || 'UTC',
+    }));
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -177,8 +205,31 @@ export default function DeploymentsPage() {
         return;
       }
 
-      await deploymentsApi.create(deploymentForm);
-      toast.success('Deployment created successfully');
+      // Prepare deployment data with scheduling
+      const deploymentData = {
+        ...deploymentForm,
+        // Only include scheduling fields if not immediate
+        ...(deploymentForm.scheduleType !== 'immediate' && {
+          scheduleType: deploymentForm.scheduleType,
+          ...(deploymentForm.scheduleType === 'scheduled' && {
+            scheduledFor: deploymentForm.scheduledFor,
+          }),
+          ...(deploymentForm.scheduleType === 'recurring' && {
+            cronExpression: deploymentForm.cronExpression,
+          }),
+          timezone: deploymentForm.timezone,
+        }),
+      };
+
+      await deploymentsApi.create(deploymentData);
+      
+      const scheduleMessage = deploymentForm.scheduleType === 'immediate' 
+        ? 'Deployment created successfully' 
+        : deploymentForm.scheduleType === 'scheduled'
+        ? 'Scheduled deployment created successfully'
+        : 'Recurring deployment created successfully';
+      
+      toast.success(scheduleMessage);
       
       await loadData();
       resetForm();
@@ -231,6 +282,10 @@ export default function DeploymentsPage() {
       configurationId: '',
       targetType: 'server',
       targetId: '',
+      scheduleType: 'immediate',
+      scheduledFor: '',
+      cronExpression: '',
+      timezone: 'UTC',
     });
     setShowCreateModal(false);
   };
@@ -576,6 +631,29 @@ export default function DeploymentsPage() {
                           <span>
                             Created: {new Date(deployment.createdAt).toLocaleDateString()}
                           </span>
+                          
+                          {/* Scheduling Information */}
+                          {deployment.scheduleType && deployment.scheduleType !== 'immediate' && (
+                            <>
+                              {deployment.scheduleType === 'scheduled' && deployment.scheduledFor && (
+                                <span className="text-blue-600">
+                                  Scheduled: {new Date(deployment.scheduledFor).toLocaleString()}
+                                </span>
+                              )}
+                              {deployment.scheduleType === 'recurring' && deployment.cronExpression && (
+                                <div className="flex flex-col">
+                                  <span className="text-purple-600">
+                                    Recurring: {deployment.cronExpression}
+                                  </span>
+                                  {deployment.nextRunAt && (
+                                    <span className="text-xs text-gray-500">
+                                      Next: {new Date(deployment.nextRunAt).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
                         
                         {deployment.description && (
@@ -669,8 +747,18 @@ export default function DeploymentsPage() {
 
       {/* Create Deployment Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              resetForm();
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">New Deployment</h2>
               <button
@@ -690,7 +778,7 @@ export default function DeploymentsPage() {
                   type="text"
                   value={deploymentForm.name}
                   onChange={(e) => setDeploymentForm({...deploymentForm, name: e.target.value})}
-                  className="input"
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6"
                   placeholder="e.g., Deploy NGINX to Production"
                   required
                 />
@@ -703,7 +791,7 @@ export default function DeploymentsPage() {
                 <textarea
                   value={deploymentForm.description}
                   onChange={(e) => setDeploymentForm({...deploymentForm, description: e.target.value})}
-                  className="input"
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 resize-y"
                   rows={2}
                   placeholder="Optional description..."
                 />
@@ -716,7 +804,7 @@ export default function DeploymentsPage() {
                 <select
                   value={deploymentForm.section}
                   onChange={(e) => setDeploymentForm({...deploymentForm, section: e.target.value})}
-                  className="input"
+                  className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600 sm:text-sm sm:leading-6"
                   required
                 >
                   <option value="production">🔴 Production</option>
@@ -734,7 +822,7 @@ export default function DeploymentsPage() {
                 <select
                   value={deploymentForm.configurationId}
                   onChange={(e) => setDeploymentForm({...deploymentForm, configurationId: e.target.value})}
-                  className="input"
+                  className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600 sm:text-sm sm:leading-6"
                   required
                 >
                   <option value="">Select a configuration...</option>
@@ -781,7 +869,7 @@ export default function DeploymentsPage() {
                 <select
                   value={deploymentForm.targetId}
                   onChange={(e) => setDeploymentForm({...deploymentForm, targetId: e.target.value})}
-                  className="input"
+                  className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600 sm:text-sm sm:leading-6"
                   required
                 >
                   <option value="">Select {deploymentForm.targetType === 'server' ? 'a server' : 'a server group'}...</option>
@@ -799,6 +887,17 @@ export default function DeploymentsPage() {
                   }
                 </select>
               </div>
+
+              {/* Deployment Scheduling */}
+              <DeploymentScheduler
+                onScheduleChange={handleScheduleChange}
+                initialSchedule={{
+                  scheduleType: deploymentForm.scheduleType,
+                  scheduledFor: deploymentForm.scheduledFor,
+                  cronExpression: deploymentForm.cronExpression,
+                  timezone: deploymentForm.timezone,
+                }}
+              />
 
               <div className="flex space-x-3 pt-4 border-t border-gray-200">
                 <button

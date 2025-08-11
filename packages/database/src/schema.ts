@@ -95,6 +95,14 @@ export const deployments = pgTable('deployments', {
   logs: text('logs'),
   output: text('output'),
   errorMessage: text('error_message'),
+  // Scheduling fields
+  scheduleType: varchar('schedule_type', { length: 20 }).default('immediate'), // 'immediate', 'scheduled', 'recurring'
+  scheduledFor: timestamp('scheduled_for'), // For one-time scheduled deployments
+  cronExpression: varchar('cron_expression', { length: 100 }), // For recurring deployments
+  timezone: varchar('timezone', { length: 50 }).default('UTC'), // Timezone for scheduling
+  isActive: boolean('is_active').default(true), // For recurring deployments
+  nextRunAt: timestamp('next_run_at'), // Next execution time for recurring deployments
+  lastRunAt: timestamp('last_run_at'), // Last execution time for recurring deployments
   executedBy: uuid('executed_by').references(() => users.id).notNull(),
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -330,6 +338,18 @@ export const awsInstances = pgTable('aws_instances', {
   platform: varchar('platform', { length: 50 }),
   launchTime: timestamp('launch_time'),
   metadata: jsonb('metadata').$type<any>().default({}),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Organization Settings Table
+export const organizationSettings = pgTable('organization_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull().unique(),
+  claudeApiKey: text('claude_api_key'), // Encrypted
+  defaultRegion: varchar('default_region', { length: 50 }).default('us-east-1'),
+  maxConcurrentDeployments: integer('max_concurrent_deployments').default(5),
+  deploymentTimeout: integer('deployment_timeout').default(300),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

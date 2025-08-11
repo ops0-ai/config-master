@@ -7,7 +7,15 @@ import Joi from 'joi';
 import { AnsibleGenerator } from '@config-management/ansible-engine';
 
 const router = Router();
-const ansibleGenerator = process.env.OPENAI_API_KEY ? new AnsibleGenerator(process.env.OPENAI_API_KEY) : null;
+
+// Function to get the AnsibleGenerator with the current API key
+function getAnsibleGenerator(): AnsibleGenerator | null {
+  const apiKey = process.env.CLAUDE_API_KEY;
+  if (!apiKey) {
+    console.log('CLAUDE_API_KEY not found in environment');
+  }
+  return apiKey ? new AnsibleGenerator(apiKey) : null;
+}
 
 const messageSchema = Joi.object({
   content: Joi.string().required(),
@@ -133,8 +141,9 @@ router.post('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any
     }
 
     try {
+      const ansibleGenerator = getAnsibleGenerator();
       if (!ansibleGenerator) {
-        throw new Error('OpenAI API key not configured');
+        throw new Error('Claude API key not configured');
       }
       
       const playbookGeneration = await ansibleGenerator.generatePlaybook({
@@ -230,6 +239,36 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
     res.json(conversation[0]);
   } catch (error) {
     console.error('Error updating conversation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // First delete all messages in the conversation
+    await db
+      .delete(messages)
+      .where(eq(messages.conversationId, req.params.id));
+
+    // Then delete the conversation
+    const deleted = await db
+      .delete(conversations)
+      .where(
+        and(
+          eq(conversations.id, req.params.id),
+          eq(conversations.userId, req.user!.id),
+          eq(conversations.organizationId, req.user!.organizationId)
+        )
+      )
+      .returning();
+
+    if (!deleted[0]) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    res.json({ message: 'Conversation deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

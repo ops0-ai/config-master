@@ -21,6 +21,7 @@ import auditLogRoutes from './routes/auditLogs';
 import { roleRoutes } from './routes/roles';
 import { userRoutes } from './routes/users';
 import { awsRoutes } from './routes/aws';
+import { settingsRoutes, initializeSettings } from './routes/settings';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -29,6 +30,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { setupSocketHandlers } from './socket/handlers';
 import { startDriftDetectionService } from './services/driftDetection';
 import { ensureAnsibleInstalled } from './scripts/setup-ansible';
+import { deploymentScheduler } from './services/deploymentScheduler';
 
 config();
 
@@ -69,11 +71,13 @@ app.use('/api/audit-logs', authMiddleware, rbacMiddleware(), auditMiddleware, au
 app.use('/api/roles', authMiddleware, rbacMiddleware(), auditMiddleware, roleRoutes);
 app.use('/api/users', authMiddleware, rbacMiddleware(), auditMiddleware, userRoutes);
 app.use('/api/aws', authMiddleware, rbacMiddleware(), auditMiddleware, awsRoutes);
+app.use('/api/settings', authMiddleware, settingsRoutes);
 
 app.use(errorHandler);
 
 setupSocketHandlers(io);
 startDriftDetectionService(db);
+deploymentScheduler.start();
 
 // Setup Ansible on startup
 // Initialize RBAC system
@@ -83,6 +87,7 @@ import { seedRBACData } from './utils/rbacSeeder';
 Promise.all([
   ensureAnsibleInstalled(),
   seedRBACData(),
+  initializeSettings(), // Load API keys from database on startup
 ]).then(([ansibleInstalled]) => {
   if (ansibleInstalled) {
     console.log('🔧 Platform ready with Ansible integration and RBAC');

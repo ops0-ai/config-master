@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LayoutProps {
@@ -104,9 +105,13 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex items-center h-16 flex-shrink-0 px-4 bg-white border-b border-gray-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <CpuChipIcon className="w-5 h-5 text-white" />
-              </div>
+              <Image
+                src="/logo.png"
+                alt="ConfigMaster Logo"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
             </div>
             <div className="ml-3">
               <h1 className="text-lg font-semibold text-gray-900">ConfigMaster</h1>

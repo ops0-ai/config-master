@@ -12,7 +12,8 @@ import {
   CpuChipIcon,
   PlusIcon,
   ChatBubbleLeftIcon,
-  EllipsisVerticalIcon
+  EllipsisVerticalIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import Editor from '@monaco-editor/react';
 import { conversationsApi, deploymentsApi, serversApi } from '@/lib/api';
@@ -52,6 +53,7 @@ export default function ChatInterface() {
   const [currentConfigId, setCurrentConfigId] = useState<string | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>('');
+  const [showDropdown, setShowDropdown] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,6 +65,15 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [conversations, activeConversation]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setShowDropdown(null);
+    if (showDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showDropdown]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -70,18 +81,41 @@ export default function ChatInterface() {
   const loadConversations = async () => {
     try {
       const response = await conversationsApi.getAll();
-      setConversations(response.data);
+      
+      // Initialize conversations with empty messages arrays
+      const conversationsWithMessages = response.data.map(conv => ({
+        ...conv,
+        messages: []
+      }));
+      
+      setConversations(conversationsWithMessages);
       
       // Set the first active conversation or create a new one
-      const activeConv = response.data.find(conv => conv.isActive);
+      const activeConv = conversationsWithMessages.find(conv => conv.isActive);
       if (activeConv) {
         setActiveConversation(activeConv.id);
-      } else if (response.data.length > 0) {
-        setActiveConversation(response.data[0].id);
+        // Load messages for the active conversation
+        loadMessages(activeConv.id);
+      } else if (conversationsWithMessages.length > 0) {
+        setActiveConversation(conversationsWithMessages[0].id);
+        loadMessages(conversationsWithMessages[0].id);
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
       toast.error('Failed to load conversations');
+    }
+  };
+
+  const loadMessages = async (conversationId: string) => {
+    try {
+      const response = await conversationsApi.getMessages(conversationId);
+      setConversations(prev => prev.map(conv => 
+        conv.id === conversationId 
+          ? { ...conv, messages: response.data }
+          : conv
+      ));
+    } catch (error) {
+      console.error('Failed to load messages:', error);
     }
   };
 
@@ -108,12 +142,43 @@ export default function ChatInterface() {
     }
   };
 
+  const deleteConversation = async (conversationId: string) => {
+    if (!confirm('Are you sure you want to delete this conversation?')) {
+      return;
+    }
+
+    try {
+      await conversationsApi.delete(conversationId);
+      
+      // Remove from state
+      setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      
+      // If it was the active conversation, clear it
+      if (activeConversation === conversationId) {
+        setActiveConversation(null);
+      }
+      
+      toast.success('Conversation deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+      toast.error('Failed to delete conversation');
+    }
+  };
+
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
     
     // If no active conversation, create one
     if (!activeConversation) {
       await createNewConversation();
+      // Wait a bit for state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const conversationId = activeConversation || conversations[0]?.id;
+    if (!conversationId) {
+      toast.error('Please create a conversation first');
+      return;
     }
 
     const messageContent = inputMessage;
@@ -121,16 +186,29 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await conversationsApi.sendMessage(activeConversation!, {
+      const response = await conversationsApi.sendMessage(conversationId, {
         content: messageContent
       });
       
       // Update the conversation with the new messages
-      setConversations(prev => prev.map(conv => 
-        conv.id === activeConversation 
-          ? { ...conv, messages: response.data.messages }
-          : conv
-      ));
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === conversationId) {
+          const updatedMessages = [...(conv.messages || [])];
+          
+          // Add user message
+          if (response.data.userMessage) {
+            updatedMessages.push(response.data.userMessage);
+          }
+          
+          // Add assistant message
+          if (response.data.assistantMessage) {
+            updatedMessages.push(response.data.assistantMessage);
+          }
+          
+          return { ...conv, messages: updatedMessages };
+        }
+        return conv;
+      }));
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
@@ -210,7 +288,10 @@ export default function ChatInterface() {
               {conversations.map((conversation) => (
                 <button
                   key={conversation.id}
-                  onClick={() => setActiveConversation(conversation.id)}
+                  onClick={() => {
+                    setActiveConversation(conversation.id);
+                    loadMessages(conversation.id);
+                  }}
                   className={`w-full text-left p-3 rounded-lg transition-colors group ${
                     activeConversation === conversation.id
                       ? 'bg-indigo-50 border-indigo-200 border'
@@ -232,7 +313,32 @@ export default function ChatInterface() {
                         </p>
                       )}
                     </div>
-                    <EllipsisVerticalIcon className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100" />
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDropdown(showDropdown === conversation.id ? null : conversation.id);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100"
+                      >
+                        <EllipsisVerticalIcon className="h-4 w-4 text-gray-400" />
+                      </button>
+                      {showDropdown === conversation.id && (
+                        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-24">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteConversation(conversation.id);
+                              setShowDropdown(null);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-2" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-gray-400">

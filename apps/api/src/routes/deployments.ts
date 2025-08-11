@@ -4,6 +4,8 @@ import { deployments, configurations, servers, serverGroups } from '@config-mana
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
 import Joi from 'joi';
+import * as cronParser from 'cron-parser';
+import { deploymentScheduler } from '../services/deploymentScheduler';
 
 const router = Router();
 
@@ -14,6 +16,19 @@ const deploymentSchema = Joi.object({
   configurationId: Joi.string().uuid().required(),
   targetType: Joi.string().valid('server', 'serverGroup').required(),
   targetId: Joi.string().uuid().required(),
+  // Scheduling fields
+  scheduleType: Joi.string().valid('immediate', 'scheduled', 'recurring').default('immediate'),
+  scheduledFor: Joi.date().iso().when('scheduleType', {
+    is: 'scheduled',
+    then: Joi.required(),
+    otherwise: Joi.optional()
+  }),
+  cronExpression: Joi.string().when('scheduleType', {
+    is: 'recurring',
+    then: Joi.required(),
+    otherwise: Joi.optional()
+  }),
+  timezone: Joi.string().default('UTC'),
 });
 
 router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
@@ -33,6 +48,13 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
         logs: deployments.logs,
         startedAt: deployments.startedAt,
         completedAt: deployments.completedAt,
+        scheduleType: deployments.scheduleType,
+        scheduledFor: deployments.scheduledFor,
+        cronExpression: deployments.cronExpression,
+        timezone: deployments.timezone,
+        isActive: deployments.isActive,
+        nextRunAt: deployments.nextRunAt,
+        lastRunAt: deployments.lastRunAt,
         createdAt: deployments.createdAt,
         configuration: {
           id: configurations.id,
@@ -176,6 +198,27 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
       ? existingDeployments[0].id 
       : null;
 
+    // Calculate next run time for recurring deployments
+    let nextRunAt = null;
+    if (value.scheduleType === 'recurring' && value.cronExpression) {
+      try {
+        const interval = cronParser.parseExpression(value.cronExpression, {
+          tz: value.timezone || 'UTC'
+        });
+        nextRunAt = interval.next().toDate();
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid cron expression' });
+      }
+    } else if (value.scheduleType === 'scheduled' && value.scheduledFor) {
+      // For one-time scheduled deployments, the next run is the scheduled time
+      nextRunAt = new Date(value.scheduledFor);
+      
+      // Validate that scheduled time is in the future
+      if (nextRunAt <= new Date()) {
+        return res.status(400).json({ error: 'Scheduled time must be in the future' });
+      }
+    }
+
     const deploymentData = {
       ...value,
       description: value.description || null,
@@ -184,7 +227,12 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
       parentDeploymentId,
       organizationId: req.user!.organizationId,
       executedBy: req.user!.id,
-      status: 'pending' as const,
+      status: value.scheduleType === 'immediate' ? 'pending' : 'scheduled' as const,
+      scheduleType: value.scheduleType || 'immediate',
+      scheduledFor: value.scheduleType === 'scheduled' ? new Date(value.scheduledFor) : null,
+      cronExpression: value.scheduleType === 'recurring' ? value.cronExpression : null,
+      timezone: value.timezone || 'UTC',
+      nextRunAt,
     };
 
     const newDeployment = await db
@@ -430,6 +478,66 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting deployment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Pause recurring deployment
+router.post('/:id/pause', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const deployment = await db
+      .select()
+      .from(deployments)
+      .where(
+        and(
+          eq(deployments.id, req.params.id),
+          eq(deployments.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!deployment[0]) {
+      return res.status(404).json({ error: 'Deployment not found' });
+    }
+
+    if (deployment[0].scheduleType !== 'recurring') {
+      return res.status(400).json({ error: 'Only recurring deployments can be paused' });
+    }
+
+    await deploymentScheduler.pauseRecurringDeployment(req.params.id);
+    res.json({ message: 'Recurring deployment paused' });
+  } catch (error) {
+    console.error('Error pausing deployment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Resume recurring deployment
+router.post('/:id/resume', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const deployment = await db
+      .select()
+      .from(deployments)
+      .where(
+        and(
+          eq(deployments.id, req.params.id),
+          eq(deployments.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!deployment[0]) {
+      return res.status(404).json({ error: 'Deployment not found' });
+    }
+
+    if (deployment[0].scheduleType !== 'recurring') {
+      return res.status(400).json({ error: 'Only recurring deployments can be resumed' });
+    }
+
+    await deploymentScheduler.resumeRecurringDeployment(req.params.id);
+    res.json({ message: 'Recurring deployment resumed' });
+  } catch (error) {
+    console.error('Error resuming deployment:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

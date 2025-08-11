@@ -144,6 +144,8 @@ export const conversationsApi = {
     targetSystem?: string;
     requirements?: string[];
   }) => api.post(`/conversations/${id}/messages`, data),
+  
+  delete: (id: string) => api.delete(`/conversations/${id}`),
 };
 
 // Deployments API
@@ -158,11 +160,20 @@ export const deploymentsApi = {
     configurationId: string;
     targetType: 'server' | 'serverGroup';
     targetId: string;
+    // Scheduling options
+    scheduleType?: 'immediate' | 'scheduled' | 'recurring';
+    scheduledFor?: string; // ISO date string
+    cronExpression?: string;
+    timezone?: string;
   }) => api.post('/deployments', data),
   
   run: (id: string) => api.post(`/deployments/${id}/run`),
   
   cancel: (id: string) => api.post(`/deployments/${id}/cancel`),
+  
+  pause: (id: string) => api.post(`/deployments/${id}/pause`),
+  
+  resume: (id: string) => api.post(`/deployments/${id}/resume`),
   
   delete: (id: string) => api.delete(`/deployments/${id}`),
 };
@@ -170,4 +181,18 @@ export const deploymentsApi = {
 // Audit Logs API
 export const auditApi = {
   getAll: () => api.get('/audit'),
+};
+
+// Settings API
+export const settingsApi = {
+  get: () => api.get('/settings'),
+  
+  update: (data: {
+    claudeApiKey?: string;
+    defaultRegion?: string;
+    maxConcurrentDeployments?: number;
+    deploymentTimeout?: number;
+  }) => api.put('/settings', data),
+  
+  testClaude: () => api.post('/settings/test-claude'),
 };

@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { settingsApi } from '@/lib/api';
 import RoleMatrixManagement from './RoleMatrixManagement';
 import UsersManagement from './UsersManagement';
 import dynamic from 'next/dynamic';
@@ -34,7 +35,6 @@ const IntegrationsPageComponent = dynamic(() => import('../app/settings/integrat
 
 interface Settings {
   claudeApiKey?: string;
-  openaiApiKey?: string;
   defaultRegion?: string;
   maxConcurrentDeployments?: number;
   deploymentTimeout?: number;
@@ -48,12 +48,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showClaudeKey, setShowClaudeKey] = useState(false);
-  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
 
   const [settings, setSettings] = useState<Settings>({
     claudeApiKey: '',
-    openaiApiKey: '',
     defaultRegion: 'us-east-1',
     maxConcurrentDeployments: 5,
     deploymentTimeout: 300,
@@ -79,9 +77,13 @@ export default function SettingsPage() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      // TODO: Load settings from API
-      // const response = await settingsApi.get();
-      // setSettings(response.data);
+      const response = await settingsApi.get();
+      setSettings({
+        claudeApiKey: response.data.claudeApiKeyConfigured ? response.data.claudeApiKey : '',
+        defaultRegion: response.data.defaultRegion || 'us-east-1',
+        maxConcurrentDeployments: response.data.maxConcurrentDeployments || 5,
+        deploymentTimeout: response.data.deploymentTimeout || 300,
+      });
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -92,29 +94,41 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     try {
       setSaving(true);
-      // TODO: Save settings to API
-      // await settingsApi.update(settings);
+      const response = await settingsApi.update(settings);
       toast.success('Settings saved successfully');
+      
+      // Update the settings with the masked version from the server
+      if (response.data.settings) {
+        setSettings({
+          ...settings,
+          claudeApiKey: response.data.settings.claudeApiKey || settings.claudeApiKey,
+        });
+      }
     } catch (error: any) {
-      toast.error('Failed to save settings');
+      toast.error(error.response?.data?.error || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
   const handleTestClaudeConnection = async () => {
-    if (!settings.claudeApiKey) {
-      toast.error('Please enter Claude API key first');
+    if (!settings.claudeApiKey || settings.claudeApiKey.includes('...')) {
+      toast.error('Please enter a valid Claude API key first');
       return;
     }
 
     try {
       setTestingConnection(true);
-      // TODO: Test Claude API connection
-      // await conversationsApi.testClaudeConnection();
+      
+      // First save the key if it's new
+      if (!settings.claudeApiKey.includes('...')) {
+        await settingsApi.update({ claudeApiKey: settings.claudeApiKey });
+      }
+      
+      const response = await settingsApi.testClaude();
       toast.success('Claude API connection successful!');
     } catch (error: any) {
-      toast.error('Claude API connection failed');
+      toast.error(error.response?.data?.details || 'Claude API connection failed');
     } finally {
       setTestingConnection(false);
     }
@@ -251,7 +265,7 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-gray-900">API Configuration</h2>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              Configure API keys for AI services and external integrations
+              Configure Claude API key for AI-powered configuration generation
             </p>
           </div>
           
@@ -292,41 +306,10 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Required for AI-powered configuration generation and chat functionality
+                Required for AI-powered Ansible configuration generation and chat functionality
               </p>
             </div>
 
-            {/* OpenAI API Key */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                OpenAI API Key (Optional)
-              </label>
-              <div className="flex space-x-3">
-                <div className="flex-1 relative">
-                  <input
-                    type={showOpenAIKey ? "text" : "password"}
-                    value={settings.openaiApiKey}
-                    onChange={(e) => setSettings({...settings, openaiApiKey: e.target.value})}
-                    className="input pr-10"
-                    placeholder="sk-..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowOpenAIKey(!showOpenAIKey)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showOpenAIKey ? (
-                      <EyeSlashIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Fallback option for AI-powered features
-              </p>
-            </div>
 
             <div className="pt-4 border-t border-gray-200">
               <button

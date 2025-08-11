@@ -1,4 +1,4 @@
-import { OpenAI } from 'openai';
+import { Anthropic } from '@anthropic-ai/sdk';
 import * as YAML from 'yaml';
 
 export interface ConfigurationRequest {
@@ -17,10 +17,10 @@ export interface GeneratedPlaybook {
 }
 
 export class AnsibleGenerator {
-  private openai: OpenAI;
+  private anthropic: Anthropic;
 
   constructor(apiKey: string) {
-    this.openai = new OpenAI({ apiKey });
+    this.anthropic = new Anthropic({ apiKey });
   }
 
   async generatePlaybook(request: ConfigurationRequest): Promise<{
@@ -31,35 +31,34 @@ export class AnsibleGenerator {
     const prompt = this.buildPrompt(request);
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+      const systemPrompt = `You are an expert Ansible automation engineer. Generate secure, idempotent, and well-structured Ansible playbooks based on user requirements. Always follow best practices:
+
+1. Use appropriate modules for the task
+2. Make playbooks idempotent
+3. Include proper error handling
+4. Use variables for configuration values
+5. Add descriptive names and comments
+6. Follow security best practices
+7. Structure tasks logically
+
+Respond with valid JSON containing:
+- "playbook": The complete Ansible playbook as JSON object
+- "explanation": A brief explanation of what the playbook does and key considerations`;
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 2000,
+        temperature: 0.3,
+        system: systemPrompt,
         messages: [
-          {
-            role: 'system',
-            content: `You are an expert Ansible automation engineer. Generate secure, idempotent, and well-structured Ansible playbooks based on user requirements. Always follow best practices:
-            
-            1. Use appropriate modules for the task
-            2. Make playbooks idempotent
-            3. Include proper error handling
-            4. Use variables for configuration values
-            5. Add descriptive names and comments
-            6. Follow security best practices
-            7. Structure tasks logically
-            
-            Respond with valid JSON containing:
-            - "playbook": The complete Ansible playbook as JSON object
-            - "explanation": A brief explanation of what the playbook does and key considerations`
-          },
           {
             role: 'user',
             content: prompt
           }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
+        ]
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = response.content[0]?.type === 'text' ? response.content[0].text : null;
       if (!content) {
         throw new Error('No response from AI service');
       }
