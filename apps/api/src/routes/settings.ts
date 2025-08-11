@@ -10,7 +10,8 @@ const router = Router();
 
 // Encryption functions
 const algorithm = 'aes-256-gcm';
-const secretKey = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex').slice(0, 32);
+// Use a consistent key - in production, this should be set as an environment variable
+const secretKey = process.env.ENCRYPTION_KEY || 'cm-default-key-32-chars-exactly!';
 
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(16);

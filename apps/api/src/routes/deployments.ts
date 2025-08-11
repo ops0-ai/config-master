@@ -211,11 +211,14 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
       }
     } else if (value.scheduleType === 'scheduled' && value.scheduledFor) {
       // For one-time scheduled deployments, the next run is the scheduled time
+      // scheduledFor is already in UTC ISO format from the frontend
       nextRunAt = new Date(value.scheduledFor);
       
-      // Validate that scheduled time is in the future
-      if (nextRunAt <= new Date()) {
-        return res.status(400).json({ error: 'Scheduled time must be in the future' });
+      // Validate that scheduled time is in the future (with a small buffer for network latency)
+      const now = new Date();
+      const minimumTime = new Date(now.getTime() + 60000); // 1 minute buffer
+      if (nextRunAt <= minimumTime) {
+        return res.status(400).json({ error: 'Scheduled time must be at least 1 minute in the future' });
       }
     }
 
@@ -229,9 +232,9 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
       executedBy: req.user!.id,
       status: value.scheduleType === 'immediate' ? 'pending' : 'scheduled' as const,
       scheduleType: value.scheduleType || 'immediate',
-      scheduledFor: value.scheduleType === 'scheduled' ? new Date(value.scheduledFor) : null,
+      scheduledFor: value.scheduleType === 'scheduled' ? nextRunAt : null,
       cronExpression: value.scheduleType === 'recurring' ? value.cronExpression : null,
-      timezone: value.timezone || 'UTC',
+      timezone: 'UTC', // Always store as UTC
       nextRunAt,
     };
 

@@ -14,8 +14,6 @@
     "@heroicons/react": "^2.0.0",
     "@hookform/resolvers": "^3.0.0",
     "@monaco-editor/react": "^4.6.0",
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "^0.5.16",
     "axios": "^1.5.0",
     "framer-motion": "^10.0.0",
     "monaco-editor": "^0.44.0",
@@ -29,6 +27,8 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",

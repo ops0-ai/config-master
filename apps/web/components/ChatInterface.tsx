@@ -83,7 +83,7 @@ export default function ChatInterface() {
       const response = await conversationsApi.getAll();
       
       // Initialize conversations with empty messages arrays
-      const conversationsWithMessages = response.data.map(conv => ({
+      const conversationsWithMessages = response.data.map((conv: any) => ({
         ...conv,
         messages: []
       }));
@@ -91,7 +91,7 @@ export default function ChatInterface() {
       setConversations(conversationsWithMessages);
       
       // Set the first active conversation or create a new one
-      const activeConv = conversationsWithMessages.find(conv => conv.isActive);
+      const activeConv = conversationsWithMessages.find((conv: any) => conv.isActive);
       if (activeConv) {
         setActiveConversation(activeConv.id);
         // Load messages for the active conversation
@@ -130,9 +130,7 @@ export default function ChatInterface() {
 
   const createNewConversation = async () => {
     try {
-      const response = await conversationsApi.create({
-        title: 'New Conversation'
-      });
+      const response = await conversationsApi.create();
       const newConversation = { ...response.data, messages: [] };
       setConversations([newConversation, ...conversations]);
       setActiveConversation(newConversation.id);

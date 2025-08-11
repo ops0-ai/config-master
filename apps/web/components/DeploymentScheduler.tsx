@@ -38,38 +38,23 @@ const commonCronExpressions = [
   { label: 'Monthly on 1st at midnight', value: '0 0 1 * *' },
 ];
 
-const timezones = [
-  'UTC',
-  'America/New_York',
-  'America/Chicago', 
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Berlin',
-  'Europe/Paris',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Asia/Kolkata',
-  'Australia/Sydney',
-];
+// Simplified to only UTC - dates are handled in local time and converted
+const timezones = ['UTC'];
 
 export default function DeploymentScheduler({ onScheduleChange, initialSchedule }: DeploymentSchedulerProps) {
-  const [scheduleType, setScheduleType] = useState<'immediate' | 'scheduled' | 'recurring'>(
-    initialSchedule?.scheduleType || 'immediate'
-  );
-  const [scheduledFor, setScheduledFor] = useState(initialSchedule?.scheduledFor || '');
-  const [cronExpression, setCronExpression] = useState(initialSchedule?.cronExpression || '0 0 * * *');
-  const [timezone, setTimezone] = useState(initialSchedule?.timezone || 'UTC');
-  const [customCron, setCustomCron] = useState(false);
+  // Convert local datetime to UTC for storage
+  const convertToUTC = (localDateTime: string) => {
+    if (!localDateTime) return '';
+    const localDate = new Date(localDateTime);
+    return localDate.toISOString();
+  };
 
-  useEffect(() => {
-    onScheduleChange({
-      scheduleType,
-      scheduledFor: scheduleType === 'scheduled' ? scheduledFor : undefined,
-      cronExpression: scheduleType === 'recurring' ? cronExpression : undefined,
-      timezone: scheduleType !== 'immediate' ? timezone : undefined,
-    });
-  }, [scheduleType, scheduledFor, cronExpression, timezone, onScheduleChange]);
+  // Convert UTC datetime to local for display
+  const convertFromUTC = (utcDateTime: string) => {
+    if (!utcDateTime) return '';
+    const utcDate = new Date(utcDateTime);
+    return utcDate.toISOString().slice(0, 16);
+  };
 
   // Get minimum datetime for scheduling (5 minutes from now)
   const getMinDateTime = () => {
@@ -77,6 +62,25 @@ export default function DeploymentScheduler({ onScheduleChange, initialSchedule 
     now.setMinutes(now.getMinutes() + 5);
     return now.toISOString().slice(0, 16);
   };
+
+  const [scheduleType, setScheduleType] = useState<'immediate' | 'scheduled' | 'recurring'>(
+    initialSchedule?.scheduleType || 'immediate'
+  );
+  const [scheduledFor, setScheduledFor] = useState(
+    initialSchedule?.scheduledFor ? convertFromUTC(initialSchedule.scheduledFor) : ''
+  );
+  const [cronExpression, setCronExpression] = useState(initialSchedule?.cronExpression || '0 0 * * *');
+  const [timezone, setTimezone] = useState(initialSchedule?.timezone || 'UTC');
+  const [customCron, setCustomCron] = useState(false);
+
+  useEffect(() => {
+    onScheduleChange({
+      scheduleType,
+      scheduledFor: scheduleType === 'scheduled' ? convertToUTC(scheduledFor) : undefined,
+      cronExpression: scheduleType === 'recurring' ? cronExpression : undefined,
+      timezone: scheduleType !== 'immediate' ? timezone : undefined,
+    });
+  }, [scheduleType, scheduledFor, cronExpression, timezone, onScheduleChange]);
 
   return (
     <div className="space-y-4">
@@ -169,7 +173,7 @@ export default function DeploymentScheduler({ onScheduleChange, initialSchedule 
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Schedule must be at least 5 minutes in the future
+              Schedule must be at least 5 minutes in the future (local time, stored as UTC)
             </p>
           </div>
           
@@ -177,15 +181,9 @@ export default function DeploymentScheduler({ onScheduleChange, initialSchedule 
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Timezone
             </label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {timezones.map(tz => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
+            <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+              UTC (auto-converted from your local time)
+            </div>
           </div>
         </div>
       )}
@@ -255,15 +253,9 @@ export default function DeploymentScheduler({ onScheduleChange, initialSchedule 
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Timezone
             </label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {timezones.map(tz => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
+            <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+              UTC (cron runs in UTC time)
+            </div>
           </div>
         </div>
       )}

@@ -206,20 +206,24 @@ export default function DeploymentsPage() {
       }
 
       // Prepare deployment data with scheduling
-      const deploymentData = {
-        ...deploymentForm,
-        // Only include scheduling fields if not immediate
-        ...(deploymentForm.scheduleType !== 'immediate' && {
-          scheduleType: deploymentForm.scheduleType,
-          ...(deploymentForm.scheduleType === 'scheduled' && {
-            scheduledFor: deploymentForm.scheduledFor,
-          }),
-          ...(deploymentForm.scheduleType === 'recurring' && {
-            cronExpression: deploymentForm.cronExpression,
-          }),
-          timezone: deploymentForm.timezone,
-        }),
+      const deploymentData: any = {
+        name: deploymentForm.name,
+        description: deploymentForm.description,
+        section: deploymentForm.section,
+        configurationId: deploymentForm.configurationId,
+        targetType: deploymentForm.targetType,
+        targetId: deploymentForm.targetId,
+        scheduleType: deploymentForm.scheduleType,
       };
+
+      // Only add scheduling fields based on type
+      if (deploymentForm.scheduleType === 'scheduled') {
+        deploymentData.scheduledFor = deploymentForm.scheduledFor;
+        deploymentData.timezone = deploymentForm.timezone;
+      } else if (deploymentForm.scheduleType === 'recurring') {
+        deploymentData.cronExpression = deploymentForm.cronExpression;
+        deploymentData.timezone = deploymentForm.timezone;
+      }
 
       await deploymentsApi.create(deploymentData);
       
