@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   KeyIcon,
   CogIcon,
@@ -14,7 +15,7 @@ import {
   ClipboardDocumentListIcon,
   CloudIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '@/contexts/AuthContext';
+import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import toast from 'react-hot-toast';
 import { settingsApi } from '@/lib/api';
 import RoleMatrixManagement from './RoleMatrixManagement';
@@ -33,6 +34,12 @@ const IntegrationsPageComponent = dynamic(() => import('../app/settings/integrat
   </div>
 });
 
+const PemKeysPageComponent = dynamic(() => import('./PemKeysPage'), {
+  loading: () => <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+  </div>
+});
+
 interface Settings {
   claudeApiKey?: string;
   defaultRegion?: string;
@@ -40,10 +47,11 @@ interface Settings {
   deploymentTimeout?: number;
 }
 
-type SettingsTab = 'general' | 'users' | 'roles' | 'audit-logs' | 'integrations';
+type SettingsTab = 'general' | 'users' | 'roles' | 'audit-logs' | 'integrations' | 'pem-keys';
 
 export default function SettingsPage() {
-  const { user, organization } = useAuth();
+  const { user, organization } = useMinimalAuth();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -56,6 +64,14 @@ export default function SettingsPage() {
     maxConcurrentDeployments: 5,
     deploymentTimeout: 300,
   });
+
+  // Handle tab parameter from URL
+  useEffect(() => {
+    const tab = searchParams.get('tab') as SettingsTab;
+    if (tab && ['general', 'users', 'roles', 'audit-logs', 'integrations', 'pem-keys'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const [userProfile, setUserProfile] = useState({
     name: user?.name || '',
@@ -205,6 +221,12 @@ export default function SettingsPage() {
       name: 'Integrations', 
       icon: CloudIcon,
       description: 'Connect external services and cloud providers'
+    },
+    { 
+      id: 'pem-keys' as SettingsTab, 
+      name: 'PEM Keys', 
+      icon: KeyIcon,
+      description: 'Manage SSH private keys for server authentication'
     },
   ];
 
@@ -542,6 +564,9 @@ export default function SettingsPage() {
 
       {/* Integrations Tab */}
       {activeTab === 'integrations' && <IntegrationsPageComponent />}
+
+      {/* PEM Keys Tab */}
+      {activeTab === 'pem-keys' && <PemKeysPageComponent />}
 
     </div>
   );

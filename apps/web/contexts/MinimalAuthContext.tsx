@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const publicRoutes = ['/login', '/register', '/forgot-password'];
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function MinimalAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,33 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (mounted) {
-      console.log('AuthContext: useEffect triggered, checking auth');
+      console.log('MinimalAuth: Checking auth...');
       checkAuth();
     }
   }, [mounted]);
 
-  useEffect(() => {
-    // Redirect logic
-    if (!loading) {
-      const isPublicRoute = publicRoutes.includes(pathname);
-      const isAuthenticated = !!user;
-
-      if (!isAuthenticated && !isPublicRoute) {
-        router.push('/login');
-      } else if (isAuthenticated && isPublicRoute) {
-        router.push('/');
-      }
-    }
-  }, [loading, user, pathname, router]);
-
   const checkAuth = () => {
-    console.log('AuthContext: Starting checkAuth');
     try {
       const token = localStorage.getItem('authToken');
       const userData = localStorage.getItem('user');
       const orgData = localStorage.getItem('organization');
 
-      console.log('AuthContext: Retrieved from localStorage', {
+      console.log('MinimalAuth: Retrieved from localStorage', {
         hasToken: !!token,
         hasUserData: !!userData,
         hasOrgData: !!orgData
@@ -77,16 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token && userData && orgData) {
         const parsedUser = JSON.parse(userData);
         const parsedOrg = JSON.parse(orgData);
-        console.log('AuthContext: Setting user and org', { parsedUser, parsedOrg });
+        console.log('MinimalAuth: Setting user and org', { parsedUser, parsedOrg });
         setUser(parsedUser);
         setOrganization(parsedOrg);
       } else {
-        console.log('AuthContext: Missing auth data, clearing state');
+        console.log('MinimalAuth: No auth data found, user not logged in');
         setUser(null);
         setOrganization(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('MinimalAuth: Error checking auth', error);
       // Clear potentially corrupted data
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
@@ -94,12 +79,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setOrganization(null);
     } finally {
-      console.log('AuthContext: Setting loading to false');
+      console.log('MinimalAuth: Auth check completed, setting loading to false');
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    // Redirect logic
+    if (!loading && mounted) {
+      const isPublicRoute = publicRoutes.includes(pathname);
+      const isAuthenticated = !!user;
+
+      console.log('MinimalAuth: Redirect logic', { isAuthenticated, isPublicRoute, pathname });
+
+      if (!isAuthenticated && !isPublicRoute) {
+        router.push('/login');
+      } else if (isAuthenticated && isPublicRoute) {
+        router.push('/');
+      }
+    }
+  }, [loading, user, pathname, router, mounted]);
+
   const login = (token: string, userData: User, orgData: Organization) => {
+    console.log('MinimalAuth: Login called', { userData, orgData });
     localStorage.setItem('authToken', token);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('organization', JSON.stringify(orgData));
@@ -107,11 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData);
     setOrganization(orgData);
     
-    // Immediately redirect to dashboard after successful login
     router.push('/');
   };
 
   const logout = () => {
+    console.log('MinimalAuth: Logout called');
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     localStorage.removeItem('organization');
@@ -133,10 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-8 h-8 mx-auto mb-4 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600">Loading application...</p>
         </div>
       </div>
     );
@@ -149,10 +151,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth() {
+export function useMinimalAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useMinimalAuth must be used within a MinimalAuthProvider');
   }
   return context;
 }

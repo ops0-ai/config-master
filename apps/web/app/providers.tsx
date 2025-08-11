@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { useState } from 'react';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { MinimalAuthProvider } from '@/contexts/MinimalAuthContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -17,7 +17,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }));
 
   return (
-    <AuthProvider>
+    <MinimalAuthProvider>
       <QueryClientProvider client={queryClient}>
         {children}
         <Toaster
@@ -31,6 +31,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           }}
         />
       </QueryClientProvider>
-    </AuthProvider>
+    </MinimalAuthProvider>
   );
 }

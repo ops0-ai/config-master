@@ -10,11 +10,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { authApi } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login } = useMinimalAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({

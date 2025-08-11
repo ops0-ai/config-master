@@ -10,6 +10,19 @@ import crypto from 'crypto';
 const router = Router();
 const awsService = new AWSService();
 
+// Generate consistent external ID based on organization ID
+function generateExternalId(organizationId: string): string {
+  const hash = crypto.createHash('sha256').update(`configmaster-${organizationId}`).digest('hex');
+  // Take first 32 characters to create a consistent UUID-like string
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    hash.substring(12, 16),
+    hash.substring(16, 20),
+    hash.substring(20, 32)
+  ].join('-');
+}
+
 // Validation schemas
 const createIntegrationSchema = Joi.object({
   name: Joi.string().required().min(1).max(255),
@@ -53,7 +66,7 @@ router.get('/regions', async (req: AuthenticatedRequest, res: Response): Promise
 router.get('/iam-policy', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const policy = AWSService.generateIAMPolicy();
-    const externalId = crypto.randomUUID();
+    const externalId = generateExternalId(req.user!.organizationId);
     
     res.json({
       externalId,
@@ -109,7 +122,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<any> 
     }
 
     const { name, roleArn, regions } = value;
-    const externalId = crypto.randomUUID();
+    const externalId = generateExternalId(req.user!.organizationId);
 
     // Test connection first
     const connectionTest = await awsService.testConnection(roleArn, externalId);

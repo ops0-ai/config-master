@@ -32,9 +32,56 @@ interface IAMPolicyResponse {
   instructions: string[];
 }
 
+interface GitHubIntegration {
+  id: string;
+  name: string;
+  githubUsername: string;
+  repositoryName: string;
+  repositoryFullName: string;
+  defaultBranch: string;
+  basePath: string;
+  isActive: boolean;
+  autoFetch: boolean;
+  fetchInterval: number;
+  lastFetchAt?: string;
+  lastSyncAt?: string;
+  syncStatus: 'pending' | 'syncing' | 'connected' | 'error';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GitHubRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  default_branch: string;
+  description: string | null;
+  html_url: string;
+}
+
+interface GitHubUser {
+  id: number;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string;
+}
+
 export default function IntegrationsPage() {
   const [showAWSConfig, setShowAWSConfig] = useState(false);
+  const [showGitHubConfig, setShowGitHubConfig] = useState(false);
+  
+  // AWS state
   const [awsIntegrations, setAwsIntegrations] = useState<AWSIntegration[]>([]);
+  
+  // GitHub state
+  const [githubIntegrations, setGithubIntegrations] = useState<GitHubIntegration[]>([]);
+  const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
+  const [githubRepositories, setGithubRepositories] = useState<GitHubRepository[]>([]);
+  const [githubAccessToken, setGithubAccessToken] = useState<string | null>(null);
+  const [showGitHubSetup, setShowGitHubSetup] = useState(false);
+  const [showGitHubSetupModal, setShowGitHubSetupModal] = useState(false);
   const [awsRegions, setAwsRegions] = useState<string[]>([]);
   const [awsInstances, setAwsInstances] = useState<AWSInstance[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
@@ -263,14 +310,206 @@ export default function IntegrationsPage() {
     }
   };
 
+  // GitHub functions
+  const loadGitHubData = async () => {
+    if (!showGitHubConfig) return;
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch('/api/github/integrations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const integrations = await response.json();
+        setGithubIntegrations(integrations);
+      }
+    } catch (err) {
+      console.error('Error loading GitHub data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load GitHub data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initiateGitHubAuth = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const authToken = localStorage.getItem('authToken');
+      
+      if (!authToken) {
+        // Redirect to login if no token
+        window.location.href = '/login';
+        return;
+      }
+      
+      const response = await fetch('/api/github/auth-url', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const { authUrl } = await response.json();
+      
+      if (!authUrl) {
+        throw new Error('Invalid response: missing authorization URL');
+      }
+      
+      // Redirect to GitHub OAuth
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('Error initiating GitHub auth:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate GitHub authorization');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle OAuth callback success
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const error = urlParams.get('error');
+    const data = urlParams.get('data');
+    
+    console.log('Processing GitHub OAuth callback:', { success, error, hasData: !!data });
+    
+    if (success && data) {
+      try {
+        // Decode URL-encoded base64 data
+        const decodedData = decodeURIComponent(data);
+        const successData = JSON.parse(atob(decodedData));
+        
+        console.log('GitHub OAuth success:', {
+          user: successData.user?.login,
+          repositoryCount: successData.repositories?.length,
+          hasToken: !!successData.accessToken
+        });
+        
+        setGithubUser(successData.user);
+        setGithubRepositories(successData.repositories || []);
+        setGithubAccessToken(successData.accessToken);
+        setShowGitHubSetup(true);
+        
+        // Clean up URL after a brief delay to ensure state is set
+        setTimeout(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }, 100);
+        
+      } catch (err) {
+        console.error('Error parsing OAuth callback data:', err);
+        console.error('Raw data:', data);
+        setError('Failed to process GitHub authorization');
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } else if (error) {
+      console.error('GitHub OAuth error:', error);
+      setError(`GitHub authorization failed: ${error}`);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  const createGitHubIntegration = async (formData: {
+    name: string;
+    repositoryId: string;
+    repositoryName: string;
+    repositoryFullName: string;
+    defaultBranch: string;
+    basePath: string;
+  }) => {
+    if (!githubUser || !githubAccessToken) {
+      setError('GitHub authentication required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch('/api/github/integrations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData,
+          accessToken: githubAccessToken,
+          user: githubUser
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create GitHub integration');
+      }
+
+      const integration = await response.json();
+      setGithubIntegrations([...githubIntegrations, integration]);
+      setShowGitHubSetup(false);
+      setGithubUser(null);
+      setGithubRepositories([]);
+      setGithubAccessToken(null);
+      
+    } catch (err) {
+      console.error('Error creating GitHub integration:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create GitHub integration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteGitHubIntegration = async (integrationId: string) => {
+    if (!confirm('Are you sure you want to delete this GitHub integration?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/github/integrations/${integrationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete GitHub integration');
+      }
+
+      setGithubIntegrations(githubIntegrations.filter(i => i.id !== integrationId));
+    } catch (err) {
+      console.error('Error deleting GitHub integration:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete GitHub integration');
+    }
+  };
+
   useEffect(() => {
     if (showAWSConfig) {
       loadAWSData();
+    } else if (showGitHubConfig) {
+      loadGitHubData();
     }
-  }, [showAWSConfig]);
+  }, [showAWSConfig, showGitHubConfig]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {!showAWSConfig ? (
+      {!showAWSConfig && !showGitHubConfig && (
         <>
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
@@ -346,8 +585,78 @@ export default function IntegrationsPage() {
               </div>
             </div>
           </div>
+
+          {/* Source Control Integrations */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Source Control</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* GitHub Integration */}
+              <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                <div className="flex items-center mb-3">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-900">GitHub</h3>
+                    <p className="text-sm text-gray-600">Sync configurations with GitHub repositories</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowGitHubConfig(true)}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Configure GitHub
+                </button>
+              </div>
+
+              {/* Placeholder for other source control providers */}
+              <div className="border border-gray-200 rounded-lg p-4 opacity-50">
+                <div className="flex items-center mb-3">
+                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-400">GitLab</h3>
+                    <p className="text-sm text-gray-400">Coming Soon</p>
+                  </div>
+                </div>
+                <button 
+                  disabled
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed"
+                >
+                  Configure GitLab
+                </button>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4 opacity-50">
+                <div className="flex items-center mb-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-400">Bitbucket</h3>
+                    <p className="text-sm text-gray-400">Coming Soon</p>
+                  </div>
+                </div>
+                <button 
+                  disabled
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed"
+                >
+                  Configure Bitbucket
+                </button>
+              </div>
+            </div>
+          </div>
         </>
-      ) : (
+      )}
+      
+      {showAWSConfig && (
         /* AWS Configuration Section */
         <div className="space-y-6">
           {/* Header with Back Button */}
@@ -738,6 +1047,185 @@ export default function IntegrationsPage() {
           </div>
         </div>
       )}
+      
+      {showGitHubConfig && (
+        /* GitHub Configuration Section */
+        <div className="space-y-6">
+          {/* Header with Back Button */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  setShowGitHubConfig(false);
+                  setGithubUser(null);
+                  setGithubRepositories([]);
+                  setGithubAccessToken(null);
+                  setShowGitHubSetup(false);
+                  setError(null);
+                }}
+                className="flex items-center text-gray-600 hover:text-gray-900"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Integrations
+              </button>
+              <div className="h-6 w-px bg-gray-300"></div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">GitHub Integration</h1>
+                <p className="mt-2 text-gray-600">
+                  Connect to GitHub to sync configurations with your repositories
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={initiateGitHubAuth}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              {loading ? 'Connecting...' : 'Add GitHub Integration'}
+            </button>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+                <div className="ml-auto">
+                  <button
+                    onClick={() => setError(null)}
+                    className="text-red-400 hover:text-red-600"
+                  >
+                    <span className="sr-only">Dismiss</span>
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* GitHub Integrations List */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">GitHub Integrations</h2>
+            </div>
+            {githubIntegrations.length === 0 && !loading ? (
+              <div className="p-6 text-center">
+                <p className="text-gray-500">No GitHub integrations configured</p>
+                <p className="text-sm text-gray-400 mt-2">Click "Add GitHub Integration" to get started</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {githubIntegrations.map((integration) => (
+                  <div key={integration.id} className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">{integration.name}</h3>
+                        <p className="text-sm text-gray-600">Repository: {integration.repositoryFullName}</p>
+                        <p className="text-sm text-gray-600">Branch: {integration.defaultBranch}</p>
+                        <div className="flex items-center mt-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            integration.syncStatus === 'connected' ? 'bg-green-100 text-green-800' :
+                            integration.syncStatus === 'syncing' ? 'bg-yellow-100 text-yellow-800' :
+                            integration.syncStatus === 'error' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {integration.syncStatus}
+                          </span>
+                          {integration.lastSyncAt && (
+                            <span className="ml-2 text-xs text-gray-500">
+                              Last synced: {new Date(integration.lastSyncAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => deleteGitHubIntegration(integration.id)}
+                          className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* GitHub Setup Modal */}
+      {showGitHubSetup && githubUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">GitHub Integration Setup</h3>
+                <button
+                  onClick={() => {
+                    setShowGitHubSetup(false);
+                    setGithubUser(null);
+                    setGithubRepositories([]);
+                    setGithubAccessToken(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-900 mb-2">Connected as: {githubUser.login}</h4>
+                <p className="text-sm text-gray-600">Select a repository to sync your configurations with</p>
+              </div>
+
+              <div className="space-y-4">
+                {githubRepositories.map((repo) => (
+                  <div key={repo.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{repo.full_name}</h4>
+                        <p className="text-sm text-gray-600">{repo.description || 'No description'}</p>
+                        <div className="flex items-center mt-1 space-x-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            repo.private ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                          }`}>
+                            {repo.private ? 'Private' : 'Public'}
+                          </span>
+                          <span className="text-xs text-gray-500">Default branch: {repo.default_branch}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          createGitHubIntegration({
+                            name: `${repo.name} Integration`,
+                            repositoryId: repo.id.toString(),
+                            repositoryName: repo.name,
+                            repositoryFullName: repo.full_name,
+                            defaultBranch: repo.default_branch,
+                            basePath: '/configs'
+                          });
+                        }}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Select Repository
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

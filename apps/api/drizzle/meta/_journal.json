@@ -22,6 +22,13 @@
       "when": 1754769995852,
       "tag": "0002_cooing_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1754877425953,
+      "tag": "0003_lean_titanium_man",
+      "breakpoints": true
     }
   ]
 }

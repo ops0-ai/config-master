@@ -113,6 +113,15 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'POST:/api/aws/*/sync': { resource: 'aws-integrations', action: 'sync' },
   'GET:/api/aws/*/instances': { resource: 'aws-integrations', action: 'read' },
   'POST:/api/aws/*/instances/*/import': { resource: 'aws-integrations', action: 'import' },
+  
+  // GitHub Integrations
+  'GET:/api/github/integrations': { resource: 'github-integrations', action: 'read' },
+  'GET:/api/github/auth-url': { resource: 'github-integrations', action: 'read' },
+  'POST:/api/github/integrations': { resource: 'github-integrations', action: 'write' },
+  'GET:/api/github/integrations/*/repositories/*/*/branches': { resource: 'github-integrations', action: 'read' },
+  'POST:/api/github/integrations/*/sync-configuration': { resource: 'github-integrations', action: 'sync' },
+  'PUT:/api/github/integrations/*': { resource: 'github-integrations', action: 'write' },
+  'DELETE:/api/github/integrations/*': { resource: 'github-integrations', action: 'delete' },
 };
 
 // Routes that don't require authorization
@@ -122,6 +131,7 @@ const publicRoutes = [
   'POST:/api/auth/forgot-password',
   'GET:/api/health',
   'GET:/health',
+  'GET:/api/github/callback', // GitHub OAuth callback
 ];
 
 // Helper function to create audit log for permission attempts

@@ -22,6 +22,7 @@ import { roleRoutes } from './routes/roles';
 import { userRoutes } from './routes/users';
 import { awsRoutes } from './routes/aws';
 import { settingsRoutes, initializeSettings } from './routes/settings';
+import { githubRoutes } from './routes/github';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -72,6 +73,7 @@ app.use('/api/roles', authMiddleware, rbacMiddleware(), auditMiddleware, roleRou
 app.use('/api/users', authMiddleware, rbacMiddleware(), auditMiddleware, userRoutes);
 app.use('/api/aws', authMiddleware, rbacMiddleware(), auditMiddleware, awsRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
+app.use('/api/github', githubRoutes);
 
 app.use(errorHandler);
 

@@ -69,6 +69,13 @@ const systemPermissions = [
   { resource: 'aws-integrations', action: 'delete', description: 'Delete AWS integrations' },
   { resource: 'aws-integrations', action: 'sync', description: 'Sync AWS instances' },
   { resource: 'aws-integrations', action: 'import', description: 'Import AWS instances as servers' },
+  
+  // GitHub integration permissions
+  { resource: 'github-integrations', action: 'read', description: 'View GitHub integrations' },
+  { resource: 'github-integrations', action: 'write', description: 'Create and modify GitHub integrations' },
+  { resource: 'github-integrations', action: 'delete', description: 'Delete GitHub integrations' },
+  { resource: 'github-integrations', action: 'validate', description: 'Validate GitHub tokens' },
+  { resource: 'github-integrations', action: 'sync', description: 'Sync configurations to GitHub' },
 ];
 
 // Define system roles with their permissions
@@ -88,7 +95,9 @@ const systemRoles = {
       'training:read', 'chat:read', 'chat:write', 'chat:delete',
       'audit-logs:view', 'audit-logs:export',
       'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 
-      'aws-integrations:sync', 'aws-integrations:import'
+      'aws-integrations:sync', 'aws-integrations:import',
+      'github-integrations:read', 'github-integrations:write', 'github-integrations:delete',
+      'github-integrations:validate', 'github-integrations:sync'
     ]
   },
   operator: {
@@ -103,6 +112,7 @@ const systemRoles = {
       'deployments:read', 'deployments:write', 'deployments:execute',
       'training:read', 'chat:read', 'chat:write', 'chat:delete',
       'aws-integrations:read', 'aws-integrations:sync', 'aws-integrations:import',
+      'github-integrations:read', 'github-integrations:write', 'github-integrations:validate', 'github-integrations:sync',
       'audit-logs:view'
     ]
   },

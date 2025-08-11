@@ -17,6 +17,8 @@
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.864.0",
     "@aws-sdk/client-sts": "^3.864.0",
+    "@octokit/oauth-app": "^8.0.1",
+    "@octokit/rest": "^22.0.0",
     "@openfga/sdk": "^0.9.0",
     "@types/bcrypt": "^6.0.0",
     "@types/uuid": "^10.0.0",
@@ -25,7 +27,7 @@
     "cors": "^2.8.0",
     "cron-parser": "^4.9.0",
     "crypto-js": "^4.1.0",
-    "dotenv": "^16.3.0",
+    "dotenv": "^16.6.1",
     "drizzle-orm": "^0.28.0",
     "express": "^4.18.0",
     "helmet": "^7.0.0",

@@ -20,7 +20,7 @@ import {
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAuth } from '@/contexts/AuthContext';
+import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -31,7 +31,6 @@ const navigation = [
   { name: 'Configuration Chat', href: '/chat', icon: ChatBubbleLeftRightIcon },
   { name: 'Servers', href: '/servers', icon: ServerIcon },
   { name: 'Server Groups', href: '/server-groups', icon: CpuChipIcon },
-  { name: 'PEM Keys', href: '/pem-keys', icon: KeyIcon },
   { name: 'Configurations', href: '/configurations', icon: CpuChipIcon },
   { name: 'Deployments', href: '/deployments', icon: ChartBarIcon },
   { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon },
@@ -154,7 +153,7 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   function UserProfile() {
-    const { user, organization, logout } = useAuth();
+    const { user, organization, logout } = useMinimalAuth();
     const [showDropdown, setShowDropdown] = useState(false);
 
     return (

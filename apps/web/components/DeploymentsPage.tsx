@@ -100,7 +100,7 @@ export default function DeploymentsPage() {
     name: '',
     description: '',
     section: 'production',
-    configurationId: '',
+    configurationIds: [] as string[],
     targetType: 'server' as 'server' | 'serverGroup',
     targetId: '',
     scheduleType: 'immediate' as 'immediate' | 'scheduled' | 'recurring',
@@ -200,50 +200,87 @@ export default function DeploymentsPage() {
 
   const handleCreateDeployment = async () => {
     try {
-      if (!deploymentForm.configurationId || !deploymentForm.targetId) {
-        toast.error('Please select both configuration and target');
+      if (deploymentForm.configurationIds.length === 0 || !deploymentForm.targetId) {
+        toast.error('Please select at least one configuration and a target');
         return;
       }
 
-      // Prepare deployment data with scheduling
-      const deploymentData: any = {
-        name: deploymentForm.name,
-        description: deploymentForm.description,
-        section: deploymentForm.section,
-        configurationId: deploymentForm.configurationId,
-        targetType: deploymentForm.targetType,
-        targetId: deploymentForm.targetId,
-        scheduleType: deploymentForm.scheduleType,
-      };
-
-      // Only add scheduling fields based on type
-      if (deploymentForm.scheduleType === 'scheduled') {
-        deploymentData.scheduledFor = deploymentForm.scheduledFor;
-        deploymentData.timezone = deploymentForm.timezone;
-      } else if (deploymentForm.scheduleType === 'recurring') {
-        deploymentData.cronExpression = deploymentForm.cronExpression;
-        deploymentData.timezone = deploymentForm.timezone;
+      const createdDeployments: string[] = [];
+      const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create deployments for each selected configuration
+      for (let i = 0; i < deploymentForm.configurationIds.length; i++) {
+        const configId = deploymentForm.configurationIds[i];
+        const config = configurations.find(c => c.id === configId);
+        
+        // Prepare deployment data with scheduling
+        const deploymentData: any = {
+          name: deploymentForm.configurationIds.length === 1 
+            ? deploymentForm.name 
+            : `${deploymentForm.name} - ${config?.name}`,
+          description: deploymentForm.configurationIds.length > 1 
+            ? `${deploymentForm.description}\n\nBatch: ${i + 1} of ${deploymentForm.configurationIds.length}` 
+            : deploymentForm.description,
+          section: deploymentForm.section,
+          configurationId: configId,
+          targetType: deploymentForm.targetType,
+          targetId: deploymentForm.targetId,
+          scheduleType: deploymentForm.scheduleType,
+        };
+        
+        // Only add scheduling fields based on type
+        if (deploymentForm.scheduleType === 'scheduled') {
+          deploymentData.scheduledFor = deploymentForm.scheduledFor;
+          deploymentData.timezone = deploymentForm.timezone;
+        } else if (deploymentForm.scheduleType === 'recurring') {
+          deploymentData.cronExpression = deploymentForm.cronExpression;
+          deploymentData.timezone = deploymentForm.timezone;
+        }
+        
+        const response = await deploymentsApi.create(deploymentData);
+        createdDeployments.push(response.data.name || `Deployment ${i + 1}`);
       }
-
-      await deploymentsApi.create(deploymentData);
       
       const scheduleMessage = deploymentForm.scheduleType === 'immediate' 
-        ? 'Deployment created successfully' 
+        ? `${createdDeployments.length} deployment(s) created successfully` 
         : deploymentForm.scheduleType === 'scheduled'
-        ? 'Scheduled deployment created successfully'
-        : 'Recurring deployment created successfully';
+        ? `${createdDeployments.length} scheduled deployment(s) created successfully`
+        : `${createdDeployments.length} recurring deployment(s) created successfully`;
       
       toast.success(scheduleMessage);
       
       await loadData();
       resetForm();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to create deployment');
+      toast.error(error.response?.data?.error || 'Failed to create deployment(s)');
     }
   };
 
   const handleRunDeployment = async (id: string) => {
     try {
+      const deployment = deployments.find(d => d.id === id);
+      
+      // Check if this is part of a batch by looking for similar deployments
+      const potentialBatch = deployments.filter(d => 
+        d.name.includes(' - ') &&
+        d.name.split(' - ')[0] === deployment?.name?.split(' - ')[0] &&
+        d.targetId === deployment?.targetId &&
+        d.section === deployment?.section &&
+        (d.status === 'pending' || d.id === id)
+      );
+      
+      if (potentialBatch.length > 1) {
+        const confirmBatch = confirm(
+          `This appears to be part of a batch of ${potentialBatch.length} deployments. ` +
+          `Would you like to run all ${potentialBatch.length} deployments sequentially?`
+        );
+        
+        if (confirmBatch) {
+          await handleRunBatch(deployment!);
+          return;
+        }
+      }
+      
       await deploymentsApi.run(id);
       toast.success('Deployment started');
       
@@ -253,6 +290,92 @@ export default function DeploymentsPage() {
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to start deployment');
     }
+  };
+
+  const handleRunBatch = async (firstDeployment: Deployment) => {
+    try {
+      // Find all deployments in the same batch
+      const batchDeployments = deployments
+        .filter(d => 
+          d.name.includes(' - ') &&
+          d.name.split(' - ')[0] === firstDeployment.name.split(' - ')[0] &&
+          d.targetId === firstDeployment.targetId &&
+          d.section === firstDeployment.section &&
+          d.status === 'pending'
+        )
+        .sort((a, b) => {
+          // Sort by creation time to maintain order
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+
+      if (batchDeployments.length <= 1) {
+        // Not a batch, run single deployment
+        await deploymentsApi.run(firstDeployment.id);
+        toast.success('Deployment started');
+        setRunningDeployments(prev => new Set(prev).add(firstDeployment.id));
+        await loadDeployments();
+        return;
+      }
+
+      toast.success(`Starting batch deployment of ${batchDeployments.length} configurations...`);
+      
+      // Run deployments sequentially
+      for (let i = 0; i < batchDeployments.length; i++) {
+        const deployment = batchDeployments[i];
+        
+        try {
+          // Add to running deployments
+          setRunningDeployments(prev => new Set(prev).add(deployment.id));
+          
+          // Start the deployment
+          await deploymentsApi.run(deployment.id);
+          
+          toast.success(`Started deployment ${i + 1} of ${batchDeployments.length}: ${deployment.configuration?.name || deployment.name}`);
+          
+          // Wait for this deployment to complete before starting the next
+          await waitForDeploymentCompletion(deployment.id);
+          
+        } catch (error) {
+          console.error(`Failed to run deployment ${deployment.name}:`, error);
+          toast.error(`Failed to run deployment ${i + 1}: ${deployment.configuration?.name || deployment.name}`);
+          // Continue with next deployment even if one fails
+        }
+      }
+      
+      await loadDeployments();
+      toast.success(`Batch deployment completed!`);
+      
+    } catch (error: any) {
+      toast.error('Failed to start batch deployment');
+    }
+  };
+
+  const waitForDeploymentCompletion = async (deploymentId: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const checkStatus = async () => {
+        try {
+          const response = await deploymentsApi.getById(deploymentId);
+          const deployment = response.data;
+          
+          if (deployment.status === 'completed' || deployment.status === 'failed' || deployment.status === 'cancelled') {
+            setRunningDeployments(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(deploymentId);
+              return newSet;
+            });
+            resolve();
+          } else {
+            // Check again in 2 seconds
+            setTimeout(checkStatus, 2000);
+          }
+        } catch (error) {
+          console.error('Error checking deployment status:', error);
+          resolve(); // Resolve anyway to avoid hanging
+        }
+      };
+      
+      checkStatus();
+    });
   };
 
   const handleCancelDeployment = async (id: string) => {
@@ -283,7 +406,7 @@ export default function DeploymentsPage() {
       name: '',
       description: '',
       section: 'production',
-      configurationId: '',
+      configurationIds: [],
       targetType: 'server',
       targetId: '',
       scheduleType: 'immediate',
@@ -579,6 +702,11 @@ export default function DeploymentsPage() {
                         <div className="flex items-center space-x-3">
                           <h3 className="text-lg font-semibold text-gray-900">
                             {deployment.name}
+                            {deployment.name.includes(' - ') && (
+                              <span className="ml-2 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full" title="Part of a batch deployment">
+                                Batch
+                              </span>
+                            )}
                           </h3>
                           {/* Version Selector */}
                           <div className="flex items-center space-x-2">
@@ -707,14 +835,29 @@ export default function DeploymentsPage() {
                       )}
                       
                       {(deployment.status === 'pending' || deployment.status === 'failed' || deployment.status === 'completed') && (
-                        <button
-                          onClick={() => handleRunDeployment(deployment.id)}
-                          className="btn btn-secondary btn-sm"
-                          title={deployment.status === 'pending' ? "Run Deployment" : "Redeploy"}
-                        >
-                          <PlayIcon className="h-4 w-4" />
-                          <span className="ml-1">{deployment.status === 'pending' ? 'Run' : 'Redeploy'}</span>
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleRunDeployment(deployment.id)}
+                            className="btn btn-secondary btn-sm"
+                            title={
+                              deployment.name.includes(' - ')
+                                ? "Run this deployment (or entire batch if confirmed)"
+                                : deployment.status === 'pending' 
+                                  ? "Run Deployment" 
+                                  : "Redeploy"
+                            }
+                          >
+                            <PlayIcon className="h-4 w-4" />
+                            <span className="ml-1">
+                              {deployment.name.includes(' - ') && deployment.status === 'pending' 
+                                ? 'Run Batch' 
+                                : deployment.status === 'pending' 
+                                  ? 'Run' 
+                                  : 'Redeploy'
+                              }
+                            </span>
+                          </button>
+                        </>
                       )}
                       
                       {(deployment.status === 'running' || deployment.status === 'pending') && (
@@ -820,22 +963,68 @@ export default function DeploymentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Configuration
-                </label>
-                <select
-                  value={deploymentForm.configurationId}
-                  onChange={(e) => setDeploymentForm({...deploymentForm, configurationId: e.target.value})}
-                  className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600 sm:text-sm sm:leading-6"
-                  required
-                >
-                  <option value="">Select a configuration...</option>
-                  {configurations.map((config) => (
-                    <option key={config.id} value={config.id}>
-                      {config.name} ({config.type})
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Configurations <span className="text-sm font-normal text-gray-500">(Select one or more)</span>
+                  </label>
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeploymentForm(prev => ({
+                        ...prev,
+                        configurationIds: configurations.map(c => c.id)
+                      }))}
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-xs text-gray-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setDeploymentForm(prev => ({
+                        ...prev,
+                        configurationIds: []
+                      }))}
+                      className="text-xs text-gray-600 hover:text-gray-700 font-medium"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md">
+                  {configurations.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-500">No configurations available</div>
+                  ) : (
+                    configurations.map((config) => (
+                      <div key={config.id} className="flex items-center p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+                        <input
+                          type="checkbox"
+                          id={`config-${config.id}`}
+                          checked={deploymentForm.configurationIds.includes(config.id)}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            setDeploymentForm(prev => ({
+                              ...prev,
+                              configurationIds: isChecked
+                                ? [...prev.configurationIds, config.id]
+                                : prev.configurationIds.filter(id => id !== config.id)
+                            }));
+                          }}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor={`config-${config.id}`} className="ml-3 flex-1 cursor-pointer">
+                          <div className="text-sm font-medium text-gray-900">{config.name}</div>
+                          <div className="text-xs text-gray-500">{config.type}{config.description && ` - ${config.description}`}</div>
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {deploymentForm.configurationIds.length > 0 && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    Selected: {deploymentForm.configurationIds.length} configuration(s)
+                  </div>
+                )}
               </div>
 
               <div>

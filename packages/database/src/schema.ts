@@ -363,3 +363,80 @@ export const awsIntegrationsRelations = relations(awsIntegrations, ({ one, many 
 export const awsInstancesRelations = relations(awsInstances, ({ one }) => ({
   integration: one(awsIntegrations, { fields: [awsInstances.integrationId], references: [awsIntegrations.id] }),
 }));
+
+// GitHub Integration Tables
+export const githubIntegrations = pgTable('github_integrations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  githubUserId: varchar('github_user_id', { length: 255 }).notNull(),
+  githubUsername: varchar('github_username', { length: 255 }).notNull(),
+  accessToken: text('access_token').notNull(), // Encrypted
+  refreshToken: text('refresh_token'), // Encrypted
+  tokenExpiresAt: timestamp('token_expires_at'),
+  repositoryId: varchar('repository_id', { length: 255 }).notNull(),
+  repositoryName: varchar('repository_name', { length: 255 }).notNull(),
+  repositoryFullName: varchar('repository_full_name', { length: 512 }).notNull(),
+  defaultBranch: varchar('default_branch', { length: 255 }).notNull().default('main'),
+  basePath: varchar('base_path', { length: 512 }).default('/configs'),
+  isActive: boolean('is_active').notNull().default(true),
+  autoFetch: boolean('auto_fetch').notNull().default(false),
+  fetchInterval: integer('fetch_interval').default(300), // seconds
+  lastFetchAt: timestamp('last_fetch_at'),
+  lastSyncAt: timestamp('last_sync_at'),
+  syncStatus: varchar('sync_status', { length: 50 }).default('pending'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const configurationGithubMappings = pgTable('configuration_github_mappings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  configurationId: uuid('configuration_id').references(() => configurations.id, { onDelete: 'cascade' }).notNull(),
+  githubIntegrationId: uuid('github_integration_id').references(() => githubIntegrations.id, { onDelete: 'cascade' }).notNull(),
+  relativePath: varchar('relative_path', { length: 512 }).notNull(),
+  branch: varchar('branch', { length: 255 }).notNull(),
+  autoSync: boolean('auto_sync').notNull().default(false),
+  syncOnChange: boolean('sync_on_change').notNull().default(true),
+  lastSyncedSha: varchar('last_synced_sha', { length: 40 }),
+  lastSyncAt: timestamp('last_sync_at'),
+  syncStatus: varchar('sync_status', { length: 50 }).default('pending'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const githubPullRequests = pgTable('github_pull_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  githubIntegrationId: uuid('github_integration_id').references(() => githubIntegrations.id, { onDelete: 'cascade' }).notNull(),
+  configurationId: uuid('configuration_id').references(() => configurations.id, { onDelete: 'cascade' }),
+  prNumber: integer('pr_number').notNull(),
+  prId: varchar('pr_id', { length: 255 }).notNull(),
+  title: varchar('title', { length: 512 }).notNull(),
+  description: text('description'),
+  headBranch: varchar('head_branch', { length: 255 }).notNull(),
+  baseBranch: varchar('base_branch', { length: 255 }).notNull(),
+  state: varchar('state', { length: 50 }).notNull(), // open, closed, merged
+  htmlUrl: text('html_url').notNull(),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  mergedAt: timestamp('merged_at'),
+  closedAt: timestamp('closed_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// GitHub Integration Relations
+export const githubIntegrationsRelations = relations(githubIntegrations, ({ one, many }) => ({
+  organization: one(organizations, { fields: [githubIntegrations.organizationId], references: [organizations.id] }),
+  configurationMappings: many(configurationGithubMappings),
+  pullRequests: many(githubPullRequests),
+}));
+
+export const configurationGithubMappingsRelations = relations(configurationGithubMappings, ({ one }) => ({
+  configuration: one(configurations, { fields: [configurationGithubMappings.configurationId], references: [configurations.id] }),
+  githubIntegration: one(githubIntegrations, { fields: [configurationGithubMappings.githubIntegrationId], references: [githubIntegrations.id] }),
+}));
+
+export const githubPullRequestsRelations = relations(githubPullRequests, ({ one }) => ({
+  githubIntegration: one(githubIntegrations, { fields: [githubPullRequests.githubIntegrationId], references: [githubIntegrations.id] }),
+  configuration: one(configurations, { fields: [githubPullRequests.configurationId], references: [configurations.id] }),
+  createdBy: one(users, { fields: [githubPullRequests.createdBy], references: [users.id] }),
+}));
