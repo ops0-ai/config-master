@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔍 ConfigMaster Platform Verification"
+echo "🔍 Pulse Platform Verification"
 echo "===================================="
 
 # Test API Server
@@ -40,7 +40,7 @@ echo "   • Web Interface: http://localhost:3001"
 echo "   • API Server: http://localhost:5005" 
 echo "   • API Health: http://localhost:5005/health"
 echo ""
-echo "✨ ConfigMaster is ready for enterprise configuration management!"
+echo "✨ Pulse is ready for enterprise configuration management!"
 
 # Cleanup temp files
 rm -f /tmp/api_response /tmp/web_response 2>/dev/null

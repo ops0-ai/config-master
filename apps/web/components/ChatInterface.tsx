@@ -13,10 +13,12 @@ import {
   PlusIcon,
   ChatBubbleLeftIcon,
   EllipsisVerticalIcon,
-  TrashIcon
+  TrashIcon,
+  ClockIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import Editor from '@monaco-editor/react';
-import { conversationsApi, deploymentsApi, serversApi } from '@/lib/api';
+import { conversationsApi, deploymentsApi, serversApi, serverGroupsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface Message {
@@ -26,6 +28,14 @@ interface Message {
   generatedConfiguration?: string;
   configurationId?: string;
   timestamp: string;
+}
+
+interface ConfigurationDetails {
+  id: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
 }
 
 interface Conversation {
@@ -42,6 +52,12 @@ interface Server {
   status: string;
 }
 
+interface ServerGroup {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export default function ChatInterface() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
@@ -52,8 +68,15 @@ export default function ChatInterface() {
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [currentConfigId, setCurrentConfigId] = useState<string | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
+  const [serverGroups, setServerGroups] = useState<ServerGroup[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>('');
+  const [targetType, setTargetType] = useState<'server' | 'serverGroup'>('server');
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
+  const [configDetails, setConfigDetails] = useState<ConfigurationDetails | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [currentGeneratedConfig, setCurrentGeneratedConfig] = useState('');
+  const [saveConfigName, setSaveConfigName] = useState('');
+  const [refreshingConfigId, setRefreshingConfigId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -121,10 +144,14 @@ export default function ChatInterface() {
 
   const loadServers = async () => {
     try {
-      const response = await serversApi.getAll();
-      setServers(response.data);
+      const [serversResponse, serverGroupsResponse] = await Promise.all([
+        serversApi.getAll(),
+        serverGroupsApi.getAll()
+      ]);
+      setServers(serversResponse.data);
+      setServerGroups(serverGroupsResponse.data);
     } catch (error) {
-      console.error('Failed to load servers:', error);
+      console.error('Failed to load servers and server groups:', error);
     }
   };
 
@@ -222,27 +249,117 @@ export default function ChatInterface() {
     }
   };
 
-  const showConfiguration = (config: string, configId?: string) => {
+  const showConfiguration = async (config: string, configId?: string) => {
     setCurrentConfig(config);
     setCurrentConfigId(configId || null);
+    setConfigDetails(null);
+    
+    // Load configuration details if we have an ID
+    if (configId) {
+      try {
+        const response = await fetch(`/api/configurations/${configId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setConfigDetails({
+            id: data.id,
+            approvalStatus: data.approvalStatus,
+            approvedBy: data.approvedBy,
+            approvedAt: data.approvedAt,
+            rejectionReason: data.rejectionReason
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load configuration details:', error);
+      }
+    }
+    
     setShowConfigEditor(true);
   };
 
   const deployConfiguration = async () => {
     if (!selectedServer || !currentConfigId) {
-      toast.error('Please select a server for deployment');
+      toast.error(`Please select a ${targetType === 'server' ? 'server' : 'server group'} for deployment`);
       return;
     }
 
     try {
-      await deploymentsApi.create({
-        configurationId: currentConfigId,
-        targetType: 'server',
-        targetId: selectedServer,
-        name: `Deployment ${new Date().toLocaleString()}`
+      // First check if configuration is approved
+      const configResponse = await fetch(`/api/configurations/${currentConfigId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
       });
       
-      toast.success('Deployment started successfully');
+      if (!configResponse.ok) {
+        throw new Error('Failed to fetch configuration details');
+      }
+      
+      const configData = await configResponse.json();
+      
+      if (configData.approvalStatus !== 'approved') {
+        toast.error(`Cannot deploy: Configuration must be approved first. Current status: ${configData.approvalStatus}`);
+        setShowDeployModal(false);
+        return;
+      }
+
+      // Get target name for deployment naming
+      let targetName = '';
+      if (targetType === 'server') {
+        const server = servers.find(s => s.id === selectedServer);
+        targetName = server?.name || 'Unknown Server';
+      } else {
+        const serverGroup = serverGroups.find(sg => sg.id === selectedServer);
+        targetName = serverGroup?.name || 'Unknown Server Group';
+      }
+
+      // Create the deployment record
+      const deploymentResponse = await deploymentsApi.create({
+        configurationId: currentConfigId,
+        targetType: targetType,
+        targetId: selectedServer,
+        name: `Chat Deploy - ${configData.name} (${targetName})`,
+        description: `Deployment from chat conversation to ${targetType === 'server' ? 'server' : 'server group'}: ${targetName}`,
+        scheduleType: 'immediate'
+      });
+      
+      const deployment = deploymentResponse.data;
+      
+      // Immediately start the deployment
+      await deploymentsApi.run(deployment.id);
+      
+      const deploymentUrl = `/deployments?id=${deployment.id}`;
+      
+      // Show success message with link to deployment
+      const toastId = toast.success(
+        <div>
+          <p>Deployment started successfully!</p>
+          <button 
+            onClick={() => {
+              window.open(deploymentUrl, '_blank');
+              toast.dismiss(toastId);
+            }}
+            className="text-blue-600 hover:text-blue-700 underline text-sm mt-1"
+          >
+            View Deployment Console →
+          </button>
+        </div>,
+        { 
+          duration: 8000,
+          style: {
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            color: '#166534'
+          }
+        }
+      );
+      
       setShowDeployModal(false);
     } catch (error) {
       console.error('Failed to deploy:', error);
@@ -254,7 +371,272 @@ export default function ChatInterface() {
     return conversations.find(conv => conv.id === activeConversation);
   };
 
+  const refreshConfigurationStatus = async (configId: string) => {
+    try {
+      const response = await fetch(`/api/configurations/${configId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const configData = await response.json();
+        
+        // Update the message with fresh configuration status
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === activeConversation) {
+            const updatedMessages = conv.messages.map(message => {
+              if (message.configurationId === configId) {
+                return {
+                  ...message,
+                  // Force a re-render to show updated status
+                  timestamp: message.timestamp
+                };
+              }
+              return message;
+            });
+            return { ...conv, messages: updatedMessages };
+          }
+          return conv;
+        }));
+        
+        // Clear refreshing state
+        if (refreshingConfigId === configId) {
+          setRefreshingConfigId(null);
+        }
+        
+        // If still pending after initial save, continue polling for a few more times
+        if (configData.approvalStatus === 'pending' && refreshingConfigId === configId) {
+          setTimeout(() => {
+            refreshConfigurationStatus(configId);
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh configuration status:', error);
+      if (refreshingConfigId === configId) {
+        setRefreshingConfigId(null);
+      }
+    }
+  };
+
+  const getConfigurationStatus = async (configId: string): Promise<ConfigurationDetails | null> => {
+    try {
+      const response = await fetch(`/api/configurations/${configId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          id: data.id,
+          approvalStatus: data.approvalStatus,
+          approvedBy: data.approvedBy,
+          approvedAt: data.approvedAt,
+          rejectionReason: data.rejectionReason
+        };
+      }
+    } catch (error) {
+      console.error('Failed to get configuration status:', error);
+    }
+    return null;
+  };
+
+  const saveConfigurationToDatabase = async () => {
+    if (!saveConfigName.trim() || !currentGeneratedConfig || !activeConversation) {
+      toast.error('Please provide a configuration name');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/conversations/${activeConversation}/save-configuration`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          configurationName: saveConfigName,
+          generatedYaml: currentGeneratedConfig,
+          description: `Configuration created from conversation`
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save configuration');
+      }
+
+      const savedConfig = await response.json();
+      
+      // Update the message with the new configuration ID
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === activeConversation) {
+          const updatedMessages = conv.messages.map(message => {
+            if (message.generatedConfiguration === currentGeneratedConfig) {
+              return {
+                ...message,
+                configurationId: savedConfig.id
+              };
+            }
+            return message;
+          });
+          return { ...conv, messages: updatedMessages };
+        }
+        return conv;
+      }));
+
+      // Also reload messages from server to ensure sync
+      await loadMessages(activeConversation);
+      
+      // Set refreshing state to show status polling
+      setRefreshingConfigId(savedConfig.id);
+      
+      // Poll for configuration status update
+      setTimeout(() => {
+        refreshConfigurationStatus(savedConfig.id);
+      }, 500);
+
+      toast.success('Configuration saved successfully! The status will update automatically.');
+      setShowSaveModal(false);
+      setSaveConfigName('');
+      setCurrentGeneratedConfig('');
+    } catch (error) {
+      console.error('Failed to save configuration:', error);
+      toast.error('Failed to save configuration');
+    }
+  };
+
   const currentMessages = getCurrentConversation()?.messages || [];
+
+  // Configuration Display Component
+  const ConfigurationDisplay = ({ message, refreshingConfigId, onView, onSave, onDeploy }: {
+    message: Message;
+    refreshingConfigId: string | null;
+    onView: (config: string, configId?: string) => void;
+    onSave: () => void;
+    onDeploy: (configId: string) => Promise<void>;
+  }) => {
+    const [configStatus, setConfigStatus] = useState<ConfigurationDetails | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+      if (message.configurationId && !configStatus) {
+        setLoading(true);
+        getConfigurationStatus(message.configurationId)
+          .then(setConfigStatus)
+          .finally(() => setLoading(false));
+      }
+    }, [message.configurationId]);
+
+    // Auto-refresh when this config is being refreshed
+    useEffect(() => {
+      if (message.configurationId && refreshingConfigId === message.configurationId) {
+        const interval = setInterval(async () => {
+          const status = await getConfigurationStatus(message.configurationId!);
+          if (status) {
+            setConfigStatus(status);
+            if (status.approvalStatus !== 'pending') {
+              // Stop auto-refresh once status is no longer pending
+              clearInterval(interval);
+            }
+          }
+        }, 1000);
+        
+        return () => clearInterval(interval);
+      }
+    }, [message.configurationId, refreshingConfigId]);
+
+    const StatusIndicator = ({ status }: { status: string }) => {
+      switch (status) {
+        case 'approved':
+          return (
+            <span className="inline-flex items-center text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+              <CheckCircleIcon className="h-3 w-3 mr-1" />
+              Approved
+            </span>
+          );
+        case 'rejected':
+          return (
+            <span className="inline-flex items-center text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+              <XCircleIcon className="h-3 w-3 mr-1" />
+              Rejected
+            </span>
+          );
+        case 'pending':
+        default:
+          return (
+            <span className="inline-flex items-center text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">
+              <ClockIcon className="h-3 w-3 mr-1" />
+              {refreshingConfigId === message.configurationId ? 'Refreshing...' : 'Pending Approval'}
+            </span>
+          );
+      }
+    };
+
+    return (
+      <div className="mt-3 pt-3 border-t border-gray-200">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-medium text-gray-700">
+              Generated Configuration
+            </span>
+            {message.configurationId && configStatus && (
+              <StatusIndicator status={configStatus.approvalStatus} />
+            )}
+            {loading && (
+              <span className="text-xs text-gray-500">Loading status...</span>
+            )}
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onView(message.generatedConfiguration!, message.configurationId)}
+              className="text-xs text-indigo-600 hover:text-indigo-500 flex items-center"
+            >
+              <EyeIcon className="h-3 w-3 mr-1" />
+              View
+            </button>
+            {message.configurationId ? (
+              <button
+                onClick={() => onDeploy(message.configurationId!)}
+                disabled={configStatus?.approvalStatus !== 'approved'}
+                className={`text-xs flex items-center ${
+                  configStatus?.approvalStatus === 'approved'
+                    ? 'text-green-600 hover:text-green-500'
+                    : 'text-gray-400 cursor-not-allowed'
+                }`}
+                title={configStatus?.approvalStatus !== 'approved' ? 'Configuration must be approved before deployment' : 'Deploy configuration'}
+              >
+                <PlayIcon className="h-3 w-3 mr-1" />
+                Deploy
+              </button>
+            ) : (
+              <button
+                onClick={onSave}
+                className="text-xs text-blue-600 hover:text-blue-500 flex items-center"
+              >
+                <PlusIcon className="h-3 w-3 mr-1" />
+                Save to Configs
+              </button>
+            )}
+          </div>
+        </div>
+        {configStatus?.rejectionReason && (
+          <div className="text-xs text-red-600 mb-2 p-2 bg-red-50 rounded">
+            <strong>Rejection reason:</strong> {configStatus.rejectionReason}
+          </div>
+        )}
+        <pre className="text-xs bg-gray-800 text-gray-100 p-2 rounded overflow-x-auto">
+          {message.generatedConfiguration.substring(0, 200)}
+          {message.generatedConfiguration.length > 200 && '...'}
+        </pre>
+      </div>
+    );
+  };
 
   return (
     <div className="h-full flex bg-white">
@@ -395,35 +777,24 @@ export default function ChatInterface() {
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       
                       {message.generatedConfiguration && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-medium text-gray-700">
-                              Generated Configuration
-                            </span>
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => showConfiguration(message.generatedConfiguration!, message.configurationId)}
-                                className="text-xs text-indigo-600 hover:text-indigo-500 flex items-center"
-                              >
-                                <EyeIcon className="h-3 w-3 mr-1" />
-                                View
-                              </button>
-                              {message.configurationId && (
-                                <button
-                                  onClick={() => setShowDeployModal(true)}
-                                  className="text-xs text-green-600 hover:text-green-500 flex items-center"
-                                >
-                                  <PlayIcon className="h-3 w-3 mr-1" />
-                                  Deploy
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <pre className="text-xs bg-gray-800 text-gray-100 p-2 rounded overflow-x-auto">
-                            {message.generatedConfiguration.substring(0, 200)}
-                            {message.generatedConfiguration.length > 200 && '...'}
-                          </pre>
-                        </div>
+                        <ConfigurationDisplay
+                          message={message}
+                          refreshingConfigId={refreshingConfigId}
+                          onView={showConfiguration}
+                          onSave={() => {
+                            setCurrentGeneratedConfig(message.generatedConfiguration!);
+                            setShowSaveModal(true);
+                          }}
+                          onDeploy={async (configId: string) => {
+                            setCurrentConfigId(configId);
+                            const status = await getConfigurationStatus(configId);
+                            if (status && status.approvalStatus !== 'approved') {
+                              toast.error(`Cannot deploy: Configuration must be approved first. Current status: ${status.approvalStatus}`);
+                              return;
+                            }
+                            setShowDeployModal(true);
+                          }}
+                        />
                       )}
                       
                       <div className="mt-2 text-xs opacity-75">
@@ -491,7 +862,31 @@ export default function ChatInterface() {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Generated Configuration</h3>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Generated Configuration</h3>
+                {configDetails && (
+                  <div className="flex items-center mt-2 space-x-2">
+                    {configDetails.approvalStatus === 'approved' && (
+                      <>
+                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                        <span className="text-sm text-green-700">Approved</span>
+                      </>
+                    )}
+                    {configDetails.approvalStatus === 'pending' && (
+                      <>
+                        <ClockIcon className="h-4 w-4 text-yellow-500" />
+                        <span className="text-sm text-yellow-700">Pending Approval</span>
+                      </>
+                    )}
+                    {configDetails.approvalStatus === 'rejected' && (
+                      <>
+                        <XCircleIcon className="h-4 w-4 text-red-500" />
+                        <span className="text-sm text-red-700">Rejected</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setShowConfigEditor(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -522,12 +917,22 @@ export default function ChatInterface() {
               {currentConfigId && (
                 <button
                   onClick={() => {
+                    if (configDetails?.approvalStatus !== 'approved') {
+                      toast.error(`Cannot deploy: Configuration must be approved first. Current status: ${configDetails?.approvalStatus || 'unknown'}`);
+                      return;
+                    }
                     setShowConfigEditor(false);
                     setShowDeployModal(true);
                   }}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                  disabled={configDetails?.approvalStatus !== 'approved'}
+                  className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium ${
+                    configDetails?.approvalStatus === 'approved'
+                      ? 'text-white bg-indigo-600 hover:bg-indigo-700'
+                      : 'text-gray-500 bg-gray-200 cursor-not-allowed'
+                  }`}
+                  title={configDetails?.approvalStatus !== 'approved' ? 'Configuration must be approved before deployment' : 'Deploy Configuration'}
                 >
-                  Deploy Configuration
+                  {configDetails?.approvalStatus === 'approved' ? 'Deploy Configuration' : 'Approval Required'}
                 </button>
               )}
             </div>
@@ -541,28 +946,94 @@ export default function ChatInterface() {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-900">Deploy Configuration</h3>
-              <p className="text-sm text-gray-600 mt-1">Select a server to deploy this configuration to</p>
+              <p className="text-sm text-gray-600 mt-1">Select a deployment target for this configuration</p>
             </div>
             
+            {/* Target Type Selection */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Target Server</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Target Type</label>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="server"
+                    checked={targetType === 'server'}
+                    onChange={(e) => {
+                      setTargetType(e.target.value as 'server');
+                      setSelectedServer('');
+                    }}
+                    className="mr-2 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <ServerIcon className="h-4 w-4 mr-1 text-blue-500" />
+                  Single Server
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="serverGroup"
+                    checked={targetType === 'serverGroup'}
+                    onChange={(e) => {
+                      setTargetType(e.target.value as 'serverGroup');
+                      setSelectedServer('');
+                    }}
+                    className="mr-2 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <CpuChipIcon className="h-4 w-4 mr-1 text-purple-500" />
+                  Server Group
+                </label>
+              </div>
+            </div>
+            
+            {/* Target Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {targetType === 'server' ? 'Target Server' : 'Target Server Group'}
+              </label>
               <select
                 value={selectedServer}
                 onChange={(e) => setSelectedServer(e.target.value)}
                 className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
-                <option value="">Select a server...</option>
-                {servers.map((server) => (
-                  <option key={server.id} value={server.id}>
-                    {server.name} ({server.ipAddress})
-                  </option>
-                ))}
+                <option value="">
+                  Select {targetType === 'server' ? 'a server' : 'a server group'}...
+                </option>
+                {targetType === 'server' 
+                  ? servers.map((server) => (
+                      <option key={server.id} value={server.id}>
+                        {server.name} ({server.ipAddress}) {server.status === 'online' ? '🟢' : '🔴'}
+                      </option>
+                    ))
+                  : serverGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} {group.description ? `- ${group.description}` : ''}
+                      </option>
+                    ))
+                }
               </select>
+              {targetType === 'server' && selectedServer && (
+                <div className="mt-2">
+                  {(() => {
+                    const server = servers.find(s => s.id === selectedServer);
+                    return server ? (
+                      <div className="text-xs text-gray-600 flex items-center">
+                        <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                          server.status === 'online' ? 'bg-green-400' : 'bg-red-400'
+                        }`}></span>
+                        Status: {server.status}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3">
               <button
-                onClick={() => setShowDeployModal(false)}
+                onClick={() => {
+                  setShowDeployModal(false);
+                  setTargetType('server');
+                  setSelectedServer('');
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 Cancel
@@ -572,7 +1043,52 @@ export default function ChatInterface() {
                 disabled={!selectedServer}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
               >
-                Deploy
+                Deploy to {targetType === 'server' ? 'Server' : 'Server Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Configuration Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Save Configuration</h3>
+              <p className="text-sm text-gray-600 mt-1">Give your configuration a name to save it for later use</p>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Configuration Name</label>
+              <input
+                type="text"
+                value={saveConfigName}
+                onChange={(e) => setSaveConfigName(e.target.value)}
+                placeholder="e.g., nginx-setup, database-config"
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Full name will be: <code>{activeConversation}-{saveConfigName || 'your-name'}</code>
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowSaveModal(false);
+                  setSaveConfigName('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveConfigurationToDatabase}
+                disabled={!saveConfigName.trim()}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                Save Configuration
               </button>
             </div>
           </div>

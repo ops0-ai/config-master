@@ -106,14 +106,14 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex-shrink-0">
               <Image
                 src="/logo.png"
-                alt="ConfigMaster Logo"
+                alt="Pulse Logo"
                 width={32}
                 height={32}
                 className="rounded-lg"
               />
             </div>
             <div className="ml-3">
-              <h1 className="text-lg font-semibold text-gray-900">ConfigMaster</h1>
+              <h1 className="text-lg font-semibold text-gray-900">Pulse</h1>
               <p className="text-xs text-gray-500">Enterprise Config Management</p>
             </div>
           </div>

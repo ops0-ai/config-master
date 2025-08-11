@@ -12,7 +12,7 @@ const awsService = new AWSService();
 
 // Generate consistent external ID based on organization ID
 function generateExternalId(organizationId: string): string {
-  const hash = crypto.createHash('sha256').update(`configmaster-${organizationId}`).digest('hex');
+  const hash = crypto.createHash('sha256').update(`pulse-${organizationId}`).digest('hex');
   // Take first 32 characters to create a consistent UUID-like string
   return [
     hash.substring(0, 8),

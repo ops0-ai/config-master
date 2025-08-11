@@ -6,7 +6,7 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'ConfigMaster - Enterprise Configuration Management',
+  title: 'Pulse - Enterprise Configuration Management',
   description: 'AI-powered configuration management platform with conversational Ansible automation',
   keywords: 'configuration management, ansible, devops, automation, infrastructure',
 };

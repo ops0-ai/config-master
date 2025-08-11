@@ -50,7 +50,7 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900">
-            Welcome to ConfigMaster
+            Welcome to Pulse
           </h1>
           <p className="mt-2 text-sm text-gray-600">
             Sign in to your configuration management dashboard
@@ -149,7 +149,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">New to ConfigMaster?</span>
+                <span className="px-2 bg-white text-gray-500">New to Pulse?</span>
               </div>
             </div>
 
@@ -168,7 +168,7 @@ export default function LoginPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-sm font-medium text-blue-800 mb-2">Demo Credentials</h3>
           <div className="text-sm text-blue-700 space-y-1">
-            <p><strong>Email:</strong> admin@configmaster.dev</p>
+            <p><strong>Email:</strong> admin@pulse.dev</p>
             <p><strong>Password:</strong> demo123</p>
           </div>
           <p className="text-xs text-blue-600 mt-2">

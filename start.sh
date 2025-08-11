@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting ConfigMaster Platform..."
+echo "🚀 Starting Pulse Platform..."
 echo "================================="
 
 # Check if PostgreSQL is running
@@ -41,7 +41,7 @@ WEB_PID=$!
 
 echo ""
 echo "================================="
-echo "✅ ConfigMaster is starting up!"
+echo "✅ Pulse is starting up!"
 echo ""
 echo "📍 API Server: http://localhost:5005"
 echo "📍 Web Interface: http://localhost:3000"

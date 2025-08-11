@@ -28,7 +28,7 @@ async function seed() {
     const passwordHash = await bcrypt.hash('demo123', 10);
     
     const user = await db.insert(users).values({
-      email: 'admin@configmaster.dev',
+      email: 'admin@pulse.dev',
       name: 'Demo Admin',
       passwordHash,
       role: 'admin',
@@ -46,7 +46,7 @@ async function seed() {
 
     console.log('\n🎉 Seeding completed successfully!');
     console.log('\n📋 Demo Credentials:');
-    console.log('   Email: admin@configmaster.dev');
+    console.log('   Email: admin@pulse.dev');
     console.log('   Password: demo123');
 
     process.exit(0);

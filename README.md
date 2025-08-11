@@ -1,4 +1,4 @@
-# ConfigMaster - Enterprise Configuration Management Platform
+# Pulse - Enterprise Configuration Management Platform
 
 A comprehensive SaaS platform for infrastructure configuration management featuring conversational AI-powered Ansible automation, drift detection, and enterprise-grade security.
 
@@ -214,4 +214,4 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 ---
 
-**ConfigMaster** - Bringing AI-powered automation to enterprise infrastructure management.
+**Pulse** - Bringing AI-powered automation to enterprise infrastructure management.

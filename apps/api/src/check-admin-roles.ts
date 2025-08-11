@@ -18,7 +18,7 @@ async function checkAdminRoles() {
     const adminUser = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'admin@configmaster.dev'))
+      .where(eq(users.email, 'admin@pulse.dev'))
       .limit(1);
 
     if (adminUser.length === 0) {

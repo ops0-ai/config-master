@@ -152,19 +152,6 @@ router.post('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any
         requirements: value.requirements || [],
       });
 
-      const configuration = await db
-        .insert(configurations)
-        .values({
-          name: `Config: ${title}`,
-          description: value.content,
-          type: 'generated',
-          ansiblePlaybook: playbookGeneration.yaml,
-          organizationId: req.user!.organizationId,
-          createdBy: req.user!.id,
-          isTemplate: false,
-        })
-        .returning();
-
       const assistantMessage = await db
         .insert(messages)
         .values({
@@ -172,14 +159,15 @@ router.post('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any
           role: 'assistant',
           content: playbookGeneration.explanation,
           generatedConfiguration: playbookGeneration.yaml,
-          configurationId: configuration[0].id,
+          // No configurationId since we're not saving it automatically
         })
         .returning();
 
       res.json({
         userMessage: userMessage[0],
         assistantMessage: assistantMessage[0],
-        configuration: configuration[0],
+        generatedConfiguration: playbookGeneration.yaml,
+        // Return the generated config but don't save it to database yet
       });
     } catch (aiError) {
       console.error('Error generating configuration:', aiError);
@@ -269,6 +257,75 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
     res.json({ message: 'Conversation deleted successfully' });
   } catch (error) {
     console.error('Error deleting conversation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Save generated configuration to configurations table
+router.post('/:id/save-configuration', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const saveConfigSchema = Joi.object({
+      configurationName: Joi.string().required(),
+      generatedYaml: Joi.string().required(),
+      description: Joi.string().optional(),
+    });
+
+    const { error, value } = saveConfigSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const conversation = await db
+      .select()
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.id, req.params.id),
+          eq(conversations.userId, req.user!.id),
+          eq(conversations.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!conversation[0]) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // Create configuration with conversation prefix
+    const configName = `${req.params.id}-${value.configurationName}`;
+    
+    const configuration = await db
+      .insert(configurations)
+      .values({
+        name: configName,
+        description: value.description || 'Configuration created from conversation',
+        type: 'playbook',
+        ansiblePlaybook: value.generatedYaml,
+        organizationId: req.user!.organizationId,
+        createdBy: req.user!.id,
+        isTemplate: false,
+        source: 'conversation',
+        approvalStatus: 'pending',
+      })
+      .returning();
+
+    // Update the message with the configuration ID
+    await db
+      .update(messages)
+      .set({ 
+        configurationId: configuration[0].id,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(messages.conversationId, req.params.id),
+          eq(messages.generatedConfiguration, value.generatedYaml)
+        )
+      );
+
+    res.json(configuration[0]);
+  } catch (error) {
+    console.error('Error saving configuration:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

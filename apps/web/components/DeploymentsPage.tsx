@@ -68,6 +68,10 @@ interface Configuration {
   name: string;
   type: string;
   description?: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
 }
 
 interface Server {
@@ -128,6 +132,22 @@ export default function DeploymentsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Handle URL parameters to show specific deployment
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const deploymentId = urlParams.get('id');
+    
+    if (deploymentId && deployments.length > 0) {
+      const deployment = deployments.find(d => d.id === deploymentId);
+      if (deployment) {
+        setSelectedDeployment(deployment);
+        setShowLogsModal(true);
+        // Clear the URL parameter
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [deployments]);
 
   // Poll for running deployments and update modal if needed
   useEffect(() => {
@@ -972,7 +992,7 @@ export default function DeploymentsPage() {
                       type="button"
                       onClick={() => setDeploymentForm(prev => ({
                         ...prev,
-                        configurationIds: configurations.map(c => c.id)
+                        configurationIds: configurations.filter(c => c.approvalStatus === 'approved').map(c => c.id)
                       }))}
                       className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                     >
@@ -992,10 +1012,12 @@ export default function DeploymentsPage() {
                   </div>
                 </div>
                 <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md">
-                  {configurations.length === 0 ? (
-                    <div className="p-3 text-sm text-gray-500">No configurations available</div>
+                  {configurations.filter(c => c.approvalStatus === 'approved').length === 0 ? (
+                    <div className="p-3 text-sm text-gray-500">
+                      {configurations.length === 0 ? 'No configurations available' : 'No approved configurations available for deployment'}
+                    </div>
                   ) : (
-                    configurations.map((config) => (
+                    configurations.filter(c => c.approvalStatus === 'approved').map((config) => (
                       <div key={config.id} className="flex items-center p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
                         <input
                           type="checkbox"

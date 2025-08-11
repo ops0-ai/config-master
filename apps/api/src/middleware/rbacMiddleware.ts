@@ -70,6 +70,11 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'PATCH:/api/configurations/*': { resource: 'configurations', action: 'write' },
   'DELETE:/api/configurations/*': { resource: 'configurations', action: 'delete' },
   
+  // Configuration Approvals (Admin only)
+  'POST:/api/configurations/*/approve': { resource: 'configurations', action: 'approve' },
+  'POST:/api/configurations/*/reject': { resource: 'configurations', action: 'approve' },
+  'POST:/api/configurations/*/reset-approval': { resource: 'configurations', action: 'approve' },
+  
   // Deployments
   'GET:/api/deployments': { resource: 'deployments', action: 'read' },
   'GET:/api/deployments/*': { resource: 'deployments', action: 'read' },
@@ -92,7 +97,9 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'GET:/api/conversations': { resource: 'chat', action: 'read' },
   'POST:/api/conversations': { resource: 'chat', action: 'write' },
   'GET:/api/conversations/*': { resource: 'chat', action: 'read' },
+  'GET:/api/conversations/*/messages': { resource: 'chat', action: 'read' },
   'POST:/api/conversations/*/messages': { resource: 'chat', action: 'write' },
+  'POST:/api/conversations/*/save-configuration': { resource: 'configurations', action: 'write' },
   
   // Audit Logs
   'GET:/api/audit-logs': { resource: 'audit-logs', action: 'view' },

@@ -196,3 +196,12 @@ export const settingsApi = {
   
   testClaude: () => api.post('/settings/test-claude'),
 };
+
+// Dashboard API
+export const dashboardApi = {
+  getStats: () => api.get('/dashboard/stats'),
+  
+  getActivity: (limit?: number) => api.get('/dashboard/activity', { params: { limit } }),
+  
+  getHealth: () => api.get('/dashboard/health'),
+};

@@ -75,6 +75,12 @@ export const configurations = pgTable('configurations', {
   createdBy: uuid('created_by').references(() => users.id).notNull(),
   isTemplate: boolean('is_template').notNull().default(false),
   version: integer('version').notNull().default(1),
+  source: varchar('source', { length: 50 }).notNull().default('manual'), // 'manual', 'template', 'conversation'
+  // Approval fields
+  approvalStatus: varchar('approval_status', { length: 50 }).notNull().default('pending'), // 'pending', 'approved', 'rejected'
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  rejectionReason: text('rejection_reason'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -142,6 +148,7 @@ export const messages = pgTable('messages', {
   generatedConfiguration: text('generated_configuration'),
   configurationId: uuid('configuration_id').references(() => configurations.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const auditLogs = pgTable('audit_logs', {
@@ -242,6 +249,7 @@ export const serversRelations = relations(servers, ({ one, many }) => ({
 export const configurationsRelations = relations(configurations, ({ one, many }) => ({
   organization: one(organizations, { fields: [configurations.organizationId], references: [organizations.id] }),
   createdBy: one(users, { fields: [configurations.createdBy], references: [users.id] }),
+  approvedBy: one(users, { fields: [configurations.approvedBy], references: [users.id] }),
   deployments: many(deployments),
   configurationStates: many(configurationStates),
   messages: many(messages),

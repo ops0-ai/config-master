@@ -43,6 +43,7 @@ const systemPermissions = [
   { resource: 'configurations', action: 'read', description: 'View configurations' },
   { resource: 'configurations', action: 'write', description: 'Create and modify configurations' },
   { resource: 'configurations', action: 'execute', description: 'Validate and test configurations' },
+  { resource: 'configurations', action: 'approve', description: 'Approve or reject configurations for deployment' },
   { resource: 'configurations', action: 'delete', description: 'Delete configurations' },
   
   // Deployment permissions
@@ -90,7 +91,7 @@ const systemRoles = {
       'servers:read', 'servers:write', 'servers:execute', 'servers:delete',
       'server-groups:read', 'server-groups:write', 'server-groups:execute', 'server-groups:delete',
       'pem-keys:read', 'pem-keys:write', 'pem-keys:execute', 'pem-keys:delete',
-      'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:delete',
+      'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:approve', 'configurations:delete',
       'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
       'training:read', 'chat:read', 'chat:write', 'chat:delete',
       'audit-logs:view', 'audit-logs:export',

@@ -8,7 +8,7 @@ const testLogin = async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        email: 'admin@configmaster.dev',
+        email: 'admin@pulse.dev',
         password: 'demo123'
       })
     });

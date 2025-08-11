@@ -5,7 +5,7 @@ const makeGitHubRequest = async (url: string, token: string, options: any = {}) 
     headers: {
       'Authorization': `token ${token}`,
       'Accept': 'application/vnd.github.v3+json',
-      'User-Agent': 'ConfigMaster/1.0',
+      'User-Agent': 'Pulse/1.0',
       ...options.headers
     },
     body: options.body ? JSON.stringify(options.body) : undefined

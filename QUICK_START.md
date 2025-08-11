@@ -1,4 +1,4 @@
-# 🚀 Quick Start Guide - ConfigMaster on Port 5005
+# 🚀 Quick Start Guide - Pulse on Port 5005
 
 ## ✅ Current Status
 - ✅ Project structure complete 
@@ -125,4 +125,4 @@ npm run db:push
 4. Begin conversational configuration management!
 
 ---
-**ConfigMaster** - Enterprise configuration management with AI-powered automation.
+**Pulse** - Enterprise configuration management with AI-powered automation.
