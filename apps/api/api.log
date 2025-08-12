@@ -2249,3 +2249,550 @@ Encryption service initialized successfully
 ✅ Ansible installation completed successfully.
 🔧 Platform ready with Ansible integration and RBAC
 [31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+🔍 Drift detection service started with hourly scans
+🕐 Starting deployment scheduler...
+🔍 Checking Ansible availability...
+🌱 Seeding RBAC permissions and roles...
+📝 Creating system permissions...
+🚀 Server running on port 5005
+📊 Health check: http://localhost:5005/health
+📦 Ansible not found. Attempting automatic installation...
+📦 Installing Ansible via pip3...
+✅ Claude API key loaded from database
+👑 Creating system roles...
+✅ RBAC seeding completed successfully!
+✅ Ansible installed successfully via pip3.
+✅ Ansible installation completed successfully.
+🔧 Platform ready with Ansible integration and RBAC
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+🔍 Drift detection service started with hourly scans
+🕐 Starting deployment scheduler...
+🔍 Checking Ansible availability...
+🌱 Seeding RBAC permissions and roles...
+📝 Creating system permissions...
+Error: listen EADDRINUSE: address already in use :::5005
+    at Server.setupListenHandle [as _listen2] (node:net:1904:16)
+    at listenInCluster (node:net:1961:12)
+    at Server.listen (node:net:2063:7)
+    at Object.<anonymous> (/Users/chaitanyasistla/Desktop/config-management/apps/api/src/index.ts:110:8)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1618:23)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5005
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(2,20): error TS2307: Cannot find module '../db' or its corresponding type declarations.
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(5,10): error TS2305: Module '"../middleware/auth"' has no exported member 'authenticateToken'.
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2307, 2724, 2305,
+    2339, 2339, 2339,
+    2339, 2339, 2339,
+    2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(2,20): error TS2307: Cannot find module '../db' or its corresponding type declarations.
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(5,10): error TS2305: Module '"../middleware/auth"' has no exported member 'authenticateToken'.
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2307, 2724, 2305,
+    2339, 2339, 2339,
+    2339, 2339, 2339,
+    2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(2,20): error TS2307: Cannot find module '../db' or its corresponding type declarations.
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(5,10): error TS2305: Module '"../middleware/auth"' has no exported member 'authenticateToken'.
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2307, 2724, 2305,
+    2339, 2339, 2339,
+    2339, 2339, 2339,
+    2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(2,20): error TS2307: Cannot find module '../db' or its corresponding type declarations.
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(5,10): error TS2305: Module '"../middleware/auth"' has no exported member 'authenticateToken'.
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2307, 2724, 2305,
+    2339, 2339, 2339,
+    2339, 2339, 2339,
+    2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(11,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(41,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(92,35): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(127,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2724, 2304, 2339,
+    2304, 2339, 2339,
+    2339, 2339, 2304,
+    2339, 2304, 2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(41,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(92,35): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(127,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2724, 2339, 2304,
+    2339, 2339, 2339,
+    2339, 2304, 2339,
+    2304, 2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(92,35): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(127,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2724, 2339, 2339,
+    2339, 2339, 2339,
+    2304, 2339, 2304,
+    2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(127,24): error TS2304: Cannot find name 'authenticateToken'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2724, 2339, 2339,
+    2339, 2339, 2339,
+    2339, 2304, 2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(3,25): error TS2724: '"@config-management/database"' has no exported member named 'userOrganizations'. Did you mean 'organizations'?
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2724, 2339, 2339,
+    2339, 2339, 2339,
+    2339, 2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(13,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [
+    2339, 2339,
+    2339, 2339,
+    2339, 2339,
+    2339
+  ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(43,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(44,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,25): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(66,55): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [ 2339, 2339, 2339, 2339, 2339, 2339 ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(94,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [ 2339, 2339 ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+(node:71920) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [Bus]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/routes/organizations.ts(129,24): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [ 2339 ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+🔍 Drift detection service started with hourly scans
+🕐 Starting deployment scheduler...
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/migrations/populateUserOrganizations.ts(1,20): error TS2307: Cannot find module '../db' or its corresponding type declarations.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [ 2307 ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+ENCRYPTION_KEY should be 32 characters long. Using padded/truncated version.
+Encryption service initialized successfully
+🔍 Drift detection service started with hourly scans
+🕐 Starting deployment scheduler...
+/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/migrations/populateUserOrganizations.ts(1,20): error TS2307: Cannot find module '../db' or its corresponding type declarations.
+
+    at createTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/chaitanyasistla/Desktop/config-management/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19) {
+  diagnosticCodes: [ 2307 ]
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+npm error Lifecycle script `dev` failed with error:
+npm error code 143
+npm error path /Users/chaitanyasistla/Desktop/config-management/apps/api
+npm error workspace api@0.1.0
+npm error location /Users/chaitanyasistla/Desktop/config-management/apps/api
+npm error command failed
+npm error command sh -c nodemon src/index.ts

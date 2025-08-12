@@ -17,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import toast from 'react-hot-toast';
-import { settingsApi } from '@/lib/api';
+import { settingsApi, organizationApi } from '@/lib/api';
 import RoleMatrixManagement from './RoleMatrixManagement';
 import UsersManagement from './UsersManagement';
 import dynamic from 'next/dynamic';
@@ -50,7 +50,7 @@ interface Settings {
 type SettingsTab = 'general' | 'users' | 'roles' | 'audit-logs' | 'integrations' | 'pem-keys';
 
 export default function SettingsPage() {
-  const { user, organization } = useMinimalAuth();
+  const { user, organization, setOrganization } = useMinimalAuth();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [loading, setLoading] = useState(false);
@@ -88,7 +88,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings();
+    loadOrganization();
   }, []);
+
+  const loadOrganization = async () => {
+    try {
+      const response = await organizationApi.getCurrent();
+      setOrgProfile({
+        name: response.data.name || '',
+        description: response.data.description || '',
+      });
+    } catch (error) {
+      console.error('Failed to load organization:', error);
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -166,11 +179,17 @@ export default function SettingsPage() {
   const handleUpdateOrganization = async () => {
     try {
       setSaving(true);
-      // TODO: Update organization
-      // await organizationApi.update(orgProfile);
+      const response = await organizationApi.update(orgProfile);
+      
+      // Update the organization context with the new name
+      setOrganization({
+        id: organization?.id || '',
+        name: response.data.name,
+      });
+      
       toast.success('Organization updated successfully');
     } catch (error: any) {
-      toast.error('Failed to update organization');
+      toast.error(error.response?.data?.error || 'Failed to update organization');
     } finally {
       setSaving(false);
     }

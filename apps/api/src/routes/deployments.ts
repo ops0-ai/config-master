@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../index';
-import { deployments, configurations, servers, serverGroups } from '@config-management/database';
+import { deployments, configurations, servers, serverGroups, users } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
 import Joi from 'joi';
@@ -56,6 +56,11 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
         nextRunAt: deployments.nextRunAt,
         lastRunAt: deployments.lastRunAt,
         createdAt: deployments.createdAt,
+        // Approval fields
+        approvalStatus: deployments.approvalStatus,
+        approvedBy: deployments.approvedBy,
+        approvedAt: deployments.approvedAt,
+        rejectionReason: deployments.rejectionReason,
         configuration: {
           id: configurations.id,
           name: configurations.name,
@@ -69,11 +74,17 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
           id: serverGroups.id,
           name: serverGroups.name,
         },
+        creator: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
       })
       .from(deployments)
       .leftJoin(configurations, eq(deployments.configurationId, configurations.id))
       .leftJoin(servers, eq(deployments.targetId, servers.id))
       .leftJoin(serverGroups, eq(deployments.targetId, serverGroups.id))
+      .leftJoin(users, eq(deployments.executedBy, users.id))
       .where(eq(deployments.organizationId, req.user!.organizationId))
       .orderBy(deployments.createdAt);
 
@@ -541,6 +552,95 @@ router.post('/:id/resume', async (req: AuthenticatedRequest, res): Promise<any> 
     res.json({ message: 'Recurring deployment resumed' });
   } catch (error) {
     console.error('Error resuming deployment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Approve deployment (must come before /:id route)
+router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // Check if user is admin or super_admin
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only administrators can approve deployments' });
+    }
+
+    const existingDeployment = await db
+      .select()
+      .from(deployments)
+      .where(
+        and(
+          eq(deployments.id, req.params.id),
+          eq(deployments.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingDeployment[0]) {
+      return res.status(404).json({ error: 'Deployment not found' });
+    }
+
+    const updatedDeployment = await db
+      .update(deployments)
+      .set({
+        approvalStatus: 'approved',
+        approvedBy: req.user!.id,
+        approvedAt: new Date(),
+        rejectionReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(deployments.id, req.params.id))
+      .returning();
+
+    res.json(updatedDeployment[0]);
+  } catch (error) {
+    console.error('Error approving deployment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reject deployment (must come before /:id route)
+router.post('/:id/reject', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // Check if user is admin or super_admin
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only administrators can reject deployments' });
+    }
+
+    const { reason } = req.body;
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    const existingDeployment = await db
+      .select()
+      .from(deployments)
+      .where(
+        and(
+          eq(deployments.id, req.params.id),
+          eq(deployments.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingDeployment[0]) {
+      return res.status(404).json({ error: 'Deployment not found' });
+    }
+
+    const updatedDeployment = await db
+      .update(deployments)
+      .set({
+        approvalStatus: 'rejected',
+        approvedBy: req.user!.id,
+        approvedAt: new Date(),
+        rejectionReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(deployments.id, req.params.id))
+      .returning();
+
+    res.json(updatedDeployment[0]);
+  } catch (error) {
+    console.error('Error rejecting deployment:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

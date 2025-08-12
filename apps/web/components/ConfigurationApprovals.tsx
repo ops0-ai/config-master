@@ -7,6 +7,10 @@ import {
   ClockIcon,
   EyeIcon,
   PlusIcon,
+  XMarkIcon,
+  DocumentTextIcon,
+  FolderIcon,
+  CodeBracketIcon,
 } from '@heroicons/react/24/outline';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import toast from 'react-hot-toast';
@@ -27,7 +31,7 @@ interface Configuration {
 }
 
 interface ConfigurationApprovalsProps {
-  onClose?: () => void;
+  onClose: () => void;
 }
 
 export default function ConfigurationApprovals({ onClose }: ConfigurationApprovalsProps) {
@@ -178,169 +182,202 @@ export default function ConfigurationApprovals({ onClose }: ConfigurationApprova
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'playbook':
+        return <DocumentTextIcon className="h-5 w-5 text-blue-600" />;
+      case 'role':
+        return <FolderIcon className="h-5 w-5 text-blue-600" />;
+      case 'task':
+        return <CodeBracketIcon className="h-5 w-5 text-blue-600" />;
+      default:
+        return <DocumentTextIcon className="h-5 w-5 text-blue-600" />;
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Configuration Approvals</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            {user?.role === 'admin' ? 'Approve or reject configurations for deployment use' : 'View configuration approval status'}
-          </p>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Configuration Approvals</h2>
+            <p className="text-gray-600 mt-1">
+              {user?.role === 'admin' ? 'Approve or reject configurations for deployment use' : 'View configuration approval status'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <ClockIcon className="h-6 w-6 text-yellow-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {configurations.filter(c => c.approvalStatus === 'pending').length}
-              </p>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
-          </div>
-        </div>
+          ) : (
+            <div className="p-6 space-y-6">
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Approved</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {configurations.filter(c => c.approvalStatus === 'approved').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <XCircleIcon className="h-6 w-6 text-red-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Rejected</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {configurations.filter(c => c.approvalStatus === 'rejected').length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Configuration List */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">All Configurations</h3>
-        </div>
-        
-        {configurations.length === 0 ? (
-          <div className="p-8 text-center">
-            <PlusIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No configurations found</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {configurations.map((config) => (
-              <div key={config.id} className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    {getStatusIcon(config.approvalStatus)}
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-medium text-gray-900">{config.name}</h3>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(config.approvalStatus)}`}>
-                          {config.approvalStatus}
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          {config.type}
-                        </span>
-                      </div>
-                      
-                      <div className="mt-1 text-sm text-gray-600">
-                        {config.description && <p>{config.description}</p>}
-                        <p className="mt-1">
-                          Created: {new Date(config.createdAt).toLocaleDateString()}
-                          {config.approvedAt && ` • ${config.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}: ${new Date(config.approvedAt).toLocaleDateString()}`}
-                        </p>
-                        {config.rejectionReason && (
-                          <p className="mt-1 text-red-600">
-                            <strong>Rejection reason:</strong> {config.rejectionReason}
-                          </p>
-                        )}
-                      </div>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center">
+                    <ClockIcon className="h-6 w-6 text-yellow-500 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Pending</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {configurations.filter(c => c.approvalStatus === 'pending').length}
+                      </p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => {
-                        setSelectedConfig(config);
-                        setShowPreview(true);
-                      }}
-                      className="btn btn-ghost btn-sm"
-                      title="Preview Configuration"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </button>
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center">
+                    <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Approved</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {configurations.filter(c => c.approvalStatus === 'approved').length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                    {user?.role === 'admin' && (
-                      <>
-                        {config.approvalStatus === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(config.id)}
-                              disabled={processingId === config.id}
-                              className="btn btn-secondary btn-sm text-green-600 hover:text-green-700"
-                              title="Approve Configuration"
-                            >
-                              <CheckCircleIcon className="h-4 w-4" />
-                              <span className="ml-1">Approve</span>
-                            </button>
-                            
-                            <button
-                              onClick={() => {
-                                setSelectedConfig(config);
-                                setShowRejectModal(true);
-                              }}
-                              disabled={processingId === config.id}
-                              className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                              title="Reject Configuration"
-                            >
-                              <XCircleIcon className="h-4 w-4" />
-                              <span className="ml-1">Reject</span>
-                            </button>
-                          </>
-                        )}
-
-                        {(config.approvalStatus === 'approved' || config.approvalStatus === 'rejected') && (
-                          <button
-                            onClick={() => handleResetApproval(config.id)}
-                            disabled={processingId === config.id}
-                            className="btn btn-ghost btn-sm"
-                            title="Reset to Pending"
-                          >
-                            <ClockIcon className="h-4 w-4" />
-                            <span className="ml-1">Reset</span>
-                          </button>
-                        )}
-                      </>
-                    )}
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center">
+                    <XCircleIcon className="h-6 w-6 text-red-500 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Rejected</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {configurations.filter(c => c.approvalStatus === 'rejected').length}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Configuration Grid */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">All Configurations</h3>
+                
+                {configurations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <PlusIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No configurations found</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {configurations.map((config) => (
+                      <div key={config.id} className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                {getTypeIcon(config.type)}
+                              </div>
+                              <div>
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <h3 className="text-lg font-semibold text-gray-900">{config.name}</h3>
+                                  {getStatusIcon(config.approvalStatus)}
+                                </div>
+                                <div className="flex items-center flex-wrap gap-2">
+                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                    {config.type}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded-full capitalize ${getStatusColor(config.approvalStatus)}`}>
+                                    {config.approvalStatus}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {config.description && (
+                            <p className="text-sm text-gray-600 mb-4">{config.description}</p>
+                          )}
+
+                          <div className="text-xs text-gray-500 mb-4">
+                            Created: {new Date(config.createdAt).toLocaleDateString()}
+                            {config.approvedAt && (
+                              <span className="ml-2">
+                                • {config.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}: {new Date(config.approvedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {config.rejectionReason && (
+                            <div className="text-xs text-red-600 mb-4 p-2 bg-red-50 rounded">
+                              <strong>Rejection reason:</strong> {config.rejectionReason}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => {
+                                setSelectedConfig(config);
+                                setShowPreview(true);
+                              }}
+                              className="btn btn-secondary btn-sm"
+                            >
+                              <EyeIcon className="h-4 w-4 mr-1" />
+                              View
+                            </button>
+
+                            {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                              <div className="flex gap-2">
+                                {config.approvalStatus === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApprove(config.id)}
+                                      disabled={processingId === config.id}
+                                      className="btn btn-success btn-sm"
+                                    >
+                                      <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                      Approve
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => {
+                                        setSelectedConfig(config);
+                                        setShowRejectModal(true);
+                                      }}
+                                      disabled={processingId === config.id}
+                                      className="btn btn-danger btn-sm"
+                                    >
+                                      <XCircleIcon className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+
+                                {(config.approvalStatus === 'approved' || config.approvalStatus === 'rejected') && (
+                                  <button
+                                    onClick={() => handleResetApproval(config.id)}
+                                    disabled={processingId === config.id}
+                                    className="btn btn-secondary btn-sm"
+                                  >
+                                    <ClockIcon className="h-4 w-4 mr-1" />
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
             ))}
-          </div>
-        )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Preview Modal */}

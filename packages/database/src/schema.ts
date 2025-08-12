@@ -10,6 +10,16 @@ export const organizations = pgTable('organizations', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const userOrganizations = pgTable('user_organizations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  role: varchar('role', { length: 50 }).notNull().default('member'), // owner, admin, member
+  isActive: boolean('is_active').notNull().default(true),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).unique().notNull(),
@@ -114,6 +124,11 @@ export const deployments = pgTable('deployments', {
   isActive: boolean('is_active').default(true), // For recurring deployments
   nextRunAt: timestamp('next_run_at'), // Next execution time for recurring deployments
   lastRunAt: timestamp('last_run_at'), // Last execution time for recurring deployments
+  // Approval fields
+  approvalStatus: varchar('approval_status', { length: 50 }).notNull().default('pending'), // 'pending', 'approved', 'rejected'
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  rejectionReason: text('rejection_reason'),
   executedBy: uuid('executed_by').references(() => users.id).notNull(),
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

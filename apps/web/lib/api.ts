@@ -129,6 +129,10 @@ export const configurationsApi = {
   }) => api.put(`/configurations/${id}`, data),
   
   delete: (id: string) => api.delete(`/configurations/${id}`),
+  
+  approve: (id: string) => api.post(`/configurations/${id}/approve`),
+  
+  reject: (id: string, reason: string) => api.post(`/configurations/${id}/reject`, { reason }),
 };
 
 // Conversations API
@@ -176,6 +180,10 @@ export const deploymentsApi = {
   resume: (id: string) => api.post(`/deployments/${id}/resume`),
   
   delete: (id: string) => api.delete(`/deployments/${id}`),
+  
+  approve: (id: string) => api.post(`/deployments/${id}/approve`),
+  
+  reject: (id: string, data: { reason: string }) => api.post(`/deployments/${id}/reject`, data),
 };
 
 // Audit Logs API
@@ -204,4 +212,17 @@ export const dashboardApi = {
   getActivity: (limit?: number) => api.get('/dashboard/activity', { params: { limit } }),
   
   getHealth: () => api.get('/dashboard/health'),
+};
+
+// Organization API
+export const organizationApi = {
+  getCurrent: () => api.get('/organizations/current'),
+  
+  update: (data: { name: string; description?: string | null }) => 
+    api.put('/organizations/current', data),
+  
+  getUserOrganizations: () => api.get('/organizations/user-organizations'),
+  
+  switchOrganization: (organizationId: string) => 
+    api.post('/organizations/switch', { organizationId }),
 };

@@ -18,26 +18,26 @@
    Collecting build traces ...
 
 Route (app)                              Size     First Load JS
-┌ ○ /                                    6.66 kB         136 kB
+┌ ○ /                                    4.03 kB         148 kB
 ├ ○ /_not-found                          873 B          88.1 kB
-├ ○ /chat                                11.1 kB         144 kB
-├ ○ /configurations                      2.67 kB         106 kB
-├ ○ /deployments                         9.03 kB         141 kB
-├ ○ /login                               3.75 kB         126 kB
+├ ○ /chat                                11.1 kB         155 kB
+├ ○ /configurations                      14.4 kB         158 kB
+├ ○ /deployments                         10.4 kB         154 kB
+├ ○ /login                               3.89 kB         126 kB
 ├ ○ /pem-keys                            511 B          87.8 kB
-├ ○ /register                            3.57 kB         126 kB
-├ ○ /server-groups                       4.01 kB         136 kB
-├ ○ /servers                             6.38 kB         139 kB
-├ ○ /settings                            9.64 kB         142 kB
-├ ○ /settings/audit-logs                 4.86 kB        92.1 kB
+├ ○ /register                            3.68 kB         125 kB
+├ ○ /server-groups                       3.95 kB         148 kB
+├ ○ /servers                             6.35 kB         150 kB
+├ ○ /settings                            9.62 kB         154 kB
+├ ○ /settings/audit-logs                 4.85 kB        92.1 kB
 ├ ○ /settings/integrations               6.22 kB        93.5 kB
-├ ○ /settings/roles/create               4.47 kB        91.7 kB
+├ ○ /settings/roles/create               4.45 kB        91.7 kB
 ├ ○ /test-simple                         408 B          87.7 kB
-└ ○ /training                            14.4 kB         118 kB
+└ ○ /training                            12.3 kB         156 kB
 + First Load JS shared by all            87.3 kB
-  ├ chunks/1dd3208c-6f10f8373886b9c6.js  53.6 kB
-  ├ chunks/528-70d8759c87861472.js       31.6 kB
-  └ other shared chunks (total)          2.04 kB
+  ├ chunks/1dd3208c-5769752230660779.js  53.6 kB
+  ├ chunks/528-881fa58aa423547c.js       31.6 kB
+  └ other shared chunks (total)          2.05 kB
 
 
 ○  (Static)  prerendered as static content

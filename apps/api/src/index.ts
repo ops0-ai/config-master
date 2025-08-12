@@ -24,6 +24,7 @@ import { awsRoutes } from './routes/aws';
 import { settingsRoutes, initializeSettings } from './routes/settings';
 import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
+import organizationRoutes from './routes/organizations';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -76,6 +77,7 @@ app.use('/api/aws', authMiddleware, rbacMiddleware(), auditMiddleware, awsRoutes
 app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/dashboard', authMiddleware, dashboardRoutes);
+app.use('/api/organizations', authMiddleware, organizationRoutes);
 
 app.use(errorHandler);
 
@@ -86,12 +88,14 @@ deploymentScheduler.start();
 // Setup Ansible on startup
 // Initialize RBAC system
 import { seedRBACData } from './utils/rbacSeeder';
+import { populateUserOrganizations } from './migrations/populateUserOrganizations';
 
 // Setup platform components
 Promise.all([
   ensureAnsibleInstalled(),
   seedRBACData(),
   initializeSettings(), // Load API keys from database on startup
+  populateUserOrganizations(), // Populate user organizations for multi-tenancy
 ]).then(([ansibleInstalled]) => {
   if (ansibleInstalled) {
     console.log('🔧 Platform ready with Ansible integration and RBAC');

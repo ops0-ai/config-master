@@ -26,6 +26,7 @@ import toast from 'react-hot-toast';
 import { configurationsApi } from '@/lib/api';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import ConfigurationApprovals from './ConfigurationApprovals';
+import ConfigurationEditor from './ConfigurationEditor';
 
 interface Configuration {
   id: string;
@@ -666,6 +667,18 @@ export default function ConfigurationsPage() {
     tags: '',
   });
 
+  // Modal states
+  const [showConfigDetails, setShowConfigDetails] = useState(false);
+  const [selectedConfig, setSelectedConfig] = useState<Configuration | null>(null);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<typeof ANSIBLE_TEMPLATES.nginx | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    description: '',
+    type: 'playbook' as 'playbook' | 'role' | 'task',
+    content: '',
+  });
+
   useEffect(() => {
     loadConfigurations();
   }, []);
@@ -769,23 +782,69 @@ export default function ConfigurationsPage() {
     }
   };
 
-  const handleUseTemplate = async (template: typeof ANSIBLE_TEMPLATES.nginx) => {
+  const handleUseTemplate = (template: typeof ANSIBLE_TEMPLATES.nginx) => {
+    setSelectedTemplate(template);
+    setTemplateForm({
+      name: template.name,
+      description: template.description,
+      type: template.type as 'playbook' | 'role' | 'task',
+      content: template.content,
+    });
+    setShowTemplatePreview(true);
+  };
+
+  const handleConfirmTemplate = async () => {
+    if (!templateForm.name.trim() || !templateForm.content.trim()) {
+      toast.error('Name and content are required');
+      return;
+    }
+    
     try {
       const payload = {
-        name: template.name,
-        description: template.description,
-        type: template.type,
-        content: template.content,
-        tags: ['template', template.name.toLowerCase().replace(/\s+/g, '-')],
+        name: templateForm.name,
+        description: templateForm.description,
+        type: templateForm.type,
+        content: templateForm.content,
+        tags: ['template', templateForm.name.toLowerCase().replace(/\s+/g, '-')],
         source: 'template',
       };
 
       await configurationsApi.create(payload);
-      toast.success('Template configuration created successfully');
+      toast.success('Configuration created successfully from template');
       await loadConfigurations();
       setShowTemplates(false);
+      setShowTemplatePreview(false);
+      setSelectedTemplate(null);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to create template configuration');
+      toast.error(error.response?.data?.error || 'Failed to create configuration');
+    }
+  };
+
+  const handleViewConfiguration = (config: Configuration) => {
+    setSelectedConfig(config);
+    setShowConfigDetails(true);
+  };
+
+  const handleApprove = async (configId: string) => {
+    try {
+      await configurationsApi.approve(configId);
+      toast.success('Configuration approved successfully');
+      await loadConfigurations();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to approve configuration');
+    }
+  };
+
+  const handleReject = async (configId: string) => {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (!reason) return;
+    
+    try {
+      await configurationsApi.reject(configId, reason);
+      toast.success('Configuration rejected');
+      await loadConfigurations();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to reject configuration');
     }
   };
 
@@ -830,6 +889,34 @@ export default function ConfigurationsPage() {
 
   if (showApprovals) {
     return <ConfigurationApprovals onClose={() => setShowApprovals(false)} />;
+  }
+
+  if (showEditor) {
+    return (
+      <ConfigurationEditor
+        config={editingConfig}
+        onClose={() => {
+          setShowEditor(false);
+          setEditingConfig(null);
+        }}
+        onSave={async (configData) => {
+          try {
+            if (editingConfig) {
+              await configurationsApi.update(editingConfig.id, configData);
+              toast.success('Configuration updated successfully');
+            } else {
+              await configurationsApi.create(configData);
+              toast.success('Configuration created successfully');
+            }
+            await loadConfigurations();
+            setShowEditor(false);
+            setEditingConfig(null);
+          } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to save configuration');
+          }
+        }}
+      />
+    );
   }
 
   return (
@@ -1017,7 +1104,11 @@ export default function ConfigurationsPage() {
           {/* Configurations Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentConfigurations.map((config) => (
-              <div key={config.id} className="card hover:shadow-lg transition-shadow">
+              <div 
+                key={config.id} 
+                className="card hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleViewConfiguration(config)}
+              >
                 <div className="card-content">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -1091,6 +1182,32 @@ export default function ConfigurationsPage() {
                   {config.rejectionReason && (
                     <div className="text-xs text-red-600 mt-1">
                       <strong>Rejection reason:</strong> {config.rejectionReason}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  {config.approvalStatus === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApprove(config.id);
+                        }}
+                        className="flex-1 btn btn-success btn-sm"
+                      >
+                        <CheckCircleIcon className="h-4 w-4 mr-1" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReject(config.id);
+                        }}
+                        className="flex-1 btn btn-danger btn-sm"
+                      >
+                        <XCircleIcon className="h-4 w-4 mr-1" />
+                        Reject
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1317,6 +1434,263 @@ export default function ConfigurationsPage() {
                     </div>
                   ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Configuration Details Modal */}
+      {showConfigDetails && selectedConfig && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">{selectedConfig.name}</h2>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                    {selectedConfig.type}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded-full capitalize ${
+                    selectedConfig.approvalStatus === 'approved' 
+                      ? 'bg-green-100 text-green-800'
+                      : selectedConfig.approvalStatus === 'rejected'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedConfig.approvalStatus}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowConfigDetails(false);
+                  setSelectedConfig(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {selectedConfig.description && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
+                  <p className="text-gray-600">{selectedConfig.description}</p>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Configuration Content</h3>
+                <div className="bg-gray-50 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-sm text-gray-800">
+                    <code>{selectedConfig.content}</code>
+                  </pre>
+                </div>
+              </div>
+
+              {selectedConfig.tags && selectedConfig.tags.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedConfig.tags.map((tag) => (
+                      <span key={tag} className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedConfig.rejectionReason && (
+                <div className="mb-6 p-4 bg-red-50 rounded-lg">
+                  <h3 className="text-sm font-semibold text-red-700 mb-2">Rejection Reason</h3>
+                  <p className="text-red-600">{selectedConfig.rejectionReason}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-gray-500">
+                  Created: {new Date(selectedConfig.createdAt).toLocaleString()}
+                  {selectedConfig.approvedAt && (
+                    <span className="ml-4">
+                      {selectedConfig.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}: {new Date(selectedConfig.approvedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setEditingConfig(selectedConfig);
+                    setShowConfigDetails(false);
+                    setShowEditor(true);
+                  }}
+                  className="btn btn-secondary btn-sm"
+                >
+                  <PencilIcon className="h-4 w-4 mr-1" />
+                  Edit
+                </button>
+              </div>
+              
+              {selectedConfig.approvalStatus === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      handleApprove(selectedConfig.id);
+                      setShowConfigDetails(false);
+                      setSelectedConfig(null);
+                    }}
+                    className="btn btn-success btn-sm"
+                  >
+                    <CheckCircleIcon className="h-4 w-4 mr-1" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleReject(selectedConfig.id);
+                      setShowConfigDetails(false);
+                      setSelectedConfig(null);
+                    }}
+                    className="btn btn-danger btn-sm"
+                  >
+                    <XCircleIcon className="h-4 w-4 mr-1" />
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Preview Modal */}
+      {showTemplatePreview && selectedTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Customize Template</h2>
+                <p className="text-gray-600 mt-1">Review and customize the template before adding it as a configuration</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTemplatePreview(false);
+                  setSelectedTemplate(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Configuration Details */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Configuration Details</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={templateForm.name}
+                      onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="Enter configuration name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={templateForm.description}
+                      onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="Describe what this configuration does"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Type *
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['playbook', 'role', 'task'] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setTemplateForm({ ...templateForm, type })}
+                          className={`flex flex-col items-center p-3 border rounded-lg transition-colors ${
+                            templateForm.type === type
+                              ? 'border-primary-500 bg-primary-50 text-primary-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <div className={`mb-1 ${templateForm.type === type ? 'text-primary-600' : 'text-gray-500'}`}>
+                            {type === 'playbook' && <DocumentTextIcon className="h-5 w-5" />}
+                            {type === 'role' && <FolderIcon className="h-5 w-5" />}
+                            {type === 'task' && <CodeBracketIcon className="h-5 w-5" />}
+                          </div>
+                          <span className="text-sm font-medium capitalize">{type}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* YAML Content Editor */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">YAML Content</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Configuration Content *
+                    </label>
+                    <textarea
+                      value={templateForm.content}
+                      onChange={(e) => setTemplateForm({ ...templateForm, content: e.target.value })}
+                      rows={20}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="Enter your Ansible configuration here..."
+                      style={{ minHeight: '400px' }}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-gray-500">
+                        Customize the YAML content before creating the configuration
+                      </p>
+                      <span className="text-xs text-gray-400">
+                        {templateForm.content.split('\n').length} lines
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowTemplatePreview(false);
+                  setSelectedTemplate(null);
+                }}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmTemplate}
+                className="btn btn-primary"
+                disabled={!templateForm.name.trim() || !templateForm.content.trim()}
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Configuration
+              </button>
             </div>
           </div>
         </div>

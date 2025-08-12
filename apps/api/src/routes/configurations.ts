@@ -47,6 +47,152 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
+// Approve configuration (must come before /:id route)
+router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // Check if user is admin or super_admin
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only administrators can approve configurations' });
+    }
+
+    const existingConfig = await db
+      .select()
+      .from(configurations)
+      .where(
+        and(
+          eq(configurations.id, req.params.id),
+          eq(configurations.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingConfig[0]) {
+      return res.status(404).json({ error: 'Configuration not found' });
+    }
+
+    const updatedConfig = await db
+      .update(configurations)
+      .set({
+        approvalStatus: 'approved',
+        approvedBy: req.user!.id,
+        approvedAt: new Date(),
+        rejectionReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(configurations.id, req.params.id))
+      .returning();
+
+    const result = {
+      ...updatedConfig[0],
+      content: updatedConfig[0].ansiblePlaybook
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error approving configuration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reject configuration (must come before /:id route)
+router.post('/:id/reject', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // Check if user is admin or super_admin
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only administrators can reject configurations' });
+    }
+
+    const { reason } = req.body;
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    const existingConfig = await db
+      .select()
+      .from(configurations)
+      .where(
+        and(
+          eq(configurations.id, req.params.id),
+          eq(configurations.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingConfig[0]) {
+      return res.status(404).json({ error: 'Configuration not found' });
+    }
+
+    const updatedConfig = await db
+      .update(configurations)
+      .set({
+        approvalStatus: 'rejected',
+        approvedBy: req.user!.id,
+        approvedAt: new Date(),
+        rejectionReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(configurations.id, req.params.id))
+      .returning();
+
+    const result = {
+      ...updatedConfig[0],
+      content: updatedConfig[0].ansiblePlaybook
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error rejecting configuration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reset approval status (must come before /:id route)
+router.post('/:id/reset-approval', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // Check if user is admin or super_admin
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only administrators can reset approval status' });
+    }
+
+    const existingConfig = await db
+      .select()
+      .from(configurations)
+      .where(
+        and(
+          eq(configurations.id, req.params.id),
+          eq(configurations.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingConfig[0]) {
+      return res.status(404).json({ error: 'Configuration not found' });
+    }
+
+    const updatedConfig = await db
+      .update(configurations)
+      .set({
+        approvalStatus: 'pending',
+        approvedBy: null,
+        approvedAt: null,
+        rejectionReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(configurations.id, req.params.id))
+      .returning();
+
+    const result = {
+      ...updatedConfig[0],
+      content: updatedConfig[0].ansiblePlaybook
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error resetting approval status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const config = await db
@@ -190,155 +336,6 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting configuration:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Approval routes
-router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    // Check if user is admin
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ error: 'Only administrators can approve configurations' });
-    }
-
-    const existingConfig = await db
-      .select()
-      .from(configurations)
-      .where(
-        and(
-          eq(configurations.id, req.params.id),
-          eq(configurations.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!existingConfig[0]) {
-      return res.status(404).json({ error: 'Configuration not found' });
-    }
-
-    if (existingConfig[0].approvalStatus === 'approved') {
-      return res.status(400).json({ error: 'Configuration is already approved' });
-    }
-
-    const updatedConfig = await db
-      .update(configurations)
-      .set({
-        approvalStatus: 'approved',
-        approvedBy: req.user!.id,
-        approvedAt: new Date(),
-        rejectionReason: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(configurations.id, req.params.id))
-      .returning();
-
-    const result = {
-      ...updatedConfig[0],
-      content: updatedConfig[0].ansiblePlaybook
-    };
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error approving configuration:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-router.post('/:id/reject', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    // Check if user is admin
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ error: 'Only administrators can reject configurations' });
-    }
-
-    const { reason } = req.body;
-    if (!reason || reason.trim() === '') {
-      return res.status(400).json({ error: 'Rejection reason is required' });
-    }
-
-    const existingConfig = await db
-      .select()
-      .from(configurations)
-      .where(
-        and(
-          eq(configurations.id, req.params.id),
-          eq(configurations.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!existingConfig[0]) {
-      return res.status(404).json({ error: 'Configuration not found' });
-    }
-
-    const updatedConfig = await db
-      .update(configurations)
-      .set({
-        approvalStatus: 'rejected',
-        approvedBy: req.user!.id,
-        approvedAt: new Date(),
-        rejectionReason: reason,
-        updatedAt: new Date(),
-      })
-      .where(eq(configurations.id, req.params.id))
-      .returning();
-
-    const result = {
-      ...updatedConfig[0],
-      content: updatedConfig[0].ansiblePlaybook
-    };
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error rejecting configuration:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Reset approval status (for admins to reset pending status)
-router.post('/:id/reset-approval', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    // Check if user is admin
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ error: 'Only administrators can reset approval status' });
-    }
-
-    const existingConfig = await db
-      .select()
-      .from(configurations)
-      .where(
-        and(
-          eq(configurations.id, req.params.id),
-          eq(configurations.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!existingConfig[0]) {
-      return res.status(404).json({ error: 'Configuration not found' });
-    }
-
-    const updatedConfig = await db
-      .update(configurations)
-      .set({
-        approvalStatus: 'pending',
-        approvedBy: null,
-        approvedAt: null,
-        rejectionReason: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(configurations.id, req.params.id))
-      .returning();
-
-    const result = {
-      ...updatedConfig[0],
-      content: updatedConfig[0].ansiblePlaybook
-    };
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error resetting approval status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (token: string, user: User, organization: Organization) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  setOrganization: (org: Organization | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,11 +31,20 @@ const publicRoutes = ['/login', '/register', '/forgot-password'];
 
 export function MinimalAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [organizationState, setOrganizationState] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  const setOrganization = (org: Organization | null) => {
+    setOrganizationState(org);
+    if (org) {
+      localStorage.setItem('organization', JSON.stringify(org));
+    } else {
+      localStorage.removeItem('organization');
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -64,11 +74,11 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
         const parsedOrg = JSON.parse(orgData);
         console.log('MinimalAuth: Setting user and org', { parsedUser, parsedOrg });
         setUser(parsedUser);
-        setOrganization(parsedOrg);
+        setOrganizationState(parsedOrg);
       } else {
         console.log('MinimalAuth: No auth data found, user not logged in');
         setUser(null);
-        setOrganization(null);
+        setOrganizationState(null);
       }
     } catch (error) {
       console.error('MinimalAuth: Error checking auth', error);
@@ -77,7 +87,7 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
       localStorage.removeItem('user');
       localStorage.removeItem('organization');
       setUser(null);
-      setOrganization(null);
+      setOrganizationState(null);
     } finally {
       console.log('MinimalAuth: Auth check completed, setting loading to false');
       setLoading(false);
@@ -107,7 +117,7 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
     localStorage.setItem('organization', JSON.stringify(orgData));
     
     setUser(userData);
-    setOrganization(orgData);
+    setOrganizationState(orgData);
     
     router.push('/');
   };
@@ -119,18 +129,19 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
     localStorage.removeItem('organization');
     
     setUser(null);
-    setOrganization(null);
+    setOrganizationState(null);
     
     router.push('/login');
   };
 
   const value: AuthContextType = {
     user,
-    organization,
+    organization: organizationState,
     loading,
     login,
     logout,
     isAuthenticated: !!user,
+    setOrganization,
   };
 
   if (!mounted || loading) {

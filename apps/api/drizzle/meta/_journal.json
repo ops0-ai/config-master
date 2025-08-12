@@ -36,6 +36,13 @@
       "when": 1754940238986,
       "tag": "0004_open_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1754965503624,
+      "tag": "0005_motionless_stingray",
+      "breakpoints": true
     }
   ]
 }

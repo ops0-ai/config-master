@@ -14,9 +14,13 @@ import {
   CpuChipIcon,
   ChartBarIcon,
   TrashIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { deploymentsApi, configurationsApi, serversApi, serverGroupsApi } from '@/lib/api';
+import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import DeploymentScheduler from './DeploymentScheduler';
 
 interface Deployment {
@@ -30,10 +34,15 @@ interface Deployment {
   targetType: 'server' | 'serverGroup';
   targetId: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
   logs?: string;
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
+  createdBy?: string;
   scheduleType?: 'immediate' | 'scheduled' | 'recurring';
   scheduledFor?: string;
   cronExpression?: string;
@@ -50,6 +59,11 @@ interface Deployment {
     id: string;
     name: string;
     type: 'server' | 'serverGroup';
+  };
+  creator?: {
+    id: string;
+    name: string;
+    email: string;
   };
 }
 
@@ -89,6 +103,7 @@ interface ServerGroup {
 }
 
 export default function DeploymentsPage() {
+  const { user } = useMinimalAuth();
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
   const [servers, setServers] = useState<Server[]>([]);
@@ -96,9 +111,17 @@ export default function DeploymentsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
   const [runningDeployments, setRunningDeployments] = useState<Set<string>>(new Set());
   const [selectedVersions, setSelectedVersions] = useState<Record<string, number>>({});
+  const [rejectReason, setRejectReason] = useState('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
 
   const [deploymentForm, setDeploymentForm] = useState({
     name: '',
@@ -128,6 +151,9 @@ export default function DeploymentsPage() {
       timezone: schedule.timezone || 'UTC',
     }));
   }, []);
+
+  const deploymentSections = ['production', 'staging', 'development', 'testing', 'general'];
+  const statusOptions = ['pending', 'running', 'completed', 'failed', 'cancelled'];
 
   useEffect(() => {
     loadData();
@@ -218,6 +244,40 @@ export default function DeploymentsPage() {
     }
   };
 
+  const handleApproveDeployment = async (deploymentId: string) => {
+    try {
+      setProcessingId(deploymentId);
+      const response = await deploymentsApi.approve(deploymentId);
+      toast.success('Deployment approved successfully');
+      await loadDeployments();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to approve deployment');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRejectDeployment = async () => {
+    if (!selectedDeployment || !rejectReason.trim()) {
+      toast.error('Please provide a rejection reason');
+      return;
+    }
+
+    try {
+      setProcessingId(selectedDeployment.id);
+      await deploymentsApi.reject(selectedDeployment.id, { reason: rejectReason });
+      toast.success('Deployment rejected');
+      setShowApprovalModal(false);
+      setRejectReason('');
+      setSelectedDeployment(null);
+      await loadDeployments();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to reject deployment');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleCreateDeployment = async () => {
     try {
       if (deploymentForm.configurationIds.length === 0 || !deploymentForm.targetId) {
@@ -226,7 +286,6 @@ export default function DeploymentsPage() {
       }
 
       const createdDeployments: string[] = [];
-      const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       // Create deployments for each selected configuration
       for (let i = 0; i < deploymentForm.configurationIds.length; i++) {
@@ -262,10 +321,10 @@ export default function DeploymentsPage() {
       }
       
       const scheduleMessage = deploymentForm.scheduleType === 'immediate' 
-        ? `${createdDeployments.length} deployment(s) created successfully` 
+        ? `${createdDeployments.length} deployment(s) created successfully and pending approval` 
         : deploymentForm.scheduleType === 'scheduled'
-        ? `${createdDeployments.length} scheduled deployment(s) created successfully`
-        : `${createdDeployments.length} recurring deployment(s) created successfully`;
+        ? `${createdDeployments.length} scheduled deployment(s) created successfully and pending approval`
+        : `${createdDeployments.length} recurring deployment(s) created successfully and pending approval`;
       
       toast.success(scheduleMessage);
       
@@ -280,18 +339,30 @@ export default function DeploymentsPage() {
     try {
       const deployment = deployments.find(d => d.id === id);
       
+      // Check if deployment needs approval
+      if (deployment?.approvalStatus === 'pending') {
+        toast.error('Deployment must be approved before running');
+        return;
+      }
+      
+      if (deployment?.approvalStatus === 'rejected') {
+        toast.error('This deployment has been rejected and cannot be run');
+        return;
+      }
+      
       // Check if this is part of a batch by looking for similar deployments
       const potentialBatch = deployments.filter(d => 
         d.name.includes(' - ') &&
         d.name.split(' - ')[0] === deployment?.name?.split(' - ')[0] &&
         d.targetId === deployment?.targetId &&
         d.section === deployment?.section &&
-        (d.status === 'pending' || d.id === id)
+        (d.status === 'pending' || d.id === id) &&
+        d.approvalStatus === 'approved'
       );
       
       if (potentialBatch.length > 1) {
         const confirmBatch = confirm(
-          `This appears to be part of a batch of ${potentialBatch.length} deployments. ` +
+          `This appears to be part of a batch of ${potentialBatch.length} approved deployments. ` +
           `Would you like to run all ${potentialBatch.length} deployments sequentially?`
         );
         
@@ -314,14 +385,15 @@ export default function DeploymentsPage() {
 
   const handleRunBatch = async (firstDeployment: Deployment) => {
     try {
-      // Find all deployments in the same batch
+      // Find all deployments in the same batch that are approved
       const batchDeployments = deployments
         .filter(d => 
           d.name.includes(' - ') &&
           d.name.split(' - ')[0] === firstDeployment.name.split(' - ')[0] &&
           d.targetId === firstDeployment.targetId &&
           d.section === firstDeployment.section &&
-          d.status === 'pending'
+          d.status === 'pending' &&
+          d.approvalStatus === 'approved'
         )
         .sort((a, b) => {
           // Sort by creation time to maintain order
@@ -337,7 +409,7 @@ export default function DeploymentsPage() {
         return;
       }
 
-      toast.success(`Starting batch deployment of ${batchDeployments.length} configurations...`);
+      toast.success(`Starting batch deployment of ${batchDeployments.length} approved configurations...`);
       
       // Run deployments sequentially
       for (let i = 0; i < batchDeployments.length; i++) {
@@ -472,6 +544,19 @@ export default function DeploymentsPage() {
     }
   };
 
+  const getApprovalStatusBadge = (approvalStatus?: string) => {
+    const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
+    switch (approvalStatus) {
+      case 'approved':
+        return `${baseClasses} bg-green-100 text-green-800`;
+      case 'rejected':
+        return `${baseClasses} bg-red-100 text-red-800`;
+      case 'pending':
+      default:
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
+    }
+  };
+
   const formatDuration = (startedAt?: string, completedAt?: string) => {
     if (!startedAt) return null;
     
@@ -488,15 +573,6 @@ export default function DeploymentsPage() {
     return servers.filter(server => server.groupId === groupId).length;
   };
 
-  const getVersionCount = (deployment: Deployment) => {
-    const parentId = deployment.parentDeploymentId || deployment.id;
-    return deployments.filter(d => 
-      (d.parentDeploymentId === parentId || d.id === parentId)
-    ).length;
-  };
-
-  const deploymentSections = ['production', 'staging', 'development', 'testing', 'general'];
-  
   // Group deployments by their parent/root deployment
   const groupDeploymentsByParent = (): Record<string, DeploymentGroup[]> => {
     const deploymentMap = new Map<string, Deployment[]>();
@@ -566,6 +642,44 @@ export default function DeploymentsPage() {
     }
   };
 
+  // Filter deployments based on search and filters
+  const filteredGroupedDeployments = Object.keys(groupedDeployments).reduce((filtered, section) => {
+    const sectionGroups = groupedDeployments[section].filter(group => {
+      const deployment = getSelectedVersion(group);
+      
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = 
+          deployment.name.toLowerCase().includes(searchLower) ||
+          deployment.configuration?.name.toLowerCase().includes(searchLower) ||
+          deployment.target?.name.toLowerCase().includes(searchLower) ||
+          deployment.creator?.name.toLowerCase().includes(searchLower) ||
+          deployment.description?.toLowerCase().includes(searchLower);
+        
+        if (!matchesSearch) return false;
+      }
+      
+      // Environment filter
+      if (selectedEnvironments.length > 0 && !selectedEnvironments.includes(deployment.section || 'general')) {
+        return false;
+      }
+      
+      // Status filter
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(deployment.status)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    if (sectionGroups.length > 0) {
+      filtered[section] = sectionGroups;
+    }
+    
+    return filtered;
+  }, {} as Record<string, DeploymentGroup[]>);
+
   if (loading) {
     return (
       <div className="h-full flex flex-col">
@@ -577,13 +691,29 @@ export default function DeploymentsPage() {
           </div>
         </div>
         
+        {/* Fixed Stats and Filters Skeleton */}
+        <div className="flex-shrink-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
+          <div className="max-w-7xl mx-auto space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-20 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-10 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
         {/* Scrollable Content Skeleton */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 max-w-7xl mx-auto">
             <div className="animate-pulse space-y-6">
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
+                  <div key={i} className="h-32 bg-gray-200 rounded"></div>
                 ))}
               </div>
             </div>
@@ -616,98 +746,178 @@ export default function DeploymentsPage() {
           </div>
         </div>
       </div>
+
+      {/* Fixed Stats and Filters */}
+      <div className="flex-shrink-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                  <ChartBarIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Deployments</p>
+                  <p className="text-2xl font-bold text-gray-900">{Object.values(groupedDeployments).flat().length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg mr-3">
+                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {Object.values(groupedDeployments).flat().filter(g => g.latestVersion.status === 'completed').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                  <ArrowPathIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Running</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {Object.values(groupedDeployments).flat().filter(g => g.latestVersion.status === 'running' || g.latestVersion.status === 'pending').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg mr-3">
+                  <ClockIcon className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Pending Approval</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {Object.values(groupedDeployments).flat().filter(g => g.latestVersion.approvalStatus === 'pending').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search deployments..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            {/* Environment Filter */}
+            <div className="relative">
+              <select
+                value={selectedEnvironments.length > 0 ? selectedEnvironments[0] : ''}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setSelectedEnvironments([e.target.value]);
+                  } else {
+                    setSelectedEnvironments([]);
+                  }
+                }}
+                className="w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 py-2.5 px-3 bg-white"
+              >
+                <option value="">All Environments</option>
+                {deploymentSections.map(env => (
+                  <option key={env} value={env} className="capitalize">
+                    {env === 'production' ? '🔴' : env === 'staging' ? '🟡' : env === 'development' ? '🟢' : env === 'testing' ? '🔵' : '⚪'} {env}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative">
+              <select
+                value={selectedStatuses.length > 0 ? selectedStatuses[0] : ''}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setSelectedStatuses([e.target.value]);
+                  } else {
+                    setSelectedStatuses([]);
+                  }
+                }}
+                className="w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 py-2.5 px-3 bg-white"
+              >
+                <option value="">All Statuses</option>
+                {statusOptions.map(status => (
+                  <option key={status} value={status} className="capitalize">
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchTerm || selectedEnvironments.length > 0 || selectedStatuses.length > 0) && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedEnvironments([]);
+                  setSelectedStatuses([]);
+                }}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 max-w-7xl mx-auto">
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="card-content">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                <ChartBarIcon className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Deployments</p>
-                <p className="text-2xl font-bold text-gray-900">{Object.values(groupedDeployments).flat().length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-content">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg mr-3">
-                <CheckCircleIcon className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {Object.values(groupedDeployments).flat().filter(g => g.latestVersion.status === 'completed').length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-content">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                <ArrowPathIcon className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Running</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {Object.values(groupedDeployments).flat().filter(g => g.latestVersion.status === 'running' || g.latestVersion.status === 'pending').length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-content">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg mr-3">
-                <XCircleIcon className="h-6 w-6 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Failed</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {Object.values(groupedDeployments).flat().filter(g => g.latestVersion.status === 'failed').length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Deployments by Section */}
-      {Object.values(groupedDeployments).flat().length === 0 ? (
+      {Object.values(filteredGroupedDeployments).flat().length === 0 ? (
         <div className="card">
           <div className="card-content">
             <div className="text-center py-12">
               <PlayIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No deployments yet</h3>
-              <p className="text-gray-600 mb-6">Create your first deployment to get started.</p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn btn-primary btn-md"
-              >
-                Create Deployment
-              </button>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {Object.values(groupedDeployments).flat().length === 0 ? 'No deployments yet' : 'No deployments match your filters'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {Object.values(groupedDeployments).flat().length === 0 
+                  ? 'Create your first deployment to get started.' 
+                  : 'Try adjusting your search and filter criteria.'}
+              </p>
+              {Object.values(groupedDeployments).flat().length === 0 && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="btn btn-primary btn-md"
+                >
+                  Create Deployment
+                </button>
+              )}
             </div>
           </div>
         </div>
       ) : (
         <div className="space-y-6">
           {deploymentSections.map((section) => {
-            const sectionDeployments = groupedDeployments[section];
-            if (sectionDeployments.length === 0) return null;
+            const sectionDeployments = filteredGroupedDeployments[section];
+            if (!sectionDeployments || sectionDeployments.length === 0) return null;
 
             return (
               <div key={section} className="card">
@@ -733,6 +943,8 @@ export default function DeploymentsPage() {
                     {sectionDeployments.map((group) => {
                       const deployment = getSelectedVersion(group);
                       const groupKey = `${group.name}-${group.configurationId}-${group.targetId}`;
+                      const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+                      
                       return (
                 <div key={groupKey} className="p-6">
                   <div className="flex items-center justify-between">
@@ -778,6 +990,12 @@ export default function DeploymentsPage() {
                           <span className={getStatusBadge(deployment.status)}>
                             {deployment.status}
                           </span>
+                          {/* Approval Status */}
+                          <span className={getApprovalStatusBadge(deployment.approvalStatus)}>
+                            {deployment.approvalStatus === 'pending' ? 'Pending Approval' : 
+                             deployment.approvalStatus === 'approved' ? 'Approved' : 
+                             deployment.approvalStatus === 'rejected' ? 'Rejected' : 'Unknown'}
+                          </span>
                         </div>
                         
                         <div className="flex items-center space-x-6 mt-2 text-sm text-gray-600">
@@ -794,6 +1012,13 @@ export default function DeploymentsPage() {
                             )}
                             <span>{deployment.target?.name || 'Target'}</span>
                           </div>
+                          
+                          {deployment.creator && (
+                            <div className="flex items-center space-x-1">
+                              <UserIcon className="h-4 w-4" />
+                              <span>Created by: {deployment.creator.name}</span>
+                            </div>
+                          )}
                           
                           {deployment.startedAt && (
                             <span>
@@ -831,6 +1056,19 @@ export default function DeploymentsPage() {
                         
                         {deployment.description && (
                           <p className="text-sm text-gray-600 mt-1">{deployment.description}</p>
+                        )}
+
+                        {/* Approval Information */}
+                        {deployment.approvalStatus === 'rejected' && deployment.rejectionReason && (
+                          <div className="mt-2 p-2 bg-red-50 rounded text-sm text-red-700">
+                            <strong>Rejected:</strong> {deployment.rejectionReason}
+                          </div>
+                        )}
+                        
+                        {deployment.approvalStatus === 'approved' && deployment.approvedBy && deployment.approvedAt && (
+                          <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
+                            <strong>Approved by:</strong> {deployment.approvedBy} on {new Date(deployment.approvedAt).toLocaleDateString()}
+                          </div>
                         )}
                         
                         {/* Inventory Preview */}
@@ -874,13 +1112,44 @@ export default function DeploymentsPage() {
                           <span className="text-xs">Console</span>
                         </button>
                       )}
+
+                      {/* Admin Approval Actions */}
+                      {isAdmin && deployment.approvalStatus === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleApproveDeployment(deployment.id)}
+                            disabled={processingId === deployment.id}
+                            className="btn btn-success btn-sm"
+                          >
+                            <CheckCircleIcon className="h-4 w-4 mr-1" />
+                            Approve
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              setSelectedDeployment(deployment);
+                              setShowApprovalModal(true);
+                            }}
+                            disabled={processingId === deployment.id}
+                            className="btn btn-danger btn-sm"
+                          >
+                            <XCircleIcon className="h-4 w-4 mr-1" />
+                            Reject
+                          </button>
+                        </>
+                      )}
                       
-                      {(deployment.status === 'pending' || deployment.status === 'failed' || deployment.status === 'completed') && (
+                      {((deployment.status === 'pending' && deployment.approvalStatus === 'approved') || 
+                        deployment.status === 'failed' || 
+                        deployment.status === 'completed') && (
                         <>
                           <button
                             onClick={() => handleRunDeployment(deployment.id)}
                             className="btn btn-secondary btn-sm"
+                            disabled={deployment.approvalStatus !== 'approved' && deployment.status === 'pending'}
                             title={
+                              deployment.approvalStatus === 'pending' ? "Deployment must be approved first" :
+                              deployment.approvalStatus === 'rejected' ? "Deployment has been rejected" :
                               deployment.name.includes(' - ')
                                 ? "Run this deployment (or entire batch if confirmed)"
                                 : deployment.status === 'pending' 
@@ -1135,6 +1404,12 @@ export default function DeploymentsPage() {
                 }}
               />
 
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> Deployments require admin approval before they can be executed.
+                </p>
+              </div>
+
               <div className="flex space-x-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
@@ -1151,6 +1426,61 @@ export default function DeploymentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Approval Modal */}
+      {showApprovalModal && selectedDeployment && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Reject Deployment</h3>
+              <button
+                onClick={() => {
+                  setShowApprovalModal(false);
+                  setRejectReason('');
+                  setSelectedDeployment(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Please provide a reason for rejecting "{selectedDeployment.name}"
+              </p>
+              
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter rejection reason..."
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                rows={4}
+              />
+              
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setShowApprovalModal(false);
+                    setRejectReason('');
+                    setSelectedDeployment(null);
+                  }}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectDeployment}
+                  disabled={!rejectReason.trim() || processingId === selectedDeployment.id}
+                  className="btn btn-primary btn-sm bg-red-600 hover:bg-red-700"
+                >
+                  {processingId === selectedDeployment.id ? 'Rejecting...' : 'Reject'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1179,6 +1509,11 @@ export default function DeploymentsPage() {
                     'bg-gray-100 text-gray-800'
                   }`}>
                     {selectedDeployment.status}
+                  </span>
+                  <span className={getApprovalStatusBadge(selectedDeployment.approvalStatus)}>
+                    {selectedDeployment.approvalStatus === 'pending' ? 'Pending Approval' : 
+                     selectedDeployment.approvalStatus === 'approved' ? 'Approved' : 
+                     selectedDeployment.approvalStatus === 'rejected' ? 'Rejected' : 'Unknown'}
                   </span>
                 </div>
               </div>
@@ -1245,7 +1580,8 @@ export default function DeploymentsPage() {
                     Cancel Deployment
                   </button>
                 )}
-                {(selectedDeployment.status === 'completed' || selectedDeployment.status === 'failed') && (
+                {(selectedDeployment.status === 'completed' || selectedDeployment.status === 'failed') && 
+                 selectedDeployment.approvalStatus === 'approved' && (
                   <button
                     onClick={() => {
                       handleRunDeployment(selectedDeployment.id);
