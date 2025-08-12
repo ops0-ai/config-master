@@ -19,6 +19,8 @@ import {
   ArrowPathIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  FunnelIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { configurationsApi } from '@/lib/api';
@@ -300,6 +302,334 @@ const ANSIBLE_TEMPLATES = {
       service:
         name: mysql
         state: restarted`,
+  },
+
+  // Windows Templates
+  windows_iis: {
+    name: 'Windows IIS Web Server',
+    description: 'Install and configure IIS web server on Windows',
+    type: 'playbook' as const,
+    content: `---
+- name: Install and configure IIS on Windows
+  hosts: windows
+  gather_facts: no
+  vars:
+    iis_features:
+      - IIS-WebServerRole
+      - IIS-WebServer
+      - IIS-CommonHttpFeatures
+      - IIS-HttpErrors
+      - IIS-HttpRedirect
+      - IIS-ApplicationDevelopment
+      - IIS-NetFxExtensibility45
+      - IIS-HealthAndDiagnostics
+      - IIS-HttpLogging
+      - IIS-Security
+      - IIS-RequestFiltering
+      - IIS-Performance
+      - IIS-WebServerManagementTools
+      - IIS-ManagementConsole
+      - IIS-ASPNET45
+
+  tasks:
+    - name: Enable IIS features
+      win_feature:
+        name: "{{ item }}"
+        state: present
+        restart: yes
+      loop: "{{ iis_features }}"
+      
+    - name: Create website directory
+      win_file:
+        path: "C:\\inetpub\\wwwroot\\{{ site_name | default('myapp') }}"
+        state: directory
+      
+    - name: Create sample HTML file
+      win_copy:
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>{{ site_name | default('My Application') }}</title>
+          </head>
+          <body>
+              <h1>Welcome to {{ site_name | default('My Application') }}</h1>
+              <p>IIS is running successfully!</p>
+          </body>
+          </html>
+        dest: "C:\\inetpub\\wwwroot\\{{ site_name | default('myapp') }}\\index.html"
+      
+    - name: Create IIS website
+      win_iis_website:
+        name: "{{ site_name | default('MyApp') }}"
+        state: started
+        port: "{{ site_port | default('80') }}"
+        physical_path: "C:\\inetpub\\wwwroot\\{{ site_name | default('myapp') }}"
+      
+    - name: Ensure IIS service is running
+      win_service:
+        name: W3SVC
+        state: started
+        start_mode: auto`,
+  },
+
+  windows_dotnet: {
+    name: 'Windows .NET Application',
+    description: 'Deploy .NET application on Windows with IIS',
+    type: 'playbook' as const,
+    content: `---
+- name: Deploy .NET application on Windows
+  hosts: windows
+  gather_facts: no
+  vars:
+    app_name: "{{ app_name | default('MyDotNetApp') }}"
+    app_pool_name: "{{ app_pool_name | default('MyAppPool') }}"
+    app_path: "C:\\inetpub\\wwwroot\\{{ app_name }}"
+    dotnet_version: "{{ dotnet_version | default('6.0') }}"
+
+  tasks:
+    - name: Install .NET Runtime
+      win_chocolatey:
+        name: "dotnet-{{ dotnet_version }}-runtime"
+        state: present
+      
+    - name: Install ASP.NET Core Runtime
+      win_chocolatey:
+        name: "dotnet-{{ dotnet_version }}-aspnetcore-runtime"
+        state: present
+      
+    - name: Create application directory
+      win_file:
+        path: "{{ app_path }}"
+        state: directory
+      
+    - name: Create IIS Application Pool
+      win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: started
+        attributes:
+          processModel.identityType: ApplicationPoolIdentity
+          managedRuntimeVersion: ""
+      
+    - name: Create IIS Website
+      win_iis_website:
+        name: "{{ app_name }}"
+        state: started
+        port: "{{ app_port | default('80') }}"
+        physical_path: "{{ app_path }}"
+        application_pool: "{{ app_pool_name }}"
+      
+    - name: Copy application files
+      win_copy:
+        src: "{{ source_path }}/"
+        dest: "{{ app_path }}"
+        remote_src: no
+      when: source_path is defined
+      
+    - name: Set application permissions
+      win_file:
+        path: "{{ app_path }}"
+        state: directory
+        owner: "IIS_IUSRS"
+        rights: full_control`,
+  },
+
+  windows_sql_server: {
+    name: 'Windows SQL Server',
+    description: 'Install and configure SQL Server on Windows',
+    type: 'playbook' as const,
+    content: `---
+- name: Install and configure SQL Server
+  hosts: windows
+  gather_facts: no
+  vars:
+    sql_instance_name: "{{ sql_instance_name | default('MSSQLSERVER') }}"
+    sql_sa_password: "{{ sql_sa_password | default('SecurePassword123!') }}"
+    sql_port: "{{ sql_port | default('1433') }}"
+    
+  tasks:
+    - name: Download SQL Server Developer Edition
+      win_get_url:
+        url: https://go.microsoft.com/fwlink/?linkid=866662
+        dest: C:\\temp\\SQL2019-SSEI-Dev.exe
+        
+    - name: Install SQL Server
+      win_command: >
+        C:\\temp\\SQL2019-SSEI-Dev.exe /QUIET /ACTION=Install
+        /FEATURES=SQLENGINE /INSTANCENAME={{ sql_instance_name }}
+        /SQLSVCACCOUNT="NT AUTHORITY\\SYSTEM" 
+        /SQLSYSADMINACCOUNTS="BUILTIN\\Administrators"
+        /SAPWD="{{ sql_sa_password }}"
+        /SECURITYMODE=SQL
+        /TCPENABLED=1
+      args:
+        creates: "C:\\Program Files\\Microsoft SQL Server"
+        
+    - name: Enable SQL Server service
+      win_service:
+        name: "MSSQL\\$\\{\\{ sql_instance_name \\}\\}"
+        state: started
+        start_mode: auto
+      when: sql_instance_name != "MSSQLSERVER"
+      
+    - name: Enable SQL Server service (default instance)
+      win_service:
+        name: MSSQLSERVER
+        state: started
+        start_mode: auto
+      when: sql_instance_name == "MSSQLSERVER"
+      
+    - name: Configure SQL Server port
+      win_regedit:
+        path: "HKLM:\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL15.{{ sql_instance_name }}\\MSSQLServer\\SuperSocketNetLib\\Tcp\\IPAll"
+        name: TcpPort
+        data: "{{ sql_port }}"
+        type: string
+        
+    - name: Enable SQL Browser service
+      win_service:
+        name: SQLBrowser
+        state: started
+        start_mode: auto
+        
+    - name: Configure Windows Firewall for SQL Server
+      win_firewall_rule:
+        name: SQL Server
+        localport: "{{ sql_port }}"
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present`,
+  },
+
+  windows_powershell_dsc: {
+    name: 'Windows PowerShell DSC',
+    description: 'Configure Windows using PowerShell Desired State Configuration',
+    type: 'playbook' as const,
+    content: `---
+- name: Configure Windows with PowerShell DSC
+  hosts: windows
+  gather_facts: no
+  vars:
+    features_to_install:
+      - Telnet-Client
+      - RSAT-AD-Tools
+    services_to_configure:
+      - name: Spooler
+        state: running
+        startup: automatic
+      
+  tasks:
+    - name: Ensure PowerShell DSC modules are present
+      win_psmodule:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - PSDscResources
+        - ComputerManagementDsc
+        
+    - name: Create DSC configuration
+      win_copy:
+        content: |
+          Configuration WindowsConfig {
+              Import-DscResource -ModuleName PSDscResources
+              Import-DscResource -ModuleName ComputerManagementDsc
+              
+              Node localhost {
+                  {% for feature in features_to_install %}
+                  WindowsFeature {{ feature | replace('-', '') }} {
+                      Name = '{{ feature }}'
+                      Ensure = 'Present'
+                  }
+                  {% endfor %}
+                  
+                  {% for service in services_to_configure %}
+                  Service {{ service.name }} {
+                      Name = '{{ service.name }}'
+                      State = '{{ service.state | capitalize }}'
+                      StartupType = '{{ service.startup | capitalize }}'
+                  }
+                  {% endfor %}
+                  
+                  Registry DisableIEESC {
+                      Key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
+                      ValueName = 'IsInstalled'
+                      ValueData = '0'
+                      ValueType = 'Dword'
+                  }
+              }
+          }
+        dest: C:\\temp\\WindowsConfig.ps1
+        
+    - name: Apply DSC Configuration
+      win_shell: |
+        . C:\\temp\\WindowsConfig.ps1
+        WindowsConfig -OutputPath C:\\temp\\WindowsConfig
+        Start-DscConfiguration -Path C:\\temp\\WindowsConfig -Wait -Verbose -Force
+      register: dsc_result
+      
+    - name: Display DSC results
+      debug:
+        var: dsc_result.stdout_lines`,
+  },
+
+  windows_chocolatey: {
+    name: 'Windows Chocolatey Package Manager',
+    description: 'Install and manage software on Windows using Chocolatey',
+    type: 'playbook' as const,
+    content: `---
+- name: Manage Windows software with Chocolatey
+  hosts: windows
+  gather_facts: no
+  vars:
+    chocolatey_packages:
+      - name: googlechrome
+        state: present
+      - name: firefox
+        state: present  
+      - name: 7zip
+        state: present
+      - name: notepadplusplus
+        state: present
+      - name: git
+        state: present
+      - name: nodejs
+        state: present
+      - name: python3
+        state: present
+      - name: vscode
+        state: present
+        
+  tasks:
+    - name: Install Chocolatey
+      win_chocolatey:
+        name: chocolatey
+        state: present
+        
+    - name: Update Chocolatey
+      win_chocolatey:
+        name: chocolatey
+        state: latest
+        
+    - name: Install/Update packages with Chocolatey
+      win_chocolatey:
+        name: "{{ item.name }}"
+        state: "{{ item.state | default('present') }}"
+        version: "{{ item.version | default(omit) }}"
+      loop: "{{ chocolatey_packages }}"
+      
+    - name: Install Windows Updates
+      win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+        reboot: yes
+        reboot_timeout: 3600
+      register: update_result
+      
+    - name: Display update results
+      debug:
+        msg: "{{ update_result.reboot_required | ternary('Reboot required', 'No reboot needed') }}"`
   }
 };
 
@@ -325,6 +655,8 @@ export default function ConfigurationsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'playbook' | 'role' | 'task'>('all');
   const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'template' | 'conversation'>('all');
+  const [platformFilter, setPlatformFilter] = useState<'all' | 'linux' | 'windows'>('all');
+  const [templatePlatformFilter, setTemplatePlatformFilter] = useState<'all' | 'linux' | 'windows'>('all');
 
   const [editorContent, setEditorContent] = useState('');
   const [configForm, setConfigForm] = useState({
@@ -377,9 +709,44 @@ export default function ConfigurationsPage() {
       filtered = filtered.filter(config => config.source === sourceFilter);
     }
 
+    // Apply platform filter (based on content keywords)
+    if (platformFilter !== 'all') {
+      filtered = filtered.filter(config => {
+        const content = config.content?.toLowerCase() || '';
+        const name = config.name.toLowerCase();
+        const description = config.description?.toLowerCase() || '';
+        
+        if (platformFilter === 'windows') {
+          return content.includes('windows') || 
+                 content.includes('win32') || 
+                 content.includes('powershell') || 
+                 content.includes('msi') || 
+                 content.includes('registry') ||
+                 content.includes('chocolatey') ||
+                 content.includes('iis') ||
+                 name.includes('windows') ||
+                 description.includes('windows');
+        } else if (platformFilter === 'linux') {
+          return content.includes('apt') || 
+                 content.includes('yum') || 
+                 content.includes('systemctl') || 
+                 content.includes('service') ||
+                 content.includes('ubuntu') ||
+                 content.includes('centos') ||
+                 content.includes('rhel') ||
+                 content.includes('debian') ||
+                 name.includes('linux') ||
+                 description.includes('linux') ||
+                 // Default to Linux if no Windows-specific keywords found
+                 (!content.includes('windows') && !content.includes('powershell') && !content.includes('msi'));
+        }
+        return true;
+      });
+    }
+
     setFilteredConfigurations(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [allConfigurations, searchQuery, statusFilter, typeFilter, sourceFilter]);
+  }, [allConfigurations, searchQuery, statusFilter, typeFilter, sourceFilter, platformFilter]);
 
   const loadConfigurations = async (isRefresh = false) => {
     try {
@@ -399,56 +766,6 @@ export default function ConfigurationsPage() {
       } else {
         setLoading(false);
       }
-    }
-  };
-
-  const handleSaveConfiguration = async () => {
-    try {
-      const payload = {
-        ...configForm,
-        content: editorContent,
-        tags: configForm.tags.split(',').map(t => t.trim()).filter(Boolean),
-        source: editingConfig?.source || 'manual', // Preserve source or default to manual
-      };
-
-      if (editingConfig) {
-        // Update existing
-        await configurationsApi.update(editingConfig.id, payload);
-        toast.success('Configuration updated successfully');
-      } else {
-        // Create new
-        await configurationsApi.create(payload);
-        toast.success('Configuration created successfully');
-      }
-
-      await loadConfigurations();
-      resetEditor();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to save configuration');
-    }
-  };
-
-  const handleEditConfiguration = (config: Configuration) => {
-    setEditingConfig(config);
-    setConfigForm({
-      name: config.name,
-      description: config.description || '',
-      type: config.type,
-      tags: config.tags?.join(', ') || '',
-    });
-    setEditorContent(config.content);
-    setShowEditor(true);
-  };
-
-  const handleDeleteConfiguration = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this configuration?')) return;
-
-    try {
-      await configurationsApi.delete(id);
-      toast.success('Configuration deleted successfully');
-      await loadConfigurations();
-    } catch (error: any) {
-      toast.error('Failed to delete configuration');
     }
   };
 
@@ -472,106 +789,6 @@ export default function ConfigurationsPage() {
     }
   };
 
-  const resetEditor = () => {
-    setShowEditor(false);
-    setEditingConfig(null);
-    setConfigForm({
-      name: '',
-      description: '',
-      type: 'playbook',
-      tags: '',
-    });
-    setEditorContent('');
-  };
-
-  // Inline approval functions
-  const handleInlineApprove = async (configId: string) => {
-    try {
-      setProcessingId(configId);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/configurations/${configId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to approve configuration');
-      }
-
-      toast.success('Configuration approved successfully');
-      await loadConfigurations(true);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to approve configuration');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleInlineReject = async () => {
-    if (!selectedConfigForReject || !rejectReason.trim()) {
-      toast.error('Please provide a rejection reason');
-      return;
-    }
-
-    try {
-      setProcessingId(selectedConfigForReject.id);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/configurations/${selectedConfigForReject.id}/reject`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reason: rejectReason })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to reject configuration');
-      }
-
-      toast.success('Configuration rejected');
-      setShowRejectModal(false);
-      setRejectReason('');
-      setSelectedConfigForReject(null);
-      await loadConfigurations(true);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to reject configuration');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleInlineResetApproval = async (configId: string) => {
-    try {
-      setProcessingId(configId);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/configurations/${configId}/reset-approval`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to reset approval status');
-      }
-
-      toast.success('Approval status reset to pending');
-      await loadConfigurations(true);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to reset approval status');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
   // Pagination logic
   const totalPages = Math.ceil(filteredConfigurations.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -586,9 +803,9 @@ export default function ConfigurationsPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col">
+      <div className="flex flex-col h-full">
         {/* Fixed Header Skeleton */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-2 animate-pulse"></div>
             <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
@@ -611,12 +828,16 @@ export default function ConfigurationsPage() {
     );
   }
 
+  if (showApprovals) {
+    return <ConfigurationApprovals onClose={() => setShowApprovals(false)} />;
+  }
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-start mb-6">
             <div>
               <div className="flex items-center space-x-3">
                 <h1 className="page-title">Configurations</h1>
@@ -635,339 +856,353 @@ export default function ConfigurationsPage() {
             </div>
             
             <div className="flex space-x-3">
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => setShowApprovals(true)}
-              className="btn btn-secondary btn-md"
-            >
-              <CheckCircleIcon className="h-5 w-5 mr-2" />
-              Approvals
-            </button>
-          )}
-          <button
-            onClick={() => setShowTemplates(true)}
-            className="btn btn-secondary btn-md"
-          >
-            <CloudArrowDownIcon className="h-5 w-5 mr-2" />
-            Templates
-          </button>
-          <button
-            onClick={() => setShowEditor(true)}
-            className="btn btn-primary btn-md"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            New Configuration
-          </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => setShowApprovals(true)}
+                  className="btn btn-secondary btn-md"
+                >
+                  <CheckCircleIcon className="h-5 w-5 mr-2" />
+                  Approvals
+                </button>
+              )}
+              <button
+                onClick={() => setShowTemplates(true)}
+                className="btn btn-secondary btn-md"
+              >
+                <CloudArrowDownIcon className="h-5 w-5 mr-2" />
+                Templates
+              </button>
+              <button
+                onClick={() => setShowEditor(true)}
+                className="btn btn-primary btn-md"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                New Configuration
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
-      </div>
-      
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 max-w-7xl mx-auto">
 
-          {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {/* Search and Filter Controls */}
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            {/* Search Bar */}
+            <div className="relative flex-1 max-w-lg">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 placeholder="Search configurations by name, description, or tags..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
+              {searchQuery && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Filter Controls */}
+            <div className="flex items-center flex-wrap gap-3">
+              <div className="flex items-center space-x-2">
+                <FunnelIcon className="h-5 w-5 text-gray-400" />
+                <span className="text-sm text-gray-500">Filter:</span>
+              </div>
+
+              {/* Platform Filter */}
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setPlatformFilter('all')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    platformFilter === 'all'
+                      ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setPlatformFilter('linux')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center ${
+                    platformFilter === 'linux'
+                      ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                  }`}
+                >
+                  🐧 Linux
+                </button>
+                <button
+                  onClick={() => setPlatformFilter('windows')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center ${
+                    platformFilter === 'windows'
+                      ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                  }`}
+                >
+                  🪟 Windows
+                </button>
+              </div>
+
+              {/* Other Filters */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="playbook">Playbook</option>
+                <option value="role">Role</option>
+                <option value="task">Task</option>
+              </select>
+
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              >
+                <option value="all">All Sources</option>
+                <option value="manual">Manual</option>
+                <option value="template">Template</option>
+                <option value="conversation">Conversation</option>
+              </select>
             </div>
           </div>
-          
-          {/* Status Filter */}
-          <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-          
-          {/* Type Filter */}
-          <div>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="all">All Types</option>
-              <option value="playbook">Playbook</option>
-              <option value="role">Role</option>
-              <option value="task">Task</option>
-            </select>
-          </div>
-          
-          {/* Source Filter */}
-          <div>
-            <select
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="all">All Sources</option>
-              <option value="manual">Manual</option>
-              <option value="template">Template</option>
-              <option value="conversation">Conversation</option>
-            </select>
-          </div>
+
+          {/* Results Summary */}
+          {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || sourceFilter !== 'all' || platformFilter !== 'all') && (
+            <div className="mt-4 text-sm text-gray-600">
+              Showing {filteredConfigurations.length} of {allConfigurations.length} configurations
+              {searchQuery && <span> matching "{searchQuery}"</span>}
+              {platformFilter !== 'all' && <span> • {platformFilter} only</span>}
+              {statusFilter !== 'all' && <span> • {statusFilter} status</span>}
+              {typeFilter !== 'all' && <span> • {typeFilter} type</span>}
+              {sourceFilter !== 'all' && <span> • {sourceFilter} source</span>}
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setTypeFilter('all');
+                  setSourceFilter('all');
+                  setPlatformFilter('all');
+                }}
+                className="ml-2 text-primary-600 hover:text-primary-800 underline"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Configurations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {currentConfigurations.map((config) => (
-          <div key={config.id} className="card hover:shadow-lg transition-shadow">
-            <div className="card-content">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    {config.type === 'playbook' && <DocumentTextIcon className="h-6 w-6 text-blue-600" />}
-                    {config.type === 'role' && <FolderIcon className="h-6 w-6 text-blue-600" />}
-                    {config.type === 'task' && <CodeBracketIcon className="h-6 w-6 text-blue-600" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">{config.name}</h3>
-                      {config.approvalStatus === 'approved' && (
-                        <CheckCircleIcon className="h-4 w-4 text-green-500" title="Approved" />
-                      )}
-                      {config.approvalStatus === 'rejected' && (
-                        <XCircleIcon className="h-4 w-4 text-red-500" title="Rejected" />
-                      )}
-                      {config.approvalStatus === 'pending' && (
-                        <ClockIcon className="h-4 w-4 text-yellow-500" title="Pending Approval" />
-                      )}
+      {/* Scrollable Middle Section */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-7xl mx-auto">
+          {/* Configurations Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {currentConfigurations.map((config) => (
+              <div key={config.id} className="card hover:shadow-lg transition-shadow">
+                <div className="card-content">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        {config.type === 'playbook' && <DocumentTextIcon className="h-6 w-6 text-blue-600" />}
+                        {config.type === 'role' && <FolderIcon className="h-6 w-6 text-blue-600" />}
+                        {config.type === 'task' && <CodeBracketIcon className="h-6 w-6 text-blue-600" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h3 className="text-lg font-semibold text-gray-900">{config.name}</h3>
+                          {config.approvalStatus === 'approved' && (
+                            <CheckCircleIcon className="h-4 w-4 text-green-500" title="Approved" />
+                          )}
+                          {config.approvalStatus === 'rejected' && (
+                            <XCircleIcon className="h-4 w-4 text-red-500" title="Rejected" />
+                          )}
+                          {config.approvalStatus === 'pending' && (
+                            <ClockIcon className="h-4 w-4 text-yellow-500" title="Pending Approval" />
+                          )}
+                        </div>
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                            {config.type}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${
+                            config.approvalStatus === 'approved' 
+                              ? 'bg-green-100 text-green-800'
+                              : config.approvalStatus === 'rejected'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {config.approvalStatus}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${
+                            config.source === 'manual'
+                              ? 'bg-blue-100 text-blue-800'
+                              : config.source === 'template'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-orange-100 text-orange-800'
+                          }`}>
+                            {config.source}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                        {config.type}
-                      </span>
-                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${
-                        config.approvalStatus === 'approved' 
-                          ? 'bg-green-100 text-green-800'
-                          : config.approvalStatus === 'rejected'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {config.approvalStatus}
-                      </span>
-                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${
-                        config.source === 'manual'
-                          ? 'bg-blue-100 text-blue-800'
-                          : config.source === 'template'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-orange-100 text-orange-800'
-                      }`}>
-                        {config.source}
-                      </span>
-                    </div>
                   </div>
-                </div>
-                
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => handleEditConfiguration(config)}
-                    className="btn btn-ghost btn-sm"
-                    title="Edit Configuration"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                  
-                  {/* Admin approval actions */}
-                  {user?.role === 'admin' && (
-                    <>
-                      {config.approvalStatus === 'pending' && (
-                        <>
-                          <button
-                            onClick={() => handleInlineApprove(config.id)}
-                            disabled={processingId === config.id}
-                            className="btn btn-ghost btn-sm text-green-600 hover:text-green-700"
-                            title="Approve Configuration"
-                          >
-                            <CheckCircleIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedConfigForReject(config);
-                              setShowRejectModal(true);
-                            }}
-                            disabled={processingId === config.id}
-                            className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                            title="Reject Configuration"
-                          >
-                            <XCircleIcon className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                      
-                      {(config.approvalStatus === 'approved' || config.approvalStatus === 'rejected') && (
-                        <button
-                          onClick={() => handleInlineResetApproval(config.id)}
-                          disabled={processingId === config.id}
-                          className="btn btn-ghost btn-sm text-yellow-600 hover:text-yellow-700"
-                          title="Reset to Pending"
-                        >
-                          <ClockIcon className="h-4 w-4" />
-                        </button>
-                      )}
-                    </>
+
+                  {config.description && (
+                    <p className="text-sm text-gray-600 mb-4">{config.description}</p>
                   )}
-                  
-                  <button
-                    onClick={() => handleDeleteConfiguration(config.id)}
-                    className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                    title="Delete Configuration"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
+
+                  {config.tags && config.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {config.tags.map((tag) => (
+                        <span key={tag} className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500">
+                    Created: {new Date(config.createdAt).toLocaleDateString()}
+                    {config.approvedAt && config.approvalStatus !== 'pending' && (
+                      <span className="ml-2">
+                        • {config.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}: {new Date(config.approvedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  {config.rejectionReason && (
+                    <div className="text-xs text-red-600 mt-1">
+                      <strong>Rejection reason:</strong> {config.rejectionReason}
+                    </div>
+                  )}
                 </div>
               </div>
+            ))}
+          </div>
 
-              {config.description && (
-                <p className="text-sm text-gray-600 mb-4">{config.description}</p>
-              )}
-
-              {config.tags && config.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {config.tags.map((tag) => (
-                    <span key={tag} className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="text-xs text-gray-500">
-                Created: {new Date(config.createdAt).toLocaleDateString()}
-                {config.approvedAt && config.approvalStatus !== 'pending' && (
-                  <span className="ml-2">
-                    • {config.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}: {new Date(config.approvedAt).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-              {config.rejectionReason && (
-                <div className="text-xs text-red-600 mt-1">
-                  <strong>Rejection reason:</strong> {config.rejectionReason}
-                </div>
-              )}
+          {/* Empty States */}
+          {currentConfigurations.length === 0 && filteredConfigurations.length === 0 && allConfigurations.length > 0 && (
+            <div className="text-center py-12">
+              <MagnifyingGlassIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No configurations match your filters</h3>
+              <p className="text-gray-600 mb-6">Try adjusting your search query or filters to find configurations.</p>
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setTypeFilter('all');
+                  setSourceFilter('all');
+                }}
+                className="btn btn-secondary btn-md"
+              >
+                Clear Filters
+              </button>
             </div>
-          </div>
-        ))}
+          )}
 
-        {currentConfigurations.length === 0 && filteredConfigurations.length === 0 && allConfigurations.length > 0 && (
-          <div className="col-span-full text-center py-12">
-            <MagnifyingGlassIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No configurations match your filters</h3>
-            <p className="text-gray-600 mb-6">Try adjusting your search query or filters to find configurations.</p>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setStatusFilter('all');
-                setTypeFilter('all');
-                setSourceFilter('all');
-              }}
-              className="btn btn-secondary btn-md"
-            >
-              Clear Filters
-            </button>
-          </div>
-        )}
-
-        {allConfigurations.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No configurations yet</h3>
-            <p className="text-gray-600 mb-6">Create your first Ansible configuration to get started.</p>
-            <button
-              onClick={() => setShowTemplates(true)}
-              className="btn btn-secondary btn-md mr-3"
-            >
-              Browse Templates
-            </button>
-            <button
-              onClick={() => setShowEditor(true)}
-              className="btn btn-primary btn-md"
-            >
-              Create Configuration
-            </button>
-          </div>
-        )}
+          {allConfigurations.length === 0 && (
+            <div className="text-center py-12">
+              <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No configurations yet</h3>
+              <p className="text-gray-600 mb-6">Create your first Ansible configuration to get started.</p>
+              <button
+                onClick={() => setShowTemplates(true)}
+                className="btn btn-secondary btn-md mr-3"
+              >
+                Browse Templates
+              </button>
+              <button
+                onClick={() => setShowEditor(true)}
+                className="btn btn-primary btn-md"
+              >
+                Create Configuration
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Pagination */}
+      {/* Fixed Pagination Footer */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 mt-6">
-          <div className="flex items-center text-sm text-gray-700">
-            <span>
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredConfigurations.length)} of {filteredConfigurations.length} configurations
-            </span>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="btn btn-ghost btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-              Previous
-            </button>
-            
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                // Show first page, last page, current page, and pages around current
-                if (
-                  page === 1 ||
-                  page === totalPages ||
-                  (page >= currentPage - 1 && page <= currentPage + 1)
-                ) {
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-3 py-1 rounded text-sm ${
-                        currentPage === page
-                          ? 'bg-primary-600 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                } else if (page === currentPage - 2 || page === currentPage + 2) {
-                  return (
-                    <span key={page} className="text-gray-400 px-2">
-                      ...
-                    </span>
-                  );
-                }
-                return null;
-              })}
+        <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-gray-700">
+                <span>
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredConfigurations.length)} of {filteredConfigurations.length} configurations
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="btn btn-ghost btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeftIcon className="h-4 w-4" />
+                  Previous
+                </button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-1 rounded text-sm ${
+                            currentPage === page
+                              ? 'bg-primary-600 text-white'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    } else if (page === currentPage - 2 || page === currentPage + 2) {
+                      return (
+                        <span key={page} className="text-gray-400 px-2">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="btn btn-ghost btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRightIcon className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-            
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="btn btn-ghost btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRightIcon className="h-4 w-4" />
-            </button>
           </div>
         </div>
       )}
@@ -987,246 +1222,105 @@ export default function ConfigurationsPage() {
             </div>
 
             <div className="p-6 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.entries(ANSIBLE_TEMPLATES).map(([key, template]) => (
-                  <div key={key} className="border border-gray-200 rounded-lg p-6 hover:border-primary-300 transition-colors">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{template.description}</p>
-                      </div>
-                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                        {template.type}
-                      </span>
-                    </div>
-                    
-                    <div className="bg-gray-50 rounded-md p-3 mb-4">
-                      <code className="text-xs text-gray-700">
-                        {template.content.split('\n').slice(0, 3).join('\n')}...
-                      </code>
-                    </div>
-                    
+              {/* Template Filter */}
+              <div className="mb-6">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-gray-700">Filter by platform:</span>
+                  <div className="flex items-center space-x-1">
                     <button
-                      onClick={() => handleUseTemplate(template)}
-                      className="w-full btn btn-primary btn-sm"
+                      onClick={() => setTemplatePlatformFilter('all')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        templatePlatformFilter === 'all'
+                          ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                      }`}
                     >
-                      Use This Template
+                      All Templates
+                    </button>
+                    <button
+                      onClick={() => setTemplatePlatformFilter('linux')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center ${
+                        templatePlatformFilter === 'linux'
+                          ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                      }`}
+                    >
+                      🐧 Linux
+                    </button>
+                    <button
+                      onClick={() => setTemplatePlatformFilter('windows')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center ${
+                        templatePlatformFilter === 'windows'
+                          ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                      }`}
+                    >
+                      🪟 Windows
                     </button>
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Editor Modal */}
-      {showEditor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl mx-4 max-h-[95vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {editingConfig ? 'Edit Configuration' : 'New Configuration'}
-              </h2>
-              <button
-                onClick={resetEditor}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="flex h-[80vh]">
-              {/* Left Panel - Form */}
-              <div className="w-1/3 p-6 border-r border-gray-200 overflow-y-auto">
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Configuration Name
-                    </label>
-                    <input
-                      type="text"
-                      value={configForm.name}
-                      onChange={(e) => setConfigForm({...configForm, name: e.target.value})}
-                      className="input"
-                      placeholder="e.g., NGINX Web Server"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={configForm.description}
-                      onChange={(e) => setConfigForm({...configForm, description: e.target.value})}
-                      className="input"
-                      rows={3}
-                      placeholder="Brief description of this configuration..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Type
-                    </label>
-                    <select
-                      value={configForm.type}
-                      onChange={(e) => setConfigForm({...configForm, type: e.target.value as 'playbook' | 'role' | 'task'})}
-                      className="input"
-                    >
-                      <option value="playbook">Playbook</option>
-                      <option value="role">Role</option>
-                      <option value="task">Task</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tags (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={configForm.tags}
-                      onChange={(e) => setConfigForm({...configForm, tags: e.target.value})}
-                      className="input"
-                      placeholder="e.g., nginx, web-server, production"
-                    />
-                  </div>
-
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="flex space-x-3">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Object.entries(ANSIBLE_TEMPLATES)
+                  .filter(([key, template]) => {
+                    if (templatePlatformFilter === 'all') return true;
+                    
+                    const templateName = template.name.toLowerCase();
+                    const templateDescription = template.description.toLowerCase();
+                    const templateContent = template.content.toLowerCase();
+                    
+                    if (templatePlatformFilter === 'windows') {
+                      return key.startsWith('windows_') || 
+                             templateName.includes('windows') ||
+                             templateDescription.includes('windows') ||
+                             templateContent.includes('windows') ||
+                             templateContent.includes('win32') ||
+                             templateContent.includes('powershell') ||
+                             templateContent.includes('chocolatey') ||
+                             templateContent.includes('iis');
+                    } else if (templatePlatformFilter === 'linux') {
+                      return !key.startsWith('windows_') &&
+                             !templateName.includes('windows') &&
+                             !templateDescription.includes('windows') &&
+                             (!templateContent.includes('windows') || 
+                              templateContent.includes('apt') ||
+                              templateContent.includes('yum') ||
+                              templateContent.includes('systemctl'));
+                    }
+                    return true;
+                  })
+                  .map(([key, template]) => (
+                    <div key={key} className="border border-gray-200 rounded-lg p-6 hover:border-primary-300 transition-colors">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                        </div>
+                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                          {template.type}
+                        </span>
+                      </div>
+                      
+                      <div className="bg-gray-50 rounded-md p-3 mb-4">
+                        <code className="text-xs text-gray-700">
+                          {template.content.split('\n').slice(0, 3).join('\n')}...
+                        </code>
+                      </div>
+                      
                       <button
-                        onClick={handleSaveConfiguration}
-                        className="btn btn-primary btn-md flex-1"
+                        onClick={() => handleUseTemplate(template)}
+                        className="w-full btn btn-primary btn-sm"
                       >
-                        <ClipboardDocumentCheckIcon className="h-4 w-4 mr-2" />
-                        {editingConfig ? 'Update' : 'Save'} Configuration
+                        Use This Template
                       </button>
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Panel - Code Editor */}
-              <div className="flex-1 flex flex-col">
-                <div className="p-4 border-b border-gray-200 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Ansible YAML Editor</span>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(editorContent);
-                          toast.success('Copied to clipboard');
-                        }}
-                        className="btn btn-ghost btn-sm"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex-1 relative">
-                  <textarea
-                    value={editorContent}
-                    onChange={(e) => setEditorContent(e.target.value)}
-                    className="w-full h-full p-4 font-mono text-sm border-none resize-none focus:outline-none"
-                    placeholder="---
-- name: My Ansible Playbook
-  hosts: all
-  become: yes
-  
-  tasks:
-    - name: Example task
-      debug:
-        msg: 'Hello, World!'"
-                    style={{ minHeight: '500px' }}
-                  />
-                </div>
+                  ))}
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Approvals Modal */}
-      {showApprovals && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl mx-4 max-h-[95vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Configuration Approvals</h2>
-              <button
-                onClick={() => setShowApprovals(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 max-h-[80vh] overflow-y-auto">
-              <ConfigurationApprovals />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Inline Rejection Modal */}
-      {showRejectModal && selectedConfigForReject && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Reject Configuration</h3>
-              <button
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectReason('');
-                  setSelectedConfigForReject(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Please provide a reason for rejecting "{selectedConfigForReject.name}"
-              </p>
-              
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter rejection reason..."
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                rows={4}
-              />
-              
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectReason('');
-                    setSelectedConfigForReject(null);
-                  }}
-                  className="btn btn-secondary btn-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleInlineReject}
-                  disabled={!rejectReason.trim() || processingId === selectedConfigForReject.id}
-                  className="btn btn-primary btn-sm bg-red-600 hover:bg-red-700"
-                >
-                  {processingId === selectedConfigForReject.id ? 'Rejecting...' : 'Reject'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-        
-        </div>
-      </div>
     </div>
   );
 }

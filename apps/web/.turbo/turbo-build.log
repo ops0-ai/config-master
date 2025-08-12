@@ -9,31 +9,35 @@
  ✓ Compiled successfully
    Linting and checking validity of types ...
    Collecting page data ...
-   Generating static pages (0/14) ...
-   Generating static pages (3/14) 
-   Generating static pages (6/14) 
-   Generating static pages (10/14) 
- ✓ Generating static pages (14/14)
+   Generating static pages (0/18) ...
+   Generating static pages (4/18) 
+   Generating static pages (8/18) 
+   Generating static pages (13/18) 
+ ✓ Generating static pages (18/18)
    Finalizing page optimization ...
    Collecting build traces ...
 
 Route (app)                              Size     First Load JS
-┌ ○ /                                    6.02 kB         102 kB
-├ ○ /_not-found                          873 B            88 kB
-├ ○ /chat                                8.83 kB         122 kB
-├ ○ /configurations                      7.21 kB         132 kB
-├ ○ /deployments                         9.72 kB         132 kB
-├ ○ /login                               3.35 kB         125 kB
-├ ○ /pem-keys                            8.07 kB         130 kB
-├ ○ /register                            3.44 kB         125 kB
-├ ○ /server-groups                       5.61 kB         130 kB
-├ ○ /servers                             7.44 kB         129 kB
-├ ○ /settings                            11.6 kB         113 kB
-└ ○ /training                            15.3 kB         112 kB
-+ First Load JS shared by all            87.2 kB
-  ├ chunks/1dd3208c-c229b89f09e28070.js  53.6 kB
-  ├ chunks/528-95087a793973b326.js       31.6 kB
-  └ other shared chunks (total)          1.95 kB
+┌ ○ /                                    6.66 kB         136 kB
+├ ○ /_not-found                          873 B          88.1 kB
+├ ○ /chat                                11.1 kB         144 kB
+├ ○ /configurations                      2.67 kB         106 kB
+├ ○ /deployments                         9.03 kB         141 kB
+├ ○ /login                               3.75 kB         126 kB
+├ ○ /pem-keys                            511 B          87.8 kB
+├ ○ /register                            3.57 kB         126 kB
+├ ○ /server-groups                       4.01 kB         136 kB
+├ ○ /servers                             6.38 kB         139 kB
+├ ○ /settings                            9.64 kB         142 kB
+├ ○ /settings/audit-logs                 4.86 kB        92.1 kB
+├ ○ /settings/integrations               6.22 kB        93.5 kB
+├ ○ /settings/roles/create               4.47 kB        91.7 kB
+├ ○ /test-simple                         408 B          87.7 kB
+└ ○ /training                            14.4 kB         118 kB
++ First Load JS shared by all            87.3 kB
+  ├ chunks/1dd3208c-6f10f8373886b9c6.js  53.6 kB
+  ├ chunks/528-70d8759c87861472.js       31.6 kB
+  └ other shared chunks (total)          2.04 kB
 
 
 ○  (Static)  prerendered as static content

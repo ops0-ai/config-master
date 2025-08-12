@@ -47,7 +47,7 @@ export default function Layout({ children }: LayoutProps) {
       {sidebarOpen && (
         <div className="fixed inset-0 flex z-40 lg:hidden">
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-gray-50 border-r border-gray-300">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 type="button"
@@ -101,7 +101,7 @@ export default function Layout({ children }: LayoutProps) {
   function SidebarContent() {
     return (
       <>
-        <div className="flex items-center h-16 flex-shrink-0 px-4 bg-white border-b border-gray-200">
+        <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-50 border-b border-gray-300">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Image
@@ -114,12 +114,12 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             <div className="ml-3">
               <h1 className="text-lg font-semibold text-gray-900">Pulse</h1>
-              <p className="text-xs text-gray-500">Enterprise Config Management</p>
+              <p className="text-xs text-gray-600">Enterprise Config Management</p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto bg-white border-r border-gray-200">
+        <div className="flex-1 flex flex-col overflow-y-auto bg-gray-50 border-r border-gray-300">
           <nav className="flex-1 px-2 py-4 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
@@ -129,8 +129,8 @@ export default function Layout({ children }: LayoutProps) {
                   href={item.href}
                   className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                     isActive
-                      ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-white text-primary-900 border-r-2 border-primary-600 shadow-sm'
+                      : 'text-gray-700 hover:bg-white hover:text-gray-900 hover:shadow-sm'
                   }`}
                 >
                   <item.icon
@@ -144,7 +144,7 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </nav>
 
-          <div className="flex-shrink-0 p-4 border-t border-gray-200">
+          <div className="flex-shrink-0 p-4 border-t border-gray-300 bg-gray-100">
             <UserProfile />
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function Layout({ children }: LayoutProps) {
       <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center w-full p-2 rounded-lg hover:bg-gray-50 transition-colors"
+          className="flex items-center w-full p-2 rounded-lg hover:bg-white hover:shadow-sm transition-colors"
         >
           <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
             <UserIcon className="w-5 h-5 text-primary-600" />

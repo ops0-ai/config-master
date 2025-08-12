@@ -631,8 +631,8 @@ export default function ChatInterface() {
           </div>
         )}
         <pre className="text-xs bg-gray-800 text-gray-100 p-2 rounded overflow-x-auto">
-          {message.generatedConfiguration.substring(0, 200)}
-          {message.generatedConfiguration.length > 200 && '...'}
+          {message.generatedConfiguration?.substring(0, 200)}
+          {message.generatedConfiguration && message.generatedConfiguration.length > 200 && '...'}
         </pre>
       </div>
     );

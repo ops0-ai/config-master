@@ -38,6 +38,7 @@ export const serverGroups = pgTable('server_groups', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
+  type: varchar('type', { length: 50 }).default('mixed'), // 'linux', 'windows', 'mixed'
   defaultPemKeyId: uuid('default_pem_key_id').references(() => pemKeys.id),
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -50,12 +51,16 @@ export const servers = pgTable('servers', {
   hostname: varchar('hostname', { length: 255 }).notNull(),
   ipAddress: varchar('ip_address', { length: 45 }).notNull(),
   port: integer('port').notNull().default(22),
+  type: varchar('type', { length: 50 }).notNull().default('linux'), // 'linux', 'windows'
   username: varchar('username', { length: 255 }).notNull().default('root'),
+  // For Windows servers - encrypted password storage
+  encryptedPassword: text('encrypted_password'), // Encrypted password for Windows RDP
   operatingSystem: varchar('operating_system', { length: 100 }),
   osVersion: varchar('os_version', { length: 100 }),
   status: varchar('status', { length: 50 }).notNull().default('unknown'),
   lastSeen: timestamp('last_seen'),
   groupId: uuid('group_id').references(() => serverGroups.id),
+  // For Linux servers - PEM key authentication
   pemKeyId: uuid('pem_key_id').references(() => pemKeys.id),
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
   metadata: jsonb('metadata'),

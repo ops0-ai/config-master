@@ -26,7 +26,11 @@ interface Configuration {
   updatedAt: string;
 }
 
-export default function ConfigurationApprovals() {
+interface ConfigurationApprovalsProps {
+  onClose?: () => void;
+}
+
+export default function ConfigurationApprovals({ onClose }: ConfigurationApprovalsProps) {
   const { user } = useMinimalAuth();
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
   const [loading, setLoading] = useState(true);
