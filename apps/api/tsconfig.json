@@ -17,7 +17,12 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": "../..",
+    "paths": {
+      "@config-management/database": ["packages/database/src"],
+      "@config-management/database/*": ["packages/database/src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

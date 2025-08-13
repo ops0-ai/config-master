@@ -7,30 +7,39 @@ RUN apk add --no-cache python3 make g++ openssl
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files for workspace setup
 COPY package*.json ./
 COPY turbo.json ./
 
-# Copy API and database package files
+# Copy package files for all workspaces
 COPY apps/api/package*.json ./apps/api/
 COPY packages/database/package*.json ./packages/database/
 
-# Install all dependencies first
+# Install all dependencies (including workspaces)
 RUN npm install
 
 # Copy source code
 COPY apps/api ./apps/api
 COPY packages/database ./packages/database
 
-# Build the application
+# Build packages in correct dependency order
+# First build the database package
+WORKDIR /app/packages/database
+RUN npm run build
+
+# Then build the API
 WORKDIR /app/apps/api
 RUN npm run build
 
 # Remove dev dependencies to reduce image size
+WORKDIR /app
 RUN npm prune --production
 
 # Create directories for uploads and logs
 RUN mkdir -p /app/uploads /app/logs /secure/pem-keys
+
+# Set final working directory
+WORKDIR /app/apps/api
 
 # Expose port
 EXPOSE 5005
