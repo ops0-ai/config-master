@@ -34,7 +34,7 @@
     "joi": "^17.9.0",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
-    "multer": "^1.4.0",
+    "multer": "^1.4.4-lts.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",
     "node-winrm": "^0.1.3",
