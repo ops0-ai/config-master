@@ -3,9 +3,6 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@config-management/database', '@config-management/ansible-engine'],
   
-  // Enable standalone output for Docker
-  output: 'standalone',
-  
   // Development optimizations
   ...(process.env.NODE_ENV === 'development' && {
     onDemandEntries: {
