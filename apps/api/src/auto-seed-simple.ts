@@ -22,45 +22,27 @@ export async function ensureAdminUser() {
     
     console.log('🌱 Creating default admin user...');
     
-    // Get or create default organization
-    let organization = await db
-      .select()
-      .from(organizations)
-      .limit(1);
+    // Create admin user first
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const adminUserId = randomUUID();
+    const orgId = randomUUID();
     
-    if (organization.length === 0) {
-      const orgId = randomUUID();
-      const userId = randomUUID(); // Create admin user first to be owner
-      await db.insert(organizations).values({
-        id: orgId,
-        name: 'Default Organization',
-        description: 'Default organization for ConfigMaster',
-        ownerId: userId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      organization = await db.select().from(organizations).where(eq(organizations.id, orgId));
-    }
+    // Create organization with admin as owner
+    await db.insert(organizations).values({
+      id: orgId,
+      name: 'Default Organization',
+      description: 'Default organization for ConfigMaster',
+      ownerId: adminUserId,
+    });
     
     // Create admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    let adminUserId = userId; // Use the same userId from organization creation
-    
-    // If organization already existed, generate new userId
-    if (organization.length > 0) {
-      adminUserId = randomUUID();
-    }
-    
     await db.insert(users).values({
       id: adminUserId,
       email: 'admin@configmaster.dev',
       passwordHash: hashedPassword,
       name: 'Admin User',
       role: 'admin',
-      isActive: true,
-      organizationId: organization[0].id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      organizationId: orgId,
     });
     
     console.log('✅ Default admin user created!');

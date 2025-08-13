@@ -45,21 +45,47 @@ npm install --ignore-scripts || {
 
 # Build packages in order
 print_status "🔨 Building packages..."
+
 print_status "Building database package..."
-cd packages/database && npm run build && cd ../..
+if [ -d "packages/database" ]; then
+    cd packages/database && npm run build && cd ../..
+else
+    print_error "packages/database directory not found"
+    exit 1
+fi
 
 print_status "Building ansible-engine package..."
-cd packages/ansible-engine && npm run build && cd ../..
+if [ -d "packages/ansible-engine" ]; then
+    cd packages/ansible-engine && npm run build && cd ../..
+else
+    print_error "packages/ansible-engine directory not found"
+    exit 1
+fi
 
 print_status "Building API..."
-cd apps/api && npm run build && cd ../..
+if [ -d "apps/api" ]; then
+    cd apps/api && npm run build && cd ../..
+else
+    print_error "apps/api directory not found"
+    exit 1
+fi
 
 print_status "Building web app..."
-cd apps/web && npm run build && cd ../..
+if [ -d "apps/web" ]; then
+    cd apps/web && npm run build && cd ../..
+else
+    print_error "apps/web directory not found"
+    exit 1
+fi
 
 # Setup database
 print_status "🗄️ Setting up database..."
-cd apps/api
+if [ -d "apps/api" ]; then
+    cd apps/api
+else
+    print_error "apps/api directory not found for database setup"
+    exit 1
+fi
 
 # Create .env if it doesn't exist
 if [ ! -f .env ]; then
