@@ -1,4 +1,4 @@
-# API Dockerfile using Turbo for proper workspace builds
+# Simple Node.js API Dockerfile
 FROM node:18-alpine
 
 # Install dependencies for native modules
@@ -7,31 +7,45 @@ RUN apk add --no-cache python3 make g++ openssl
 # Set working directory
 WORKDIR /app
 
-# Copy all package files and turbo config
+# Copy package files for workspace setup
 COPY package*.json ./
 COPY turbo.json ./
+
+# Copy package files for all workspaces
 COPY apps/api/package*.json ./apps/api/
 COPY packages/database/package*.json ./packages/database/
 COPY packages/ansible-engine/package*.json ./packages/ansible-engine/
 
-# Install all dependencies for the workspace
+# Install all dependencies (including workspaces)
 RUN npm install
 
-# Copy all source code
+# Copy source code
 COPY apps/api ./apps/api
-COPY packages ./packages
+COPY packages/database ./packages/database
+COPY packages/ansible-engine ./packages/ansible-engine
 
-# Use Turbo to build just the API and its dependencies
-RUN npx turbo build --filter=api
+# Build packages in correct dependency order
+# First build the database package
+WORKDIR /app/packages/database
+RUN npm run build
 
-# Set working directory to API
+# Then build the ansible-engine package
+WORKDIR /app/packages/ansible-engine
+RUN npm run build
+
+# Finally build the API
 WORKDIR /app/apps/api
+RUN npm run build
 
 # Remove dev dependencies to reduce image size
-RUN npm prune --production --legacy-peer-deps
+WORKDIR /app
+RUN npm prune --production
 
 # Create directories for uploads and logs
 RUN mkdir -p /app/uploads /app/logs /secure/pem-keys
+
+# Set final working directory
+WORKDIR /app/apps/api
 
 # Expose port
 EXPOSE 5005

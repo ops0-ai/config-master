@@ -4,7 +4,6 @@
     "module": "commonjs",
     "lib": ["ES2020"],
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -21,9 +20,11 @@
     "baseUrl": "../..",
     "paths": {
       "@config-management/database": ["packages/database/src"],
-      "@config-management/database/*": ["packages/database/src/*"]
+      "@config-management/database/*": ["packages/database/src/*"],
+      "@config-management/ansible-engine": ["packages/ansible-engine/src"],
+      "@config-management/ansible-engine/*": ["packages/ansible-engine/src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../../packages/*/src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
