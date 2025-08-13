@@ -14,7 +14,7 @@ print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-print_status "🚀 ConfigMaster Deployment Starting..."
+print_status "🚀 ConfigMaster Simple Deployment Starting..."
 
 # Check for Node.js
 if ! command -v node &> /dev/null; then
@@ -28,34 +28,40 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Install dependencies
+# Install dependencies for each package individually
 print_status "📦 Installing dependencies..."
-npm install --ignore-scripts || {
-    print_warning "Workspace install failed, trying individual package installs..."
-    
-    # Install root dependencies
-    npm install --ignore-scripts --workspaces=false
-    
-    # Install each package individually
-    cd packages/database && npm install && cd ../..
-    cd packages/ansible-engine && npm install && cd ../..
-    cd apps/api && npm install && cd ../..
-    cd apps/web && npm install && cd ../..
-}
 
-# Build packages in order
-print_status "🔨 Building packages..."
-print_status "Building database package..."
-cd packages/database && npm run build && cd ../..
+# Install root dependencies
+print_status "Installing root dependencies..."
+npm install --ignore-scripts
 
-print_status "Building ansible-engine package..."
-cd packages/ansible-engine && npm run build && cd ../..
+# Install and build database package
+print_status "Setting up database package..."
+cd packages/database
+npm install
+npm run build
+cd ../..
 
-print_status "Building API..."
-cd apps/api && npm run build && cd ../..
+# Install and build ansible-engine package  
+print_status "Setting up ansible-engine package..."
+cd packages/ansible-engine
+npm install
+npm run build
+cd ../..
 
-print_status "Building web app..."
-cd apps/web && npm run build && cd ../..
+# Install and build API
+print_status "Setting up API..."
+cd apps/api
+npm install
+npm run build
+cd ../..
+
+# Install and build web
+print_status "Setting up web app..."
+cd apps/web
+npm install
+npm run build
+cd ../..
 
 # Setup database
 print_status "🗄️ Setting up database..."
@@ -126,7 +132,7 @@ echo ""
 echo "🌐 Web Interface: http://localhost:3000"
 echo "🔌 API Endpoint: http://localhost:5005/api"
 echo ""
-echo "📋 Default Admin Credentials (auto-created):"
+echo "📋 Default Admin Credentials (auto-created on startup):"
 echo "  📧 Email: admin@configmaster.dev"
 echo "  🔑 Password: admin123"
 echo ""
@@ -139,5 +145,3 @@ echo "  Terminal 2: cd apps/web && npm run dev"
 echo ""
 print_warning "⚠️  IMPORTANT: Change default passwords in production!"
 print_warning "⚠️  Update JWT_SECRET and encryption keys in .env for production!"
-echo ""
-print_status "🔧 For Docker deployment: ./docker-setup.sh"
