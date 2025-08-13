@@ -26,6 +26,7 @@ import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
 import organizationRoutes from './routes/organizations';
 import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
+import { ensureAdminUser } from './auto-seed';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -99,6 +100,7 @@ Promise.all([
   seedRBACData(),
   initializeSettings(), // Load API keys from database on startup
   populateUserOrganizations(), // Populate user organizations for multi-tenancy
+  ensureAdminUser(), // Auto-create admin user on startup
 ]).then(([ansibleInstalled]) => {
   if (ansibleInstalled) {
     console.log('🔧 Platform ready with Ansible integration and RBAC');
