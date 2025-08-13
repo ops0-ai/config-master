@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@config-management/database', '@config-management/ansible-engine'],
   
+  // Enable standalone output for Docker
+  output: 'standalone',
+  
   // Development optimizations
   ...(process.env.NODE_ENV === 'development' && {
     onDemandEntries: {
@@ -17,7 +20,9 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5005/api/:path*',
+        destination: process.env.NODE_ENV === 'production' 
+          ? 'http://api:5005/api/:path*'
+          : 'http://localhost:5005/api/:path*',
       },
     ];
   },

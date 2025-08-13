@@ -43,6 +43,13 @@
       "when": 1754965503624,
       "tag": "0005_motionless_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1755014147473,
+      "tag": "0006_clammy_celestials",
+      "breakpoints": true
     }
   ]
 }

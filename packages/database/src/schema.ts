@@ -468,3 +468,127 @@ export const githubPullRequestsRelations = relations(githubPullRequests, ({ one 
   configuration: one(configurations, { fields: [githubPullRequests.configurationId], references: [configurations.id] }),
   createdBy: one(users, { fields: [githubPullRequests.createdBy], references: [users.id] }),
 }));
+
+// MDM (Mobile Device Management) Tables
+export const mdmProfiles = pgTable('mdm_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  profileType: varchar('profile_type', { length: 50 }).notNull().default('macos'), // 'macos', 'windows', 'ios', 'android'
+  // Profile configuration
+  allowRemoteCommands: boolean('allow_remote_commands').notNull().default(true),
+  allowLockDevice: boolean('allow_lock_device').notNull().default(true),
+  allowShutdown: boolean('allow_shutdown').notNull().default(false),
+  allowRestart: boolean('allow_restart').notNull().default(true),
+  allowWakeOnLan: boolean('allow_wake_on_lan').notNull().default(true),
+  // Security settings
+  requireAuthentication: boolean('require_authentication').notNull().default(true),
+  maxSessionDuration: integer('max_session_duration').default(3600), // seconds
+  allowedIpRanges: jsonb('allowed_ip_ranges').$type<string[]>().default([]),
+  // Enrollment settings
+  enrollmentKey: varchar('enrollment_key', { length: 255 }).notNull(),
+  enrollmentExpiresAt: timestamp('enrollment_expires_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const mdmDevices = pgTable('mdm_devices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  profileId: uuid('profile_id').references(() => mdmProfiles.id, { onDelete: 'cascade' }), // Made optional for agent-only enrollment
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  // Device identification
+  deviceName: varchar('device_name', { length: 255 }).notNull(),
+  deviceId: varchar('device_id', { length: 255 }).notNull().unique(), // Unique device identifier
+  serialNumber: varchar('serial_number', { length: 255 }),
+  model: varchar('model', { length: 255 }),
+  osVersion: varchar('os_version', { length: 100 }),
+  architecture: varchar('architecture', { length: 50 }), // 'arm64', 'x86_64'
+  // Network information
+  ipAddress: varchar('ip_address', { length: 45 }),
+  macAddress: varchar('mac_address', { length: 17 }),
+  hostname: varchar('hostname', { length: 255 }),
+  // Status and health
+  status: varchar('status', { length: 50 }).notNull().default('offline'), // 'online', 'offline', 'locked', 'shutdown'
+  lastSeen: timestamp('last_seen'),
+  lastHeartbeat: timestamp('last_heartbeat'),
+  batteryLevel: integer('battery_level'), // 0-100 for laptops/mobile devices
+  isCharging: boolean('is_charging'),
+  // Agent information
+  agentVersion: varchar('agent_version', { length: 50 }),
+  agentInstallPath: text('agent_install_path'),
+  // Enrollment
+  enrolledAt: timestamp('enrolled_at').notNull().defaultNow(),
+  enrolledBy: uuid('enrolled_by').references(() => users.id),
+  isActive: boolean('is_active').notNull().default(true),
+  metadata: jsonb('metadata').$type<any>().default({}),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const mdmCommands = pgTable('mdm_commands', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deviceId: uuid('device_id').references(() => mdmDevices.id, { onDelete: 'cascade' }).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  // Command details
+  commandType: varchar('command_type', { length: 50 }).notNull(), // 'lock', 'unlock', 'shutdown', 'restart', 'wake', 'custom'
+  command: text('command'), // For custom commands
+  parameters: jsonb('parameters').$type<any>().default({}),
+  // Execution details
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // 'pending', 'sent', 'executing', 'completed', 'failed', 'timeout'
+  output: text('output'),
+  errorMessage: text('error_message'),
+  exitCode: integer('exit_code'),
+  // Timing
+  sentAt: timestamp('sent_at'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  timeout: integer('timeout').default(300), // seconds
+  // Audit
+  initiatedBy: uuid('initiated_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const mdmSessions = pgTable('mdm_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deviceId: uuid('device_id').references(() => mdmDevices.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  sessionToken: varchar('session_token', { length: 255 }).notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+  lastActivity: timestamp('last_activity').notNull().defaultNow(),
+  endedAt: timestamp('ended_at'),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+// MDM Relations
+export const mdmProfilesRelations = relations(mdmProfiles, ({ one, many }) => ({
+  organization: one(organizations, { fields: [mdmProfiles.organizationId], references: [organizations.id] }),
+  createdBy: one(users, { fields: [mdmProfiles.createdBy], references: [users.id] }),
+  devices: many(mdmDevices),
+}));
+
+export const mdmDevicesRelations = relations(mdmDevices, ({ one, many }) => ({
+  profile: one(mdmProfiles, { fields: [mdmDevices.profileId!], references: [mdmProfiles.id] }), // Optional profile
+  organization: one(organizations, { fields: [mdmDevices.organizationId], references: [organizations.id] }),
+  enrolledBy: one(users, { fields: [mdmDevices.enrolledBy!], references: [users.id] }), // Optional enrolledBy
+  commands: many(mdmCommands),
+  sessions: many(mdmSessions),
+}));
+
+export const mdmCommandsRelations = relations(mdmCommands, ({ one }) => ({
+  device: one(mdmDevices, { fields: [mdmCommands.deviceId], references: [mdmDevices.id] }),
+  organization: one(organizations, { fields: [mdmCommands.organizationId], references: [organizations.id] }),
+  initiatedBy: one(users, { fields: [mdmCommands.initiatedBy], references: [users.id] }),
+}));
+
+export const mdmSessionsRelations = relations(mdmSessions, ({ one }) => ({
+  device: one(mdmDevices, { fields: [mdmSessions.deviceId], references: [mdmDevices.id] }),
+  user: one(users, { fields: [mdmSessions.userId], references: [users.id] }),
+  organization: one(organizations, { fields: [mdmSessions.organizationId], references: [organizations.id] }),
+}));

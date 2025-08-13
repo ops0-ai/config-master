@@ -121,6 +121,24 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'GET:/api/aws/*/instances': { resource: 'aws-integrations', action: 'read' },
   'POST:/api/aws/*/instances/*/import': { resource: 'aws-integrations', action: 'import' },
   
+  // MDM
+  'GET:/api/mdm/profiles': { resource: 'mdm', action: 'read' },
+  'GET:/api/mdm/profiles/*': { resource: 'mdm', action: 'read' },
+  'POST:/api/mdm/profiles': { resource: 'mdm', action: 'write' },
+  'POST:/api/mdm/profiles/*/download-token': { resource: 'mdm', action: 'read' },
+  'PUT:/api/mdm/profiles/*': { resource: 'mdm', action: 'write' },
+  'DELETE:/api/mdm/profiles/*': { resource: 'mdm', action: 'delete' },
+  'GET:/api/mdm/profiles/*/download-installer': { resource: 'mdm', action: 'read' },
+  'GET:/api/mdm/profiles/*/instructions': { resource: 'mdm', action: 'read' },
+  'GET:/api/mdm/devices': { resource: 'mdm', action: 'read' },
+  'GET:/api/mdm/devices/*': { resource: 'mdm', action: 'read' },
+  'POST:/api/mdm/enroll': { resource: 'mdm', action: 'write' },
+  'POST:/api/mdm/devices/*/heartbeat': { resource: 'mdm', action: 'write' },
+  'POST:/api/mdm/devices/*/commands': { resource: 'mdm', action: 'execute' },
+  'GET:/api/mdm/devices/*/commands': { resource: 'mdm', action: 'read' },
+  'GET:/api/mdm/devices/*/commands/pending': { resource: 'mdm', action: 'read' },
+  'PUT:/api/mdm/commands/*/status': { resource: 'mdm', action: 'write' },
+  
   // GitHub Integrations
   'GET:/api/github/integrations': { resource: 'github-integrations', action: 'read' },
   'GET:/api/github/auth-url': { resource: 'github-integrations', action: 'read' },

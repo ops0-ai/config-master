@@ -226,3 +226,78 @@ export const organizationApi = {
   switchOrganization: (organizationId: string) => 
     api.post('/organizations/switch', { organizationId }),
 };
+
+// MDM API
+export const mdmApi = {
+  // Profiles
+  getProfiles: () => api.get('/mdm/profiles'),
+  
+  createProfile: (data: {
+    name: string;
+    description?: string;
+    profileType?: 'macos' | 'windows' | 'ios' | 'android';
+    allowRemoteCommands?: boolean;
+    allowLockDevice?: boolean;
+    allowShutdown?: boolean;
+    allowRestart?: boolean;
+    allowWakeOnLan?: boolean;
+    requireAuthentication?: boolean;
+    maxSessionDuration?: number;
+    allowedIpRanges?: string[];
+    enrollmentExpiresAt?: string;
+  }) => api.post('/mdm/profiles', data),
+  
+  updateProfile: (id: string, data: any) => api.put(`/mdm/profiles/${id}`, data),
+  
+  deleteProfile: (id: string) => api.delete(`/mdm/profiles/${id}`),
+  
+  // Devices
+  getDevices: () => api.get('/mdm/devices'),
+  
+  deleteDevice: (deviceId: string) => api.delete(`/mdm/devices/${deviceId}`),
+  
+  enrollDevice: (data: {
+    enrollmentKey: string;
+    deviceName: string;
+    deviceId: string;
+    serialNumber?: string;
+    model?: string;
+    osVersion?: string;
+    architecture?: string;
+    macAddress?: string;
+    hostname?: string;
+    agentVersion?: string;
+    agentInstallPath?: string;
+    metadata?: any;
+  }) => api.post('/mdm/enroll', data),
+  
+  sendHeartbeat: (deviceId: string, data: {
+    batteryLevel?: number;
+    isCharging?: boolean;
+    ipAddress?: string;
+    status?: string;
+  }) => api.post(`/mdm/devices/${deviceId}/heartbeat`, data),
+  
+  // Commands
+  sendCommand: (deviceId: string, data: {
+    commandType: 'lock' | 'unlock' | 'shutdown' | 'restart' | 'wake' | 'custom';
+    command?: string;
+    parameters?: any;
+    timeout?: number;
+  }) => api.post(`/mdm/devices/${deviceId}/commands`, data),
+  
+  getPendingCommands: (deviceId: string) => api.get(`/mdm/devices/${deviceId}/commands/pending`),
+  
+  updateCommandStatus: (commandId: string, data: {
+    status: 'executing' | 'completed' | 'failed' | 'timeout';
+    output?: string;
+    errorMessage?: string;
+    exitCode?: number;
+  }) => api.put(`/mdm/commands/${commandId}/status`, data),
+  
+  getDeviceCommands: (deviceId: string) => api.get(`/mdm/devices/${deviceId}/commands`),
+  
+  // Download endpoints
+  generateDownloadToken: (profileId: string, type: 'profile' | 'installer' | 'instructions' = 'profile') => 
+    api.post(`/mdm/profiles/${profileId}/download-token`, { type }),
+};

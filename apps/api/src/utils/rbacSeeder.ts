@@ -68,6 +68,14 @@ const systemPermissions = [
   { resource: 'aws-integrations', action: 'read', description: 'View AWS integrations' },
   { resource: 'aws-integrations', action: 'write', description: 'Create and modify AWS integrations' },
   { resource: 'aws-integrations', action: 'delete', description: 'Delete AWS integrations' },
+  
+  // MDM permissions
+  { resource: 'mdm', action: 'read', description: 'View MDM profiles and devices' },
+  { resource: 'mdm', action: 'write', description: 'Create and modify MDM profiles' },
+  { resource: 'mdm', action: 'execute', description: 'Send commands to MDM devices' },
+  { resource: 'mdm', action: 'delete', description: 'Delete MDM profiles' },
+  
+  // AWS integration additional permissions
   { resource: 'aws-integrations', action: 'sync', description: 'Sync AWS instances' },
   { resource: 'aws-integrations', action: 'import', description: 'Import AWS instances as servers' },
   
@@ -98,6 +106,7 @@ const systemRoles = {
       'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 
       'aws-integrations:sync', 'aws-integrations:import',
       'github-integrations:read', 'github-integrations:write', 'github-integrations:delete',
+      'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
       'github-integrations:validate', 'github-integrations:sync'
     ]
   },
@@ -114,6 +123,7 @@ const systemRoles = {
       'training:read', 'chat:read', 'chat:write', 'chat:delete',
       'aws-integrations:read', 'aws-integrations:sync', 'aws-integrations:import',
       'github-integrations:read', 'github-integrations:write', 'github-integrations:validate', 'github-integrations:sync',
+      'mdm:read', 'mdm:write', 'mdm:execute',
       'audit-logs:view'
     ]
   },

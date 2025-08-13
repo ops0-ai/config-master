@@ -14,6 +14,7 @@ import {
   ShieldCheckIcon,
   ClipboardDocumentListIcon,
   CloudIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import toast from 'react-hot-toast';
@@ -21,6 +22,7 @@ import { settingsApi, organizationApi } from '@/lib/api';
 import RoleMatrixManagement from './RoleMatrixManagement';
 import UsersManagement from './UsersManagement';
 import dynamic from 'next/dynamic';
+import React from 'react';
 
 const AuditLogsPage = dynamic(() => import('../app/settings/audit-logs/page'), {
   loading: () => <div className="flex items-center justify-center h-64">
@@ -40,6 +42,12 @@ const PemKeysPageComponent = dynamic(() => import('./PemKeysPage'), {
   </div>
 });
 
+const MDMManagement = dynamic(() => import('./MDMManagement'), {
+  loading: () => <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+  </div>
+});
+
 interface Settings {
   claudeApiKey?: string;
   defaultRegion?: string;
@@ -47,7 +55,7 @@ interface Settings {
   deploymentTimeout?: number;
 }
 
-type SettingsTab = 'general' | 'users' | 'roles' | 'audit-logs' | 'integrations' | 'pem-keys';
+type SettingsTab = 'general' | 'users' | 'roles' | 'audit-logs' | 'integrations' | 'pem-keys' | 'mdm';
 
 export default function SettingsPage() {
   const { user, organization, setOrganization } = useMinimalAuth();
@@ -68,7 +76,7 @@ export default function SettingsPage() {
   // Handle tab parameter from URL
   useEffect(() => {
     const tab = searchParams.get('tab') as SettingsTab;
-    if (tab && ['general', 'users', 'roles', 'audit-logs', 'integrations', 'pem-keys'].includes(tab)) {
+    if (tab && ['general', 'users', 'roles', 'audit-logs', 'integrations', 'pem-keys', 'mdm'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -258,6 +266,12 @@ export default function SettingsPage() {
       name: 'PEM Keys', 
       icon: KeyIcon,
       description: 'Manage SSH private keys for server authentication'
+    },
+    { 
+      id: 'mdm' as SettingsTab, 
+      name: 'MDM', 
+      icon: DevicePhoneMobileIcon,
+      description: 'Mobile Device Management - manage and control MacBooks remotely'
     },
   ];
 
@@ -605,6 +619,9 @@ export default function SettingsPage() {
 
       {/* PEM Keys Tab */}
       {activeTab === 'pem-keys' && <PemKeysPageComponent />}
+
+      {/* MDM Tab */}
+      {activeTab === 'mdm' && <MDMManagement />}
 
         </div>
       </div>

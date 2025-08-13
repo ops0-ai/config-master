@@ -25,6 +25,7 @@ import { settingsRoutes, initializeSettings } from './routes/settings';
 import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
 import organizationRoutes from './routes/organizations';
+import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -78,6 +79,8 @@ app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/dashboard', authMiddleware, dashboardRoutes);
 app.use('/api/organizations', authMiddleware, organizationRoutes);
+app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
+app.use('/api/mdm', authMiddleware, rbacMiddleware(), auditMiddleware, mdmRoutes);
 
 app.use(errorHandler);
 

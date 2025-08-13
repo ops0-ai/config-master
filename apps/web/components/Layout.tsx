@@ -16,6 +16,7 @@ import {
   MagnifyingGlassIcon,
   ArrowRightOnRectangleIcon,
   AcademicCapIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'Server Groups', href: '/server-groups', icon: CpuChipIcon },
   { name: 'Configurations', href: '/configurations', icon: CpuChipIcon },
   { name: 'Deployments', href: '/deployments', icon: ChartBarIcon },
+  { name: 'MDM', href: '/mdm', icon: DevicePhoneMobileIcon },
   { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
