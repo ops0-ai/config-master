@@ -77,6 +77,31 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
+app.get('/api/auth/clear', (req, res) => {
+  console.log('Clear auth request from:', req.get('origin'));
+  res.setHeader('Content-Type', 'text/html');
+  res.send(\`
+    <html>
+      <body>
+        <h2>Clearing Browser Storage...</h2>
+        <script>
+          // Clear all localStorage
+          localStorage.clear();
+          // Clear all sessionStorage  
+          sessionStorage.clear();
+          // Clear all cookies for this domain
+          document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+          });
+          
+          alert('Browser storage cleared! You can now login fresh.');
+          window.location.href = '/login';
+        </script>
+      </body>
+    </html>
+  \`);
+});
+
 app.get('/api/organizations/user-organizations', (req, res) => {
   console.log('User organizations request from:', req.get('origin'));
   res.json([
