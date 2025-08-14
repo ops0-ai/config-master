@@ -17,10 +17,13 @@
     "db:studio": "cd apps/api && npm run db:studio"
   },
   "devDependencies": {
-    "turbo": "^1.10.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
     "eslint": "^8.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "turbo": "^1.10.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "zod": "^4.0.17"
   }
 }

@@ -26,7 +26,7 @@ import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
 import organizationRoutes from './routes/organizations';
 import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
-import { ensureAdminUser } from './auto-seed-simple';
+import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -93,23 +93,30 @@ deploymentScheduler.start();
 // Initialize RBAC system
 import { seedRBACData } from './utils/rbacSeeder';
 import { populateUserOrganizations } from './migrations/populateUserOrganizations';
+import { runDatabaseMigrations } from './migrations/runMigrations';
 
-// Setup platform components
-Promise.all([
-  ensureAnsibleInstalled(),
-  seedRBACData(),
-  initializeSettings(), // Load API keys from database on startup
-  populateUserOrganizations(), // Populate user organizations for multi-tenancy
-  ensureAdminUser(), // Auto-create admin user on startup
-]).then(([ansibleInstalled]) => {
-  if (ansibleInstalled) {
-    console.log('🔧 Platform ready with Ansible integration and RBAC');
-  } else {
-    console.log('⚠️  Platform running in simulation mode with RBAC');
+// Setup platform components with migrations first
+async function initializePlatform() {
+  try {
+    // Run migrations first
+    await runDatabaseMigrations();
+    
+    // Then setup all other components
+    await Promise.all([
+      seedRBACData(),
+      initializeSettings(), // Load API keys from database on startup
+      populateUserOrganizations(), // Populate user organizations for multi-tenancy
+      ensureAdminUser(), // Auto-create admin user on startup
+      ensureDefaultMDMProfiles(), // Auto-create default MDM profiles for all organizations
+    ]);
+    
+    console.log('🔧 Platform ready with RBAC and MDM');
+  } catch (error) {
+    console.warn('⚠️  Platform setup warning:', error);
   }
-}).catch((error) => {
-  console.warn('⚠️  Platform setup warning:', error);
-});
+}
+
+initializePlatform();
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

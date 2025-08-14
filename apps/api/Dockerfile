@@ -1,8 +1,8 @@
 # API Dockerfile using Turbo for proper workspace builds
 FROM node:18-alpine
 
-# Install dependencies for native modules
-RUN apk add --no-cache python3 make g++ openssl
+# Install dependencies for native modules and PostgreSQL client
+RUN apk add --no-cache python3 make g++ openssl postgresql-client
 
 # Set working directory
 WORKDIR /app
@@ -38,7 +38,7 @@ EXPOSE 5005
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5005/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
+  CMD node -e "require('http').get('http://localhost:5005/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Run the application
 CMD ["npm", "start"]

@@ -1,0 +1,36 @@
+# Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies
+RUN npm ci --workspace=web
+
+# Copy web source
+COPY apps/web ./apps/web
+
+# Build Next.js app
+WORKDIR /app/apps/web
+RUN npm run build
+
+# Runtime stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy built application
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/package.json ./apps/web/
+COPY --from=builder /app/package.json ./
+
+WORKDIR /app/apps/web
+
+EXPOSE 3000
+
+CMD ["npm", "start"]

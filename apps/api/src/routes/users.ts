@@ -159,7 +159,7 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
   try {
     const validation = createUserSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ error: 'Invalid user data', details: validation.error.errors });
+      return res.status(400).json({ error: 'Invalid user data', details: validation.error.issues });
     }
 
     const { name, email, password, isActive } = validation.data;
@@ -218,7 +218,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
 
     const validation = updateUserSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ error: 'Invalid user data', details: validation.error.errors });
+      return res.status(400).json({ error: 'Invalid user data', details: validation.error.issues });
     }
 
     const { name, email, password, isActive } = validation.data;

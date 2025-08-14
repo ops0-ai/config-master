@@ -144,7 +144,7 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
   try {
     const validation = createRoleSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ error: 'Invalid role data', details: validation.error.errors });
+      return res.status(400).json({ error: 'Invalid role data', details: validation.error.issues });
     }
 
     const { name, description, permissions: permissionIds } = validation.data;
@@ -206,7 +206,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
 
     const validation = updateRoleSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ error: 'Invalid role data', details: validation.error.errors });
+      return res.status(400).json({ error: 'Invalid role data', details: validation.error.issues });
     }
 
     const { name, description, permissions: permissionIds, isActive } = validation.data;
@@ -362,7 +362,7 @@ router.post('/assign', async (req: AuthenticatedRequest, res) => {
   try {
     const validation = assignRoleSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ error: 'Invalid assignment data', details: validation.error.errors });
+      return res.status(400).json({ error: 'Invalid assignment data', details: validation.error.issues });
     }
 
     const { userId, roleId } = validation.data;

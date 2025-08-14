@@ -169,15 +169,22 @@ router.post('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any
         generatedConfiguration: playbookGeneration.yaml,
         // Return the generated config but don't save it to database yet
       });
-    } catch (aiError) {
+    } catch (aiError: any) {
       console.error('Error generating configuration:', aiError);
+      
+      // Provide specific error message for Claude API overload
+      let errorMessage = 'I apologize, but I encountered an error while generating the Ansible configuration. Please try rephrasing your request or provide more specific details about what you want to configure.';
+      
+      if (aiError.message?.includes('Claude API is currently overloaded')) {
+        errorMessage = 'Claude API is currently experiencing high demand and is overloaded. Please try again in a few minutes. The system will automatically retry, but you may need to wait a bit longer for a response.';
+      }
       
       const assistantMessage = await db
         .insert(messages)
         .values({
           conversationId: req.params.id,
           role: 'assistant',
-          content: 'I apologize, but I encountered an error while generating the Ansible configuration. Please try rephrasing your request or provide more specific details about what you want to configure.',
+          content: errorMessage,
         })
         .returning();
 

@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: config-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: config_management
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d config_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.simple
+    container_name: config-api
+    environment:
+      DATABASE_URL: postgresql://postgres:password123@postgres:5432/config_management
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: config_management
+      DB_USER: postgres
+      DB_PASSWORD: password123
+      JWT_SECRET: super-secret-jwt-key-for-production-change-this-immediately
+      ENCRYPTION_KEY: 32-char-encryption-key-change-this
+      MASTER_ENCRYPTION_KEY: master-encryption-key-change-this-too
+      PORT: 5005
+      NODE_ENV: production
+      FRONTEND_URL: http://localhost:3000
+      PEM_KEYS_DIR: /app/secure/pem-keys
+    ports:
+      - "5005:5005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./secure:/app/secure
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.simple
+    container_name: config-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5005/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -30,8 +30,7 @@ export class AnsibleGenerator {
   }> {
     const prompt = this.buildPrompt(request);
 
-    try {
-      const systemPrompt = `You are an expert Ansible automation engineer. Generate secure, idempotent, and well-structured Ansible playbooks based on user requirements. Always follow best practices:
+    const systemPrompt = `You are an expert Ansible automation engineer. Generate secure, idempotent, and well-structured Ansible playbooks based on user requirements. Always follow best practices:
 
 1. Use appropriate modules for the task
 2. Make playbooks idempotent
@@ -45,36 +44,66 @@ Respond with valid JSON containing:
 - "playbook": The complete Ansible playbook as JSON object
 - "explanation": A brief explanation of what the playbook does and key considerations`;
 
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2000,
-        temperature: 0.3,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
+    // Retry configuration
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 2000,
+          temperature: 0.3,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        });
+
+        const content = response.content[0]?.type === 'text' ? response.content[0].text : null;
+        if (!content) {
+          throw new Error('No response from AI service');
+        }
+
+        const parsed = JSON.parse(content);
+        const yamlContent = YAML.stringify([parsed.playbook], { indent: 2 });
+
+        return {
+          playbook: parsed.playbook,
+          yaml: yamlContent,
+          explanation: parsed.explanation,
+        };
+      } catch (error: any) {
+        console.error(`Attempt ${attempt} failed:`, error);
+        
+        // Check if it's a 529 overloaded error
+        const isOverloadedError = error.message?.includes('529') || 
+                                 error.message?.includes('overloaded') ||
+                                 error.message?.includes('Overloaded') ||
+                                 error.status === 529;
+        
+        // If it's the last attempt or not an overloaded error, throw immediately
+        if (attempt === maxRetries || !isOverloadedError) {
+          if (isOverloadedError) {
+            throw new Error('Claude API is currently overloaded. Please try again in a few minutes. The AI service is experiencing high demand.');
           }
-        ]
-      });
-
-      const content = response.content[0]?.type === 'text' ? response.content[0].text : null;
-      if (!content) {
-        throw new Error('No response from AI service');
+          throw new Error('Failed to generate Ansible playbook');
+        }
+        
+        // Calculate exponential backoff delay
+        const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+        console.log(`Claude API overloaded, retrying in ${Math.round(delay)}ms... (attempt ${attempt}/${maxRetries})`);
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      const parsed = JSON.parse(content);
-      const yamlContent = YAML.stringify([parsed.playbook], { indent: 2 });
-
-      return {
-        playbook: parsed.playbook,
-        yaml: yamlContent,
-        explanation: parsed.explanation,
-      };
-    } catch (error) {
-      console.error('Error generating Ansible playbook:', error);
-      throw new Error('Failed to generate Ansible playbook');
     }
+    
+    // This should never be reached, but TypeScript requires it
+    throw new Error('Failed to generate Ansible playbook after all retries');
   }
 
   private buildPrompt(request: ConfigurationRequest): string {
