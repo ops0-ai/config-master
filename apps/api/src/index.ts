@@ -80,53 +80,37 @@ console.log(`   ALLOW_SELF_HOSTED_CORS: ${process.env.ALLOW_SELF_HOSTED_CORS}`);
 console.log(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
 
 // IMPORTANT: CORS must be configured BEFORE helmet
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // For self-hosted deployments, be extremely permissive
-    if (allowSelfHosted || isProduction) {
-      // Allow any origin on port 3000
-      if (origin.includes(':3000')) {
-        console.log(`✅ CORS allowed: ${origin}`);
-        return callback(null, true);
-      }
-      
-      // Allow any IP address pattern
-      if (/^https?:\/\/\d+\.\d+\.\d+\.\d+/.test(origin)) {
-        console.log(`✅ CORS allowed (IP): ${origin}`);
-        return callback(null, true);
-      }
-    }
-    
-    // Standard origin checking
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ].filter(Boolean);
-    
-    const isAllowed = allowedOrigins.includes(origin);
-    
-    if (isAllowed) {
-      console.log(`✅ CORS allowed (standard): ${origin}`);
-      callback(null, true);
-    } else {
-      console.log(`❌ CORS blocked origin: ${origin}`);
-      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
-      console.log(`   Self-hosted mode: ${allowSelfHosted ? 'enabled' : 'disabled'}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Length', 'Content-Range'],
-  maxAge: 86400, // Cache preflight for 24 hours
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
+// For self-hosted deployments, use wildcard or very permissive CORS
+if (allowSelfHosted || isProduction) {
+  console.log('🌐 Using permissive CORS for self-hosted/production deployment');
+  app.use(cors({
+    origin: true, // Accept all origins
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Length', 'Content-Range'],
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+  }));
+} else {
+  console.log('🔒 Using strict CORS for development');
+  const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  if (process.env.FRONTEND_URL) {
+    devOrigins.push(process.env.FRONTEND_URL);
+  }
+  
+  app.use(cors({
+    origin: devOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Length', 'Content-Range'],
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+  }));
+}
 
 // Apply helmet AFTER CORS with custom configuration
 app.use(helmet({
