@@ -76,6 +76,11 @@ app.use(helmet());
 const isProduction = process.env.NODE_ENV === 'production';
 const allowSelfHosted = process.env.ALLOW_SELF_HOSTED_CORS === 'true';
 
+console.log('🔧 CORS Configuration:');
+console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`   ALLOW_SELF_HOSTED_CORS: ${process.env.ALLOW_SELF_HOSTED_CORS}`);
+console.log(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, postman, etc.)
@@ -83,9 +88,15 @@ app.use(cors({
     
     // For self-hosted deployments, be more permissive
     if (allowSelfHosted) {
-      // Allow any origin on port 3000 for self-hosted mode
-      if (/^https?:\/\/[^:\/]+:3000$/.test(origin)) {
+      // Allow any IP/hostname on port 3000 or 5005
+      if (/^https?:\/\/[^\/]+:(3000|5005)(\/|$)/.test(origin)) {
         console.log(`✅ CORS allowed (self-hosted mode): ${origin}`);
+        return callback(null, true);
+      }
+      
+      // Also allow any IP address pattern
+      if (/^https?:\/\/\d+\.\d+\.\d+\.\d+:(3000|5005)(\/|$)/.test(origin)) {
+        console.log(`✅ CORS allowed (self-hosted IP): ${origin}`);
         return callback(null, true);
       }
     }
@@ -106,10 +117,19 @@ app.use(cors({
       console.log(`❌ CORS blocked origin: ${origin}`);
       console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
       console.log(`   Self-hosted mode: ${allowSelfHosted ? 'enabled' : 'disabled'}`);
-      callback(new Error('Not allowed by CORS'));
+      
+      // In self-hosted mode with production, be more permissive
+      if (isProduction && origin.includes(':3000')) {
+        console.log(`✅ CORS allowed (production fallback): ${origin}`);
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
