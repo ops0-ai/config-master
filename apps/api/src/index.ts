@@ -80,37 +80,18 @@ console.log(`   ALLOW_SELF_HOSTED_CORS: ${process.env.ALLOW_SELF_HOSTED_CORS}`);
 console.log(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
 
 // IMPORTANT: CORS must be configured BEFORE helmet
-// For self-hosted deployments, use wildcard or very permissive CORS
-if (allowSelfHosted || isProduction) {
-  console.log('🌐 Using permissive CORS for self-hosted/production deployment');
-  app.use(cors({
-    origin: true, // Accept all origins
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    exposedHeaders: ['Content-Length', 'Content-Range'],
-    maxAge: 86400,
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-  }));
-} else {
-  console.log('🔒 Using strict CORS for development');
-  const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
-  if (process.env.FRONTEND_URL) {
-    devOrigins.push(process.env.FRONTEND_URL);
-  }
-  
-  app.use(cors({
-    origin: devOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-    exposedHeaders: ['Content-Length', 'Content-Range'],
-    maxAge: 86400,
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-  }));
-}
+// Simple CORS configuration using FRONTEND_URL environment variable
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+console.log(`🌐 CORS configured for origin: ${corsOrigin}`);
+
+app.use(cors({
+  origin: corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 204
+}));
 
 // Apply helmet AFTER CORS with custom configuration
 app.use(helmet({
