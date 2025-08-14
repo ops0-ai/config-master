@@ -234,6 +234,348 @@ validate_database() {
     # Apply comprehensive schema fixes
     log "Applying database schema fixes..."
     $DOCKER_COMPOSE exec -T db psql -U postgres -d config_management << 'EOF'
+-- Create all required tables for fresh deployment
+
+-- Drop and recreate tables to ensure clean state
+DROP TABLE IF EXISTS mdm_commands CASCADE;
+DROP TABLE IF EXISTS mdm_devices CASCADE;
+DROP TABLE IF EXISTS mdm_profiles CASCADE;
+DROP TABLE IF EXISTS role_permissions CASCADE;
+DROP TABLE IF EXISTS user_roles CASCADE;
+DROP TABLE IF EXISTS user_organizations CASCADE;
+DROP TABLE IF EXISTS permissions CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS deployments CASCADE;
+DROP TABLE IF EXISTS configurations CASCADE;
+DROP TABLE IF EXISTS servers CASCADE;
+DROP TABLE IF EXISTS server_groups CASCADE;
+DROP TABLE IF EXISTS pem_keys CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS organizations CASCADE;
+DROP TABLE IF EXISTS settings CASCADE;
+
+-- Organizations (must be first due to foreign keys)
+CREATE TABLE organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    owner_id UUID,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Users
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
+    organization_id UUID REFERENCES organizations(id),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Settings
+CREATE TABLE settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value TEXT,
+    organization_id UUID REFERENCES organizations(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    claude_api_key TEXT
+);
+
+-- Server Groups
+CREATE TABLE server_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    organization_id UUID REFERENCES organizations(id),
+    type VARCHAR(50) DEFAULT 'mixed',
+    default_pem_key_id UUID,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- PEM Keys
+CREATE TABLE pem_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    encrypted_private_key TEXT NOT NULL,
+    organization_id UUID REFERENCES organizations(id),
+    description TEXT,
+    public_key TEXT,
+    fingerprint VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Servers
+CREATE TABLE servers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    hostname VARCHAR(255) NOT NULL,
+    organization_id UUID REFERENCES organizations(id),
+    port INTEGER NOT NULL DEFAULT 22,
+    type VARCHAR(50) NOT NULL DEFAULT 'linux',
+    username VARCHAR(255) NOT NULL DEFAULT 'root',
+    encrypted_password TEXT,
+    operating_system VARCHAR(100),
+    os_version VARCHAR(100),
+    status VARCHAR(50) NOT NULL DEFAULT 'unknown',
+    last_seen TIMESTAMP,
+    group_id UUID REFERENCES server_groups(id),
+    pem_key_id UUID REFERENCES pem_keys(id),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Configurations
+CREATE TABLE configurations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    organization_id UUID REFERENCES organizations(id),
+    type VARCHAR(100) NOT NULL DEFAULT 'ansible',
+    ansible_playbook TEXT NOT NULL DEFAULT '',
+    variables JSONB DEFAULT '{}',
+    tags JSONB DEFAULT '{}',
+    created_by UUID REFERENCES users(id),
+    is_template BOOLEAN NOT NULL DEFAULT false,
+    version INTEGER NOT NULL DEFAULT 1,
+    source VARCHAR(50) NOT NULL DEFAULT 'manual',
+    approval_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    approved_by UUID REFERENCES users(id),
+    approved_at TIMESTAMP,
+    rejection_reason TEXT,
+    status VARCHAR(50) DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Deployments
+CREATE TABLE deployments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'pending',
+    organization_id UUID REFERENCES organizations(id),
+    configuration_id UUID REFERENCES configurations(id),
+    target_type VARCHAR(50) NOT NULL DEFAULT 'server',
+    target_id UUID,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    logs TEXT,
+    output TEXT,
+    error_message TEXT,
+    schedule_type VARCHAR(20) DEFAULT 'immediate',
+    scheduled_for TIMESTAMP,
+    cron_expression VARCHAR(100),
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    is_active BOOLEAN DEFAULT true,
+    next_run_at TIMESTAMP,
+    last_run_at TIMESTAMP,
+    approval_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    approved_by UUID REFERENCES users(id),
+    approved_at TIMESTAMP,
+    rejection_reason TEXT,
+    executed_by UUID REFERENCES users(id),
+    section VARCHAR(100) DEFAULT 'general',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Roles
+CREATE TABLE roles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    organization_id UUID REFERENCES organizations(id) NOT NULL,
+    is_system BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Permissions
+CREATE TABLE permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource VARCHAR(100) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    description TEXT,
+    is_system BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Role Permissions
+CREATE TABLE role_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id UUID REFERENCES permissions(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE(role_id, permission_id)
+);
+
+-- User Roles
+CREATE TABLE user_roles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT true,
+    assigned_by UUID REFERENCES users(id),
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE(user_id, role_id)
+);
+
+-- User Organizations
+CREATE TABLE user_organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL DEFAULT 'member',
+    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE(user_id, organization_id)
+);
+
+-- MDM Profiles
+CREATE TABLE mdm_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    organization_id UUID REFERENCES organizations(id),
+    profile_type VARCHAR(50) DEFAULT 'macos',
+    enrollment_key VARCHAR(255) UNIQUE NOT NULL,
+    allow_remote_commands BOOLEAN DEFAULT true,
+    allow_lock_device BOOLEAN DEFAULT true,
+    allow_shutdown BOOLEAN DEFAULT false,
+    allow_restart BOOLEAN DEFAULT true,
+    allow_wake_on_lan BOOLEAN DEFAULT true,
+    require_authentication BOOLEAN DEFAULT true,
+    max_session_duration INTEGER DEFAULT 3600,
+    allowed_ip_ranges JSONB DEFAULT '[]',
+    enrollment_expires_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT true,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- MDM Devices
+CREATE TABLE mdm_devices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id VARCHAR(255) UNIQUE NOT NULL,
+    device_name VARCHAR(255),
+    serial_number VARCHAR(255),
+    model VARCHAR(255),
+    os_version VARCHAR(100),
+    architecture VARCHAR(50),
+    hostname VARCHAR(255),
+    agent_version VARCHAR(50),
+    profile_id UUID REFERENCES mdm_profiles(id),
+    organization_id UUID REFERENCES organizations(id),
+    metadata JSONB DEFAULT '{}',
+    status VARCHAR(50) DEFAULT 'offline',
+    ip_address VARCHAR(45),
+    last_seen TIMESTAMP,
+    battery_level INTEGER,
+    is_charging BOOLEAN,
+    agent_install_path TEXT,
+    enrolled_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    enrolled_by UUID REFERENCES users(id),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    last_heartbeat TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- MDM Commands
+CREATE TABLE mdm_commands (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id UUID REFERENCES mdm_devices(id),
+    organization_id UUID REFERENCES organizations(id),
+    command_type VARCHAR(50) NOT NULL,
+    command TEXT,
+    parameters JSONB DEFAULT '{}',
+    timeout INTEGER DEFAULT 300,
+    payload JSONB DEFAULT '{}',
+    status VARCHAR(50) DEFAULT 'pending',
+    output TEXT,
+    error_message TEXT,
+    exit_code INTEGER,
+    initiated_by UUID REFERENCES users(id),
+    created_by UUID REFERENCES users(id),
+    sent_at TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_servers_organization_id ON servers(organization_id);
+CREATE INDEX idx_servers_status ON servers(status);
+CREATE INDEX idx_deployments_status ON deployments(status);
+CREATE INDEX idx_deployments_organization_id ON deployments(organization_id);
+CREATE INDEX idx_mdm_devices_organization_id ON mdm_devices(organization_id);
+CREATE INDEX idx_mdm_devices_status ON mdm_devices(status);
+CREATE INDEX idx_configurations_organization_id ON configurations(organization_id);
+CREATE INDEX idx_mdm_profiles_enrollment_key ON mdm_profiles(enrollment_key);
+CREATE INDEX idx_mdm_devices_device_id ON mdm_devices(device_id);
+CREATE INDEX idx_mdm_commands_device_id ON mdm_commands(device_id);
+CREATE INDEX idx_mdm_commands_status ON mdm_commands(status);
+
+-- Create update trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS \$\$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+\$\$ language 'plpgsql';
+
+-- Apply updated_at triggers
+CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_servers_updated_at BEFORE UPDATE ON servers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_configurations_updated_at BEFORE UPDATE ON configurations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_deployments_updated_at BEFORE UPDATE ON deployments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_mdm_profiles_updated_at BEFORE UPDATE ON mdm_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_mdm_devices_updated_at BEFORE UPDATE ON mdm_devices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_mdm_commands_updated_at BEFORE UPDATE ON mdm_commands FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create admin organization
+INSERT INTO organizations (id, name, description, owner_id) 
+VALUES ('462a096d-fdd2-4a54-a8e2-07f404812030', 'Pulse', 'Default admin organization', '2c52e6d2-83f8-4a2e-a8cc-fafa52aba0da');
+
+-- Create admin user
+INSERT INTO users (id, email, name, password_hash, role, organization_id) 
+VALUES ('2c52e6d2-83f8-4a2e-a8cc-fafa52aba0da', 'admin@pulse.dev', 'Pulse Admin', '\$2a\$10\$nBtB1QVV7KVE6vapl4OP/uDuiZxdg/1XTIdNX.H6mutlorPdtA2y.', 'super_admin', '462a096d-fdd2-4a54-a8e2-07f404812030');
+
+-- Create user organization link
+INSERT INTO user_organizations (user_id, organization_id, role) 
+VALUES ('2c52e6d2-83f8-4a2e-a8cc-fafa52aba0da', '462a096d-fdd2-4a54-a8e2-07f404812030', 'admin');
+
+-- Create default MDM profile with unique enrollment key
+INSERT INTO mdm_profiles (
+    name, description, organization_id, enrollment_key, created_by
+) VALUES (
+    'Default MacOS Profile',
+    'Default MDM profile for MacOS devices - automatically created',
+    '462a096d-fdd2-4a54-a8e2-07f404812030',
+    encode(gen_random_bytes(32), 'hex'),
+    '2c52e6d2-83f8-4a2e-a8cc-fafa52aba0da'
+);
+
+EOF
+
+    $DOCKER_COMPOSE exec -T db psql -U postgres -d config_management << 'EOF'
 -- Comprehensive Database Schema Fix for Fresh Installations
 
 -- Create tables if they don't exist
