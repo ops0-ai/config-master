@@ -73,35 +73,39 @@ export const db = drizzle(client);
 app.use(helmet());
 
 // Dynamic CORS configuration for self-hosted deployments
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  // Allow any IP on port 3000 for self-hosted deployments
-  /^http:\/\/\d+\.\d+\.\d+\.\d+:3000$/,
-  // Allow any domain on port 3000 for cloud deployments
-  /^http:\/\/[^:]+:3000$/,
-].filter(Boolean);
+const isProduction = process.env.NODE_ENV === 'production';
+const allowSelfHosted = process.env.ALLOW_SELF_HOSTED_CORS === 'true';
 
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, postman, etc.)
     if (!origin) return callback(null, true);
     
-    // Check if origin matches any allowed pattern
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        return origin === allowedOrigin;
-      } else if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
+    // For self-hosted deployments, be more permissive
+    if (allowSelfHosted) {
+      // Allow any origin on port 3000 for self-hosted mode
+      if (/^https?:\/\/[^:\/]+:3000$/.test(origin)) {
+        console.log(`✅ CORS allowed (self-hosted mode): ${origin}`);
+        return callback(null, true);
       }
-      return false;
-    });
+    }
+    
+    // Standard origin checking
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ].filter(Boolean);
+    
+    const isAllowed = allowedOrigins.includes(origin);
     
     if (isAllowed) {
+      console.log(`✅ CORS allowed (standard): ${origin}`);
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin}`);
+      console.log(`❌ CORS blocked origin: ${origin}`);
+      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.log(`   Self-hosted mode: ${allowSelfHosted ? 'enabled' : 'disabled'}`);
       callback(new Error('Not allowed by CORS'));
     }
   },

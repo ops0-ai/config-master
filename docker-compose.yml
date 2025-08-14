@@ -59,6 +59,7 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       PORT: 5005
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      ALLOW_SELF_HOSTED_CORS: ${ALLOW_SELF_HOSTED_CORS:-true}
       PEM_KEYS_DIR: /secure/pem-keys
     volumes:
       - pem_keys:/secure/pem-keys
@@ -85,7 +86,7 @@ services:
     container_name: configmaster-web
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5005}/api
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5005/api}
       NEXT_TELEMETRY_DISABLED: 1
     ports:
       - "3000:3000"

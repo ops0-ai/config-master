@@ -157,7 +157,7 @@ NODE_ENV=production
 
 # Frontend Configuration
 FRONTEND_URL=http://$SERVER_IP:3000
-NEXT_PUBLIC_API_URL=http://$SERVER_IP:5005
+NEXT_PUBLIC_API_URL=http://$SERVER_IP:5005/api
 
 # Redis Configuration
 REDIS_HOST=redis
@@ -171,6 +171,9 @@ DEFAULT_ORGANIZATION=Pulse
 # MDM Configuration
 MDM_ENABLED=true
 MDM_AUTO_GENERATE_KEY=true
+
+# CORS Configuration for self-hosted deployments
+ALLOW_SELF_HOSTED_CORS=true
 EOF
         log "✅ Created .env file with default configuration"
     else
@@ -1292,8 +1295,12 @@ display_instructions() {
     echo ""
     echo "📌 Access Information:"
     echo "-------------------------------------------"
-    echo "Web Interface:    http://localhost:3000"
-    echo "API Endpoint:     http://localhost:5005"
+    echo "Web Interface:    http://$SERVER_IP:3000"
+    echo "API Endpoint:     http://$SERVER_IP:5005"
+    if [ "$SERVER_IP" != "localhost" ]; then
+        echo "Local Access:     http://localhost:3000"
+        echo "Note: CORS is configured for self-hosted deployment"
+    fi
     echo ""
     echo "🔐 Default Admin Credentials:"
     echo "-------------------------------------------"
