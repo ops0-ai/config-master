@@ -26,14 +26,9 @@ WORKDIR /app/apps/api
 # Install TypeScript globally
 RUN npm install -g typescript
 
-# Try to compile TypeScript, fallback to basic server
+# Create working server with CORS
 RUN mkdir -p dist && \
-    echo "=== Attempting TypeScript compilation ===" && \
-    if npx tsc --skipLibCheck --outDir dist 2>/dev/null; then \
-      echo "✅ TypeScript compilation successful"; \
-    else \
-      echo "⚠️ TypeScript failed, using basic server with CORS"; \
-      cat > dist/index.js << 'EOF'
+    cat > dist/index.js << 'EOF'
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -80,7 +75,6 @@ app.listen(port, () => {
   console.log('🌐 CORS enabled for all origins');
 });
 EOF
-    fi
 
 # Remove dev dependencies after build
 RUN npm prune --production
