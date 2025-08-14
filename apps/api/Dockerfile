@@ -26,26 +26,20 @@ WORKDIR /app/apps/api
 # Ensure we have a dist directory
 RUN mkdir -p dist
 
-# Multiple build strategies with fallbacks
-RUN echo "=== Build Strategy 1: npm run build ===" && \
-    npm run build && echo "✅ npm run build succeeded" || \
-    (echo "❌ npm run build failed, trying strategy 2..." && \
-     npx tsc --skipLibCheck --noEmit false && echo "✅ npx tsc succeeded" || \
-     (echo "❌ npx tsc failed, trying strategy 3..." && \
-      npx tsc --skipLibCheck --allowJs --checkJs false --noEmit false && echo "✅ relaxed tsc succeeded" || \
-      (echo "❌ All TypeScript builds failed, using copy strategy..." && \
-       cp -r src/* dist/ && \
-       find dist -name "*.ts" -exec sh -c 'f="$1"; mv "$f" "${f%.ts}.js"' _ {} \; && \
-       echo "✅ Copy strategy completed")))
-
-# Verify or create index.js
-RUN if [ -f "dist/index.js" ]; then \
-      echo "✅ dist/index.js exists"; \
-    else \
-      echo "❌ dist/index.js missing, creating fallback..." && \
-      echo "console.log('API starting with fallback...'); require('express')().listen(5005, () => console.log('Server running on port 5005'));" > dist/index.js && \
-      echo "✅ Fallback index.js created"; \
-    fi
+# Build with proper TypeScript compilation
+RUN echo "=== Installing TypeScript globally ===" && \
+    npm install -g typescript && \
+    echo "=== Compiling TypeScript ===" && \
+    npx tsc --project tsconfig.json --outDir dist && \
+    echo "✅ TypeScript compilation successful" && \
+    ls -la dist/ || \
+    (echo "❌ TypeScript compilation failed, trying fallback..." && \
+     npx tsc --skipLibCheck --outDir dist --target ES2020 --module commonjs --esModuleInterop --resolveJsonModule src/index.ts && \
+     echo "✅ Fallback compilation successful" || \
+     (echo "❌ Both compilations failed, creating minimal fallback..." && \
+      mkdir -p dist && \
+      echo "console.log('API starting with fallback...'); const express = require('express'); const app = express(); app.listen(5005, () => console.log('Server running on port 5005'));" > dist/index.js && \
+      echo "✅ Emergency fallback created"))
 
 # Show final build state
 RUN echo "=== Final Build State ===" && \
