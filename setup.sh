@@ -122,9 +122,27 @@ check_prerequisites() {
 setup_environment() {
     log "🔧 Setting up environment variables..."
     
+    # Get server IP address for CORS configuration
+    SERVER_IP="localhost"
+    if command -v hostname &> /dev/null; then
+        # Try to get external IP first
+        EXTERNAL_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "")
+        if [ -n "$EXTERNAL_IP" ]; then
+            SERVER_IP="$EXTERNAL_IP"
+            log "🌐 Detected external IP: $SERVER_IP"
+        else
+            # Fallback to local IP
+            LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+            if [ "$LOCAL_IP" != "" ] && [ "$LOCAL_IP" != "localhost" ]; then
+                SERVER_IP="$LOCAL_IP"
+                log "🏠 Using local IP: $SERVER_IP"
+            fi
+        fi
+    fi
+    
     # Create .env file if it doesn't exist
     if [ ! -f "$SCRIPT_DIR/.env" ]; then
-        cat > "$SCRIPT_DIR/.env" << 'EOF'
+        cat > "$SCRIPT_DIR/.env" << EOF
 # Database Configuration
 DB_HOST=db
 DB_PORT=5432
@@ -138,8 +156,8 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 NODE_ENV=production
 
 # Frontend Configuration
-FRONTEND_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:5005
+FRONTEND_URL=http://$SERVER_IP:3000
+NEXT_PUBLIC_API_URL=http://$SERVER_IP:5005
 
 # Redis Configuration
 REDIS_HOST=redis

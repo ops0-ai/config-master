@@ -43,7 +43,23 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: function(origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      // Use same CORS logic as Express
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+      ].filter(Boolean);
+      
+      const isAllowed = allowedOrigins.includes(origin) || 
+                       /^http:\/\/\d+\.\d+\.\d+\.\d+:3000$/.test(origin) ||
+                       /^http:\/\/[^:]+:3000$/.test(origin);
+      
+      callback(null, isAllowed);
+    },
     methods: ['GET', 'POST'],
   },
 });
@@ -55,8 +71,40 @@ const client = postgres(connectionString);
 export const db = drizzle(client);
 
 app.use(helmet());
+
+// Dynamic CORS configuration for self-hosted deployments
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  // Allow any IP on port 3000 for self-hosted deployments
+  /^http:\/\/\d+\.\d+\.\d+\.\d+:3000$/,
+  // Allow any domain on port 3000 for cloud deployments
+  /^http:\/\/[^:]+:3000$/,
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(morgan('combined'));
