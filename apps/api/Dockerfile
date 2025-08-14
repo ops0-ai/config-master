@@ -89,7 +89,7 @@ app.listen(port, () => {
   console.log(`⚠️  This is a fallback server - full app may need proper compilation`);
 });
 EOF
-echo "✅ Created working API server"
+    echo "✅ Created working API server"
 
 # Verify build output
 RUN echo "=== Build verification ===" && \
