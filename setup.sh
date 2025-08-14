@@ -7,6 +7,12 @@
 
 set -e
 
+# Ensure we're running with bash
+if [ -z "$BASH_VERSION" ]; then
+    echo "This script requires bash. Please run with: bash setup.sh"
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,7 +21,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Script configuration
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/setup.log"
 
 # Function to log messages
@@ -36,25 +42,71 @@ info() {
     echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
 }
 
+# Install Docker if needed
+install_docker() {
+    log "🐳 Installing Docker..."
+    
+    # Detect OS
+    if [ -f /etc/debian_version ]; then
+        # Ubuntu/Debian
+        apt-get update
+        apt-get install -y ca-certificates curl gnupg lsb-release
+        
+        # Add Docker's official GPG key
+        mkdir -p /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        
+        # Set up repository
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        # Install Docker
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+        
+        # Start Docker
+        systemctl start docker
+        systemctl enable docker
+        
+        log "✅ Docker installed successfully"
+    else
+        error "Unsupported OS. Please install Docker manually: https://docs.docker.com/engine/install/"
+    fi
+}
+
 # Check prerequisites
 check_prerequisites() {
     log "🔍 Checking prerequisites..."
     
+    # Check if running as root for Docker installation
+    if [ "$EUID" -ne 0 ] && ! command -v docker >/dev/null 2>&1; then
+        error "Docker is not installed and script is not running as root. Please either:\n  1. Install Docker manually, or\n  2. Run with sudo: sudo bash setup.sh"
+    fi
+    
     # Check Docker
-    if ! command -v docker &> /dev/null; then
-        error "Docker is not installed. Please install Docker first."
+    if ! command -v docker >/dev/null 2>&1; then
+        warning "Docker is not installed. Installing Docker..."
+        install_docker
     fi
     
     # Check Docker Compose
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-        error "Docker Compose is not installed. Please install Docker Compose first."
+    if ! command -v docker-compose >/dev/null 2>&1 && ! docker compose version >/dev/null 2>&1; then
+        error "Docker Compose is not available. Please install Docker Compose."
     fi
     
     # Determine docker-compose command
-    if docker compose version &> /dev/null; then
+    if docker compose version >/dev/null 2>&1; then
         DOCKER_COMPOSE="docker compose"
     else
         DOCKER_COMPOSE="docker-compose"
+    fi
+    
+    # Ensure Docker daemon is running
+    if ! docker info >/dev/null 2>&1; then
+        log "Starting Docker daemon..."
+        systemctl start docker 2>/dev/null || service docker start 2>/dev/null || {
+            error "Could not start Docker daemon. Please start it manually."
+        }
+        sleep 3
     fi
     
     log "✅ Prerequisites check completed"
