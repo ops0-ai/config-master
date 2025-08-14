@@ -21,11 +21,21 @@ RUN npm install
 COPY apps/api ./apps/api
 COPY packages ./packages
 
-# Use Turbo to build just the API and its dependencies
-RUN npx turbo build --filter=api
+# Build packages first
+WORKDIR /app/packages/database
+RUN npm run build
 
-# Set working directory to API
+WORKDIR /app/packages/ansible-engine  
+RUN npm run build
+
+# Set working directory to API and build
 WORKDIR /app/apps/api
+
+# Ensure TypeScript builds the API
+RUN npm run build
+
+# Verify dist directory was created
+RUN ls -la dist/ && test -f dist/index.js
 
 # Remove dev dependencies to reduce image size
 RUN npm prune --production --legacy-peer-deps
