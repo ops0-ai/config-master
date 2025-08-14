@@ -72,6 +72,11 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
+app.post('/api/auth/logout', (req, res) => {
+  console.log('Logout request from:', req.get('origin'));
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
 app.get('/api/organizations/user-organizations', (req, res) => {
   console.log('User organizations request from:', req.get('origin'));
   res.json([
