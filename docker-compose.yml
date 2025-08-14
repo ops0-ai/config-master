@@ -84,6 +84,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     container_name: configmaster-web
+    env_file:
+      - apps/web/.env
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5005/api}
