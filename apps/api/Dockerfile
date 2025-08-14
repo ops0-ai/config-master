@@ -32,7 +32,7 @@ RUN npm install -g typescript
 # Create working JavaScript file that handles CORS
 RUN echo "=== Creating working API server ===" && \
     mkdir -p dist && \
-    cat > dist/index.js << 'EOF'
+    cat > dist/index.js << 'EOF' && \
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -89,7 +89,7 @@ app.listen(port, () => {
   console.log(`⚠️  This is a fallback server - full app may need proper compilation`);
 });
 EOF
-    echo "✅ Created working API server"
+echo "✅ Created working API server"
 
 # Verify build output
 RUN echo "=== Build verification ===" && \
