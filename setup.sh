@@ -13,6 +13,12 @@ if [ -z "$BASH_VERSION" ]; then
     exit 1
 fi
 
+# Compatibility check
+if ! command -v bash >/dev/null 2>&1; then
+    echo "Bash is required but not found. Please install bash."
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
