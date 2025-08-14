@@ -4,7 +4,7 @@ import { mdmProfiles, mdmDevices, mdmCommands, organizations } from '@config-man
 import { eq, and, desc } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
 import Joi from 'joi';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 const router = Router();
 const publicRouter = Router();
