@@ -64,6 +64,14 @@ app.post('/api/auth/login', (req, res) => {
   });
 });
 
+app.get('/api/auth/me', (req, res) => {
+  console.log('Auth me request from:', req.get('origin'));
+  res.json({
+    user: { id: 1, email: 'admin@pulse.dev', name: 'Admin User' },
+    organization: { id: 1, name: 'Default Organization' }
+  });
+});
+
 app.get('/api/organizations/user-organizations', (req, res) => {
   console.log('User organizations request from:', req.get('origin'));
   res.json([
@@ -74,6 +82,12 @@ app.get('/api/organizations/user-organizations', (req, res) => {
 app.get('/api/dashboard/stats', (req, res) => {
   console.log('Dashboard stats request from:', req.get('origin'));
   res.json({
+    total: {
+      servers: 0,
+      deployments: 0,
+      configurations: 0,
+      users: 1
+    },
     servers: 0,
     deployments: 0,
     configurations: 0,
