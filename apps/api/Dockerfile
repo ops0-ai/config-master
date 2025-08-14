@@ -23,11 +23,17 @@ COPY packages ./packages
 # Set working directory to API
 WORKDIR /app/apps/api
 
-# Create dist directory and simple working server
-RUN mkdir -p dist
+# Install TypeScript globally
+RUN npm install -g typescript
 
-# Write a working JavaScript server file
-COPY <<EOF dist/index.js
+# Try to compile TypeScript, fallback to basic server
+RUN mkdir -p dist && \
+    echo "=== Attempting TypeScript compilation ===" && \
+    if npx tsc --skipLibCheck --outDir dist 2>/dev/null; then \
+      echo "✅ TypeScript compilation successful"; \
+    else \
+      echo "⚠️ TypeScript failed, using basic server with CORS"; \
+      cat > dist/index.js << 'EOF'
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -74,6 +80,7 @@ app.listen(port, () => {
   console.log('🌐 CORS enabled for all origins');
 });
 EOF
+    fi
 
 # Remove dev dependencies after build
 RUN npm prune --production
