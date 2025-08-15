@@ -246,6 +246,13 @@ export function rbacMiddleware() {
         console.error('RBAC middleware: No user found - authMiddleware should run first');
         return res.status(500).json({ error: 'Internal authentication error' });
       }
+
+      // Quick fix: Allow super_admin role to bypass all RBAC checks
+      console.log(`🔍 RBAC Check: User ${user.email} with role ${user.role} accessing ${route}`);
+      if (user.role === 'super_admin') {
+        console.log(`✅ Super admin bypass granted for ${user.email}`);
+        return next();
+      }
       
       // Find matching route pattern
       let requiredPermission: { resource: string; action: string } | null = null;

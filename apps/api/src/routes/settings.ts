@@ -11,7 +11,10 @@ const router = Router();
 // Encryption functions
 const algorithm = 'aes-256-gcm';
 // Use a consistent key - in production, this should be set as an environment variable
-const secretKey = process.env.ENCRYPTION_KEY || 'cm-default-key-32-chars-exactly!';
+const rawKey = process.env.ENCRYPTION_KEY || 'cm-default-key-32-chars-exactly!';
+
+// Ensure key is exactly 32 bytes for AES-256
+const secretKey = rawKey.padEnd(32, '0').substring(0, 32);
 
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(16);
@@ -194,23 +197,47 @@ router.post('/test-claude', async (req: AuthenticatedRequest, res): Promise<any>
     const { Anthropic } = await import('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey });
     
-    try {
-      const response = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: 'Hi' }]
-      });
-      
-      res.json({ 
-        success: true, 
-        message: 'Claude API connection successful' 
-      });
-    } catch (apiError: any) {
-      console.error('Claude API test failed:', apiError);
-      res.status(400).json({ 
-        error: 'Claude API connection failed', 
-        details: apiError.message 
-      });
+    // Retry configuration for API test
+    const maxRetries = 2;
+    const baseDelay = 1000;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Hi' }]
+        });
+        
+        return res.json({ 
+          success: true, 
+          message: 'Claude API connection successful' 
+        });
+      } catch (apiError: any) {
+        console.error(`Claude API test attempt ${attempt} failed:`, apiError);
+        
+        const isOverloadedError = apiError.message?.includes('529') || 
+                                 apiError.message?.includes('overloaded') ||
+                                 apiError.message?.includes('Overloaded') ||
+                                 apiError.status === 529;
+        
+        if (attempt === maxRetries || !isOverloadedError) {
+          if (isOverloadedError) {
+            return res.status(503).json({ 
+              error: 'Claude API is currently overloaded', 
+              details: 'Please try again in a few minutes. The AI service is experiencing high demand.' 
+            });
+          }
+          return res.status(400).json({ 
+            error: 'Claude API connection failed', 
+            details: apiError.message 
+          });
+        }
+        
+        // Wait before retrying
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   } catch (error) {
     console.error('Error testing Claude connection:', error);

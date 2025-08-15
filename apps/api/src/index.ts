@@ -26,7 +26,7 @@ import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
 import organizationRoutes from './routes/organizations';
 import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
-import { ensureAdminUser } from './auto-seed-simple';
+import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
@@ -43,7 +43,23 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: function(origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      // Use same CORS logic as Express
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+      ].filter(Boolean);
+      
+      const isAllowed = allowedOrigins.includes(origin) || 
+                       /^http:\/\/\d+\.\d+\.\d+\.\d+:3000$/.test(origin) ||
+                       /^http:\/\/[^:]+:3000$/.test(origin);
+      
+      callback(null, isAllowed);
+    },
     methods: ['GET', 'POST'],
   },
 });
@@ -54,10 +70,26 @@ const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_P
 const client = postgres(connectionString);
 export const db = drizzle(client);
 
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
+// Dynamic CORS configuration for self-hosted deployments
+const isProduction = process.env.NODE_ENV === 'production';
+const allowSelfHosted = process.env.ALLOW_SELF_HOSTED_CORS === 'true';
+
+console.log('🔧 CORS Configuration:');
+console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`   ALLOW_SELF_HOSTED_CORS: ${process.env.ALLOW_SELF_HOSTED_CORS}`);
+console.log(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+
+// IMPORTANT: CORS must be configured BEFORE helmet
+// Allow ALL origins for self-hosted deployments
+console.log('🌐 CORS: Allowing ALL origins');
+
+app.use(cors());
+
+// Apply helmet AFTER CORS with custom configuration
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
@@ -93,26 +125,51 @@ deploymentScheduler.start();
 // Initialize RBAC system
 import { seedRBACData } from './utils/rbacSeeder';
 import { populateUserOrganizations } from './migrations/populateUserOrganizations';
+import { initializeDatabase } from './services/databaseInitializer';
 
-// Setup platform components
-Promise.all([
-  ensureAnsibleInstalled(),
-  seedRBACData(),
-  initializeSettings(), // Load API keys from database on startup
-  populateUserOrganizations(), // Populate user organizations for multi-tenancy
-  ensureAdminUser(), // Auto-create admin user on startup
-]).then(([ansibleInstalled]) => {
-  if (ansibleInstalled) {
-    console.log('🔧 Platform ready with Ansible integration and RBAC');
-  } else {
-    console.log('⚠️  Platform running in simulation mode with RBAC');
+// Setup platform components with migrations first
+async function initializePlatform() {
+  try {
+    // Initialize database schema first - this is critical!
+    await initializeDatabase();
+    
+    // Then setup all other components
+    await Promise.all([
+      seedRBACData(),
+      initializeSettings(), // Load API keys from database on startup
+      populateUserOrganizations(), // Populate user organizations for multi-tenancy
+      ensureAdminUser(), // Auto-create admin user on startup
+      ensureDefaultMDMProfiles(), // Auto-create default MDM profiles for all organizations
+    ]);
+    
+    console.log('🔧 Platform ready with RBAC and MDM');
+  } catch (error) {
+    console.warn('⚠️  Platform setup warning:', error);
   }
-}).catch((error) => {
-  console.warn('⚠️  Platform setup warning:', error);
-});
+}
+
+initializePlatform();
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// CORS test endpoint
+app.options('*', (req, res) => {
+  console.log(`OPTIONS request from: ${req.headers.origin}`);
+  res.sendStatus(204);
+});
+
+app.get('/api/cors-test', (_req, res) => {
+  res.json({ 
+    status: 'CORS is working!', 
+    timestamp: new Date().toISOString(),
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      ALLOW_SELF_HOSTED_CORS: process.env.ALLOW_SELF_HOSTED_CORS,
+      FRONTEND_URL: process.env.FRONTEND_URL
+    }
+  });
 });
 
 server.listen(port, () => {

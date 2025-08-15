@@ -149,7 +149,8 @@ export default function SettingsPage() {
   };
 
   const handleTestClaudeConnection = async () => {
-    if (!settings.claudeApiKey || settings.claudeApiKey.includes('...')) {
+    // Check if we have a key (either new or saved/masked)
+    if (!settings.claudeApiKey) {
       toast.error('Please enter a valid Claude API key first');
       return;
     }
@@ -157,7 +158,7 @@ export default function SettingsPage() {
     try {
       setTestingConnection(true);
       
-      // First save the key if it's new
+      // First save the key if it's new (not masked)
       if (!settings.claudeApiKey.includes('...')) {
         await settingsApi.update({ claudeApiKey: settings.claudeApiKey });
       }

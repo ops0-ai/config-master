@@ -1,28 +1,13 @@
 import { Router } from 'express';
 import { db } from '../index';
-import { mdmProfiles, mdmDevices, mdmCommands, mdmSessions, organizations } from '@config-management/database';
+import { mdmProfiles, mdmDevices, mdmCommands, organizations } from '@config-management/database';
 import { eq, and, desc } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
 import Joi from 'joi';
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import { MDMProfileGenerator } from '../services/mdmProfileGenerator';
+import * as crypto from 'crypto';
 
 const router = Router();
 const publicRouter = Router();
-
-// Temporary token storage (in production, use Redis or database)
-interface DownloadToken {
-  profileId: string;
-  organizationId: string;
-  expires: Date;
-  type: string;
-}
-
-declare global {
-  var downloadTokens: Map<string, DownloadToken> | undefined;
-}
 
 // Validation schemas
 const profileSchema = Joi.object({
@@ -41,7 +26,7 @@ const profileSchema = Joi.object({
 });
 
 const deviceEnrollmentSchema = Joi.object({
-  enrollmentKey: Joi.string().optional(), // Optional for direct agent enrollment
+  enrollmentKey: Joi.string().optional(),
   deviceName: Joi.string().required(),
   deviceId: Joi.string().required(),
   serialNumber: Joi.string().optional(),
@@ -71,29 +56,39 @@ function generateEnrollmentKey(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// Get Organization's Default Enrollment Key
+router.get('/enrollment-key', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const profile = await db
+      .select({
+        enrollmentKey: mdmProfiles.enrollmentKey,
+        name: mdmProfiles.name,
+        id: mdmProfiles.id,
+      })
+      .from(mdmProfiles)
+      .where(eq(mdmProfiles.organizationId, req.user!.organizationId))
+      .limit(1);
+
+    if (profile[0]) {
+      res.json({
+        enrollmentKey: profile[0].enrollmentKey,
+        profileName: profile[0].name,
+        profileId: profile[0].id,
+      });
+    } else {
+      res.status(404).json({ error: 'No MDM profile found for organization' });
+    }
+  } catch (error) {
+    console.error('Error getting enrollment key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // MDM Profiles Management
 router.get('/profiles', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const profiles = await db
-      .select({
-        id: mdmProfiles.id,
-        name: mdmProfiles.name,
-        description: mdmProfiles.description,
-        profileType: mdmProfiles.profileType,
-        allowRemoteCommands: mdmProfiles.allowRemoteCommands,
-        allowLockDevice: mdmProfiles.allowLockDevice,
-        allowShutdown: mdmProfiles.allowShutdown,
-        allowRestart: mdmProfiles.allowRestart,
-        allowWakeOnLan: mdmProfiles.allowWakeOnLan,
-        requireAuthentication: mdmProfiles.requireAuthentication,
-        maxSessionDuration: mdmProfiles.maxSessionDuration,
-        allowedIpRanges: mdmProfiles.allowedIpRanges,
-        enrollmentKey: mdmProfiles.enrollmentKey,
-        enrollmentExpiresAt: mdmProfiles.enrollmentExpiresAt,
-        isActive: mdmProfiles.isActive,
-        createdAt: mdmProfiles.createdAt,
-        updatedAt: mdmProfiles.updatedAt,
-      })
+      .select()
       .from(mdmProfiles)
       .where(eq(mdmProfiles.organizationId, req.user!.organizationId))
       .orderBy(desc(mdmProfiles.createdAt));
@@ -131,151 +126,59 @@ router.post('/profiles', async (req: AuthenticatedRequest, res): Promise<any> =>
   }
 });
 
-router.put('/profiles/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const { error, value } = profileSchema.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-
-    const existingProfile = await db
-      .select()
-      .from(mdmProfiles)
-      .where(
-        and(
-          eq(mdmProfiles.id, req.params.id),
-          eq(mdmProfiles.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!existingProfile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
-
-    const updatedProfile = await db
-      .update(mdmProfiles)
-      .set({
-        ...value,
-        updatedAt: new Date(),
-      })
-      .where(eq(mdmProfiles.id, req.params.id))
-      .returning();
-
-    res.json(updatedProfile[0]);
-  } catch (error) {
-    console.error('Error updating MDM profile:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-router.delete('/profiles/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const existingProfile = await db
-      .select()
-      .from(mdmProfiles)
-      .where(
-        and(
-          eq(mdmProfiles.id, req.params.id),
-          eq(mdmProfiles.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!existingProfile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
-
-    await db.delete(mdmProfiles).where(eq(mdmProfiles.id, req.params.id));
-
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting MDM profile:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Device Management
 router.get('/devices', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const devices = await db
-      .select({
-        id: mdmDevices.id,
-        profileId: mdmDevices.profileId,
-        deviceName: mdmDevices.deviceName,
-        deviceId: mdmDevices.deviceId,
-        serialNumber: mdmDevices.serialNumber,
-        model: mdmDevices.model,
-        osVersion: mdmDevices.osVersion,
-        architecture: mdmDevices.architecture,
-        ipAddress: mdmDevices.ipAddress,
-        macAddress: mdmDevices.macAddress,
-        hostname: mdmDevices.hostname,
-        status: mdmDevices.status,
-        lastSeen: mdmDevices.lastSeen,
-        lastHeartbeat: mdmDevices.lastHeartbeat,
-        batteryLevel: mdmDevices.batteryLevel,
-        isCharging: mdmDevices.isCharging,
-        agentVersion: mdmDevices.agentVersion,
-        enrolledAt: mdmDevices.enrolledAt,
-        isActive: mdmDevices.isActive,
-        metadata: mdmDevices.metadata,
-        profile: {
-          id: mdmProfiles.id,
-          name: mdmProfiles.name,
-          profileType: mdmProfiles.profileType,
-        },
-      })
+      .select()
       .from(mdmDevices)
-      .leftJoin(mdmProfiles, eq(mdmDevices.profileId, mdmProfiles.id))
       .where(eq(mdmDevices.organizationId, req.user!.organizationId))
       .orderBy(desc(mdmDevices.lastSeen));
 
-    // Calculate realtime status based on heartbeat age
-    const OFFLINE_THRESHOLD_MINUTES = 5; // Device is offline if no heartbeat for 5 minutes
-    const now = new Date();
-    
-    const devicesWithRealtimeStatus = devices.map(device => {
-      let calculatedStatus = device.status;
-      
-      if (device.lastHeartbeat) {
-        const lastHeartbeatTime = new Date(device.lastHeartbeat);
-        const minutesSinceHeartbeat = (now.getTime() - lastHeartbeatTime.getTime()) / (1000 * 60);
-        
-        // If device hasn't sent heartbeat in threshold time, mark as offline
-        if (minutesSinceHeartbeat > OFFLINE_THRESHOLD_MINUTES) {
-          calculatedStatus = 'offline';
-        } else if (device.status === 'offline') {
-          // If device was offline but sent recent heartbeat, mark as online
-          calculatedStatus = 'online';
-        }
-      } else if (!device.lastHeartbeat && device.lastSeen) {
-        // Fallback to lastSeen if no heartbeat
-        const lastSeenTime = new Date(device.lastSeen);
-        const minutesSinceSeen = (now.getTime() - lastSeenTime.getTime()) / (1000 * 60);
-        
-        if (minutesSinceSeen > OFFLINE_THRESHOLD_MINUTES) {
-          calculatedStatus = 'offline';
-        }
-      } else {
-        // No heartbeat or lastSeen, mark as offline
-        calculatedStatus = 'offline';
-      }
-      
-      return {
-        ...device,
-        status: calculatedStatus,
-      };
-    });
-
-    res.json(devicesWithRealtimeStatus);
+    res.json(devices);
   } catch (error) {
     console.error('Error fetching MDM devices:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Device enrollment endpoint - PUBLIC ENDPOINT (no profiles required)
+// Delete a device
+router.delete('/devices/:deviceId', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // First find the device to ensure it belongs to the user's organization
+    const device = await db
+      .select()
+      .from(mdmDevices)
+      .where(
+        and(
+          eq(mdmDevices.deviceId, req.params.deviceId),
+          eq(mdmDevices.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!device[0]) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    // Delete all commands associated with this device first
+    await db
+      .delete(mdmCommands)
+      .where(eq(mdmCommands.deviceId, device[0].id));
+
+    // Delete the device
+    await db
+      .delete(mdmDevices)
+      .where(eq(mdmDevices.id, device[0].id));
+
+    res.json({ message: 'Device deleted successfully', deviceId: req.params.deviceId });
+  } catch (error) {
+    console.error('Error deleting MDM device:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Device enrollment endpoint - PUBLIC ENDPOINT
 publicRouter.post('/enroll', async (req, res): Promise<any> => {
   try {
     const { error, value } = deviceEnrollmentSchema.validate(req.body);
@@ -283,12 +186,10 @@ publicRouter.post('/enroll', async (req, res): Promise<any> => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    // Determine organization ID based on enrollment key if provided
     let organizationId: string;
     let profileId: string | null = null;
 
     if (value.enrollmentKey) {
-      // Look up profile by enrollment key to get organization
       const profile = await db
         .select()
         .from(mdmProfiles)
@@ -302,12 +203,9 @@ publicRouter.post('/enroll', async (req, res): Promise<any> => {
         return res.status(400).json({ error: 'Invalid enrollment key' });
       }
     } else {
-      // Default organization for agent-only enrollment (you should change this)
-      // In production, you might want to require an enrollment key always
       organizationId = 'eb602306-9701-4b99-845d-371833d9fcd6'; // Default org
     }
 
-    // Check if device already exists
     const existingDevice = await db
       .select()
       .from(mdmDevices)
@@ -315,7 +213,6 @@ publicRouter.post('/enroll', async (req, res): Promise<any> => {
       .limit(1);
 
     if (existingDevice[0]) {
-      // Update existing device
       const updateData: any = {
         deviceName: value.deviceName,
         serialNumber: value.serialNumber,
@@ -330,11 +227,9 @@ publicRouter.post('/enroll', async (req, res): Promise<any> => {
         status: 'online',
         metadata: value.metadata || {},
         updatedAt: new Date(),
-        // Update organization and profile if re-enrolling with different key
         organizationId: organizationId,
       };
       
-      // Only set profileId if it's not null
       if (profileId !== null) {
         updateData.profileId = profileId;
       }
@@ -347,7 +242,6 @@ publicRouter.post('/enroll', async (req, res): Promise<any> => {
 
       res.json(updatedDevice[0]);
     } else {
-      // Create new device
       const insertData: any = {
         organizationId: organizationId,
         deviceName: value.deviceName,
@@ -365,7 +259,6 @@ publicRouter.post('/enroll', async (req, res): Promise<any> => {
         metadata: value.metadata || {},
       };
       
-      // Only set profileId if it's not null
       if (profileId !== null) {
         insertData.profileId = profileId;
       }
@@ -419,6 +312,40 @@ publicRouter.post('/devices/:deviceId/heartbeat', async (req, res): Promise<any>
 });
 
 // Command Management
+
+// Get commands for a device (for UI display)
+router.get('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const device = await db
+      .select()
+      .from(mdmDevices)
+      .where(
+        and(
+          eq(mdmDevices.deviceId, req.params.deviceId),
+          eq(mdmDevices.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!device[0]) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    const commands = await db
+      .select()
+      .from(mdmCommands)
+      .where(eq(mdmCommands.deviceId, device[0].id))
+      .orderBy(desc(mdmCommands.createdAt))
+      .limit(50);
+
+    res.json(commands);
+  } catch (error) {
+    console.error('Error fetching device commands:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a new command for a device
 router.post('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = commandSchema.validate(req.body);
@@ -440,32 +367,6 @@ router.post('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res
     if (!device[0]) {
       return res.status(404).json({ error: 'Device not found' });
     }
-
-    // Check permissions - for agent-based devices (no profile), allow all commands
-    if (device[0].profileId) {
-      // Profile-based device: check profile permissions
-      const profile = await db
-        .select()
-        .from(mdmProfiles)
-        .where(eq(mdmProfiles.id, device[0].profileId))
-        .limit(1);
-
-      if (!profile[0]) {
-        return res.status(400).json({ error: 'Device profile not found' });
-      }
-
-      // Check permissions
-      const commandType = value.commandType;
-      if (
-        (commandType === 'lock' && !profile[0].allowLockDevice) ||
-        (commandType === 'shutdown' && !profile[0].allowShutdown) ||
-        (commandType === 'restart' && !profile[0].allowRestart) ||
-        (commandType === 'custom' && !profile[0].allowRemoteCommands)
-      ) {
-        return res.status(403).json({ error: `Command '${commandType}' not allowed by profile` });
-      }
-    }
-    // Agent-based devices (profileId is null): allow all commands by default
 
     const newCommand = await db
       .insert(mdmCommands)
@@ -579,488 +480,79 @@ publicRouter.put('/commands/:commandId/status', async (req, res): Promise<any> =
   }
 });
 
-// Get command history for a device
-router.get('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
+// Agent installer endpoint
+// Agent installer endpoint (both paths for compatibility)
+const agentInstallerHandler = async (req: any, res: any): Promise<any> => {
   try {
-    const device = await db
-      .select()
-      .from(mdmDevices)
-      .where(
-        and(
-          eq(mdmDevices.deviceId, req.params.deviceId),
-          eq(mdmDevices.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!device[0]) {
-      return res.status(404).json({ error: 'Device not found' });
-    }
-
-    const commands = await db
-      .select()
-      .from(mdmCommands)
-      .where(eq(mdmCommands.deviceId, device[0].id))
-      .orderBy(desc(mdmCommands.createdAt));
-
-    res.json(commands);
-  } catch (error) {
-    console.error('Error fetching command history:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Delete a device
-router.delete('/devices/:deviceId', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const device = await db
-      .select()
-      .from(mdmDevices)
-      .where(
-        and(
-          eq(mdmDevices.deviceId, req.params.deviceId),
-          eq(mdmDevices.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!device[0]) {
-      return res.status(404).json({ error: 'Device not found' });
-    }
-
-    // Delete the device (cascading delete will remove commands and sessions)
-    await db.delete(mdmDevices).where(eq(mdmDevices.id, device[0].id));
-
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting device:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Download Endpoints
-
-// Generate a temporary download token
-router.post('/profiles/:id/download-token', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const profile = await db
-      .select()
-      .from(mdmProfiles)
-      .where(
-        and(
-          eq(mdmProfiles.id, req.params.id),
-          eq(mdmProfiles.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!profile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
-
-    // Create a temporary download token (valid for 1 hour)
-    const downloadToken = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 3600000); // 1 hour
-
-    // Store the token in memory (in production, use Redis or database)
-    if (!global.downloadTokens) global.downloadTokens = new Map();
-    global.downloadTokens.set(downloadToken, {
-      profileId: req.params.id,
-      organizationId: req.user!.organizationId,
-      expires,
-      type: req.body.type || 'profile'
-    });
-
-    res.json({ token: downloadToken });
-  } catch (error) {
-    console.error('Error generating download token:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Download Agent Installer Script - PUBLIC ENDPOINT (must be before :token route)
-publicRouter.get('/download/agent-installer', async (req, res): Promise<any> => {
-  try {
-    const agentInstallerPath = path.join(process.cwd(), '../../mdm-agent/install-with-key.sh');
+    // The installer script should accept the enrollment key as a command line argument
+    // It will be passed via: bash -s <enrollment_key> or ./pulse-install.sh <enrollment_key>
+    const serverUrl = req.query.server as string || `${req.protocol}://${req.get('host')}/api`;
     
-    if (fs.existsSync(agentInstallerPath)) {
-      const installerScript = fs.readFileSync(agentInstallerPath, 'utf8');
-      
-      res.setHeader('Content-Type', 'application/x-shellscript');
-      res.setHeader('Content-Disposition', 'attachment; filename="pulse-mdm-agent-install.sh"');
-      res.send(installerScript);
-    } else {
-      return res.status(404).json({ error: 'Pulse MDM agent installer not found' });
-    }
+    const installer = `#!/bin/bash
+set -e
 
-  } catch (error) {
-    console.error('Error downloading Pulse agent installer:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+# Get enrollment key from command line argument
+ENROLLMENT_KEY="\${1}"
+SERVER_URL="${serverUrl}"
 
-// Download MDM Profile (.mobileconfig) with token - PUBLIC ENDPOINT
-publicRouter.get('/download/:token', async (req, res): Promise<any> => {
-  try {
-    const token = req.params.token;
-    
-    // Check if token exists and is valid
-    if (!global.downloadTokens) global.downloadTokens = new Map();
-    const tokenData = global.downloadTokens.get(token);
-    
-    if (!tokenData || tokenData.expires < new Date()) {
-      return res.status(404).json({ error: 'Download link expired or invalid' });
-    }
+echo "🚀 Installing Pulse MDM Agent"
 
-    // Clean up expired token
-    global.downloadTokens.delete(token);
+# Validate enrollment key
+if [ -z "\$ENROLLMENT_KEY" ]; then
+  echo "❌ Error: Enrollment key required"
+  echo "Usage: \$0 <enrollment-key>"
+  echo "Example: \$0 715d6045fb653e6a85a83a06a3a3c36d5f881c6a1ed3fe46bdd0c82b32c8d633"
+  exit 1
+fi
 
-    const profile = await db
-      .select({
-        id: mdmProfiles.id,
-        name: mdmProfiles.name,
-        enrollmentKey: mdmProfiles.enrollmentKey,
-        allowRemoteCommands: mdmProfiles.allowRemoteCommands,
-        allowLockDevice: mdmProfiles.allowLockDevice,
-        allowShutdown: mdmProfiles.allowShutdown,
-        allowRestart: mdmProfiles.allowRestart,
-        organization: {
-          name: organizations.name,
-        },
-      })
-      .from(mdmProfiles)
-      .leftJoin(organizations, eq(mdmProfiles.organizationId, organizations.id))
-      .where(
-        and(
-          eq(mdmProfiles.id, tokenData.profileId),
-          eq(mdmProfiles.organizationId, tokenData.organizationId)
-        )
-      )
-      .limit(1);
+echo "📱 Enrollment Key: \$ENROLLMENT_KEY"
+echo "🌐 Server URL: \$SERVER_URL"
 
-    if (!profile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
+# Create agent directory
+AGENT_DIR="\$HOME/.pulse-mdm"
+mkdir -p "\$AGENT_DIR"
 
-    const profileData = profile[0];
-    const serverUrl = `${req.protocol}://${req.get('host')}/api`;
-    
-    const config = {
-      profileId: profileData.id,
-      profileName: profileData.name,
-      organizationName: profileData.organization?.name || 'Organization',
-      enrollmentKey: profileData.enrollmentKey,
-      serverUrl,
-      allowRemoteCommands: profileData.allowRemoteCommands,
-      allowLockDevice: profileData.allowLockDevice,
-      allowShutdown: profileData.allowShutdown,
-      allowRestart: profileData.allowRestart,
-    };
+# Save enrollment configuration
+echo "\$ENROLLMENT_KEY" > "\$AGENT_DIR/enrollment_key"
+echo "\$SERVER_URL" > "\$AGENT_DIR/server_url"
 
-    if (tokenData.type === 'installer') {
-      // Download installer script
-      const installerScript = MDMProfileGenerator.generateInstallerPackage(config);
-      const fileName = `ConfigMaster-MDM-Setup-${profileData.name.replace(/[^a-zA-Z0-9]/g, '-')}.sh`;
+echo "🔐 Enrolling device with key: \$ENROLLMENT_KEY"
 
-      res.setHeader('Content-Type', 'application/x-shellscript');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.send(installerScript);
-    } else if (tokenData.type === 'instructions') {
-      // Download instructions
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const instructions = `# ConfigMaster MDM Installation Instructions
+# Get device info
+DEVICE_NAME=\$(hostname)
+DEVICE_ID=\$(uname -n)
+SERIAL_NUMBER=\$(system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk '{print \$4}' || echo "unknown")
+MODEL=\$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Name" | cut -d: -f2 | xargs || echo "unknown")
+OS_VERSION=\$(sw_vers -productVersion 2>/dev/null || uname -r)
+ARCHITECTURE=\$(uname -m)
 
-## Profile: ${profileData.name}
-## Organization: ${profileData.organization?.name || 'Organization'}
+# Enroll device
+curl -X POST "\$SERVER_URL/mdm/enroll" \\
+  -H "Content-Type: application/json" \\
+  -d "{
+    \\"enrollmentKey\\": \\"\$ENROLLMENT_KEY\\",
+    \\"deviceName\\": \\"\$DEVICE_NAME\\",
+    \\"deviceId\\": \\"\$DEVICE_ID\\",
+    \\"serialNumber\\": \\"\$SERIAL_NUMBER\\",
+    \\"model\\": \\"\$MODEL\\",
+    \\"osVersion\\": \\"\$OS_VERSION\\",
+    \\"architecture\\": \\"\$ARCHITECTURE\\"
+  }" && echo "✅ Device enrolled successfully!" || echo "❌ Enrollment failed"
 
-### Quick Setup (Recommended)
-
-1. **Download the all-in-one installer:**
-   curl -L -o install-mdm.sh "${baseUrl}/api/mdm/profiles/${profileData.id}/download-installer"
-
-2. **Make it executable and run:**
-   chmod +x install-mdm.sh
-   sudo ./install-mdm.sh
-
-### Manual Setup
-
-#### Option A: MDM Profile Installation
-
-1. **Download the MDM profile:**
-   ${baseUrl}/api/mdm/profiles/${profileData.id}/download
-
-2. **Install the profile:**
-   - Double-click the downloaded .mobileconfig file
-   - Follow the prompts in System Preferences
-   - Enter your password when prompted
-
-#### Option B: Agent-Only Installation
-
-1. **Download the agent installer:**
-   curl -L -o install.sh "${baseUrl}/api/mdm/download/agent-installer"
-
-2. **Install the agent:**
-   chmod +x install.sh
-   sudo ./install.sh ${profileData.enrollmentKey} ${baseUrl}/api
-
-### Verification
-
-After installation, verify the agent is running:
-
-\`\`\`bash
-sudo launchctl list | grep configmaster
-\`\`\`
-
-Check agent logs:
-
-\`\`\`bash
-tail -f /tmp/configmaster-mdm.log
-\`\`\`
-
-### Troubleshooting
-
-- **Permission Issues**: Make sure you're running with sudo
-- **Network Issues**: Verify connectivity to ${baseUrl}
-- **Profile Issues**: Check System Preferences > Profiles
-
-### Support
-
-For technical support, contact your IT administrator or refer to the ConfigMaster documentation.
+echo "✅ Pulse MDM Agent installed"
+echo "📁 Agent configuration stored in: \$AGENT_DIR"
 `;
-
-      res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Content-Disposition', `attachment; filename="ConfigMaster-MDM-Instructions.txt"`);
-      res.send(instructions);
-    } else {
-      // Download .mobileconfig profile (default)
-      const mobileConfig = MDMProfileGenerator.generateMobileConfig(config);
-      const fileName = `${profileData.name.replace(/[^a-zA-Z0-9]/g, '-')}.mobileconfig`;
-
-      res.setHeader('Content-Type', 'application/x-apple-aspen-config');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.send(mobileConfig);
-    }
-
-  } catch (error) {
-    console.error('Error downloading file:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Download MDM Profile (.mobileconfig) - Legacy endpoint
-router.get('/profiles/:id/download', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const profile = await db
-      .select({
-        id: mdmProfiles.id,
-        name: mdmProfiles.name,
-        enrollmentKey: mdmProfiles.enrollmentKey,
-        allowRemoteCommands: mdmProfiles.allowRemoteCommands,
-        allowLockDevice: mdmProfiles.allowLockDevice,
-        allowShutdown: mdmProfiles.allowShutdown,
-        allowRestart: mdmProfiles.allowRestart,
-        organization: {
-          name: organizations.name,
-        },
-      })
-      .from(mdmProfiles)
-      .leftJoin(organizations, eq(mdmProfiles.organizationId, organizations.id))
-      .where(
-        and(
-          eq(mdmProfiles.id, req.params.id),
-          eq(mdmProfiles.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!profile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
-
-    const profileData = profile[0];
-    const serverUrl = `${req.protocol}://${req.get('host')}/api`;
     
-    const config = {
-      profileId: profileData.id,
-      profileName: profileData.name,
-      organizationName: profileData.organization?.name || 'Organization',
-      enrollmentKey: profileData.enrollmentKey,
-      serverUrl,
-      allowRemoteCommands: profileData.allowRemoteCommands,
-      allowLockDevice: profileData.allowLockDevice,
-      allowShutdown: profileData.allowShutdown,
-      allowRestart: profileData.allowRestart,
-    };
-
-    const mobileConfig = MDMProfileGenerator.generateMobileConfig(config);
-    const fileName = `${profileData.name.replace(/[^a-zA-Z0-9]/g, '-')}.mobileconfig`;
-
-    res.setHeader('Content-Type', 'application/x-apple-aspen-config');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.send(mobileConfig);
-
-  } catch (error) {
-    console.error('Error generating MDM profile:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Download Combined Installer Package
-router.get('/profiles/:id/download-installer', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const profile = await db
-      .select({
-        id: mdmProfiles.id,
-        name: mdmProfiles.name,
-        enrollmentKey: mdmProfiles.enrollmentKey,
-        allowRemoteCommands: mdmProfiles.allowRemoteCommands,
-        allowLockDevice: mdmProfiles.allowLockDevice,
-        allowShutdown: mdmProfiles.allowShutdown,
-        allowRestart: mdmProfiles.allowRestart,
-        organization: {
-          name: organizations.name,
-        },
-      })
-      .from(mdmProfiles)
-      .leftJoin(organizations, eq(mdmProfiles.organizationId, organizations.id))
-      .where(
-        and(
-          eq(mdmProfiles.id, req.params.id),
-          eq(mdmProfiles.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!profile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
-
-    const profileData = profile[0];
-    const serverUrl = `${req.protocol}://${req.get('host')}/api`;
-    
-    const config = {
-      profileId: profileData.id,
-      profileName: profileData.name,
-      organizationName: profileData.organization?.name || 'Organization',
-      enrollmentKey: profileData.enrollmentKey,
-      serverUrl,
-      allowRemoteCommands: profileData.allowRemoteCommands,
-      allowLockDevice: profileData.allowLockDevice,
-      allowShutdown: profileData.allowShutdown,
-      allowRestart: profileData.allowRestart,
-    };
-
-    const installerScript = MDMProfileGenerator.generateInstallerPackage(config);
-    const fileName = `ConfigMaster-MDM-Setup-${profileData.name.replace(/[^a-zA-Z0-9]/g, '-')}.sh`;
-
     res.setHeader('Content-Type', 'application/x-shellscript');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.send(installerScript);
-
+    res.setHeader('Content-Disposition', 'attachment; filename="pulse-mdm-agent-install.sh"');
+    res.send(installer);
   } catch (error) {
-    console.error('Error generating installer package:', error);
+    console.error('Error generating installer:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+};
 
-
-// Download Installation Instructions
-router.get('/profiles/:id/instructions', async (req: AuthenticatedRequest, res): Promise<any> => {
-  try {
-    const profile = await db
-      .select({
-        id: mdmProfiles.id,
-        name: mdmProfiles.name,
-        enrollmentKey: mdmProfiles.enrollmentKey,
-        organization: {
-          name: organizations.name,
-        },
-      })
-      .from(mdmProfiles)
-      .leftJoin(organizations, eq(mdmProfiles.organizationId, organizations.id))
-      .where(
-        and(
-          eq(mdmProfiles.id, req.params.id),
-          eq(mdmProfiles.organizationId, req.user!.organizationId)
-        )
-      )
-      .limit(1);
-
-    if (!profile[0]) {
-      return res.status(404).json({ error: 'MDM profile not found' });
-    }
-
-    const profileData = profile[0];
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    
-    const instructions = `# ConfigMaster MDM Installation Instructions
-
-## Profile: ${profileData.name}
-## Organization: ${profileData.organization?.name || 'Organization'}
-
-### Quick Setup (Recommended)
-
-1. **Download the all-in-one installer:**
-   curl -L -o install-mdm.sh "${baseUrl}/api/mdm/profiles/${profileData.id}/download-installer"
-
-2. **Make it executable and run:**
-   chmod +x install-mdm.sh
-   sudo ./install-mdm.sh
-
-### Manual Setup
-
-#### Option A: MDM Profile Installation
-
-1. **Download the MDM profile:**
-   ${baseUrl}/api/mdm/profiles/${profileData.id}/download
-
-2. **Install the profile:**
-   - Double-click the downloaded .mobileconfig file
-   - Follow the prompts in System Preferences
-   - Enter your password when prompted
-
-#### Option B: Agent-Only Installation
-
-1. **Download the agent installer:**
-   curl -L -o install.sh "${baseUrl}/api/mdm/download/agent-installer"
-
-2. **Install the agent:**
-   chmod +x install.sh
-   sudo ./install.sh ${profileData.enrollmentKey} ${baseUrl}/api
-
-### Verification
-
-After installation, verify the agent is running:
-
-\`\`\`bash
-sudo launchctl list | grep configmaster
-\`\`\`
-
-Check agent logs:
-
-\`\`\`bash
-tail -f /tmp/configmaster-mdm.log
-\`\`\`
-
-### Troubleshooting
-
-- **Permission Issues**: Make sure you're running with sudo
-- **Network Issues**: Verify connectivity to ${baseUrl}
-- **Profile Issues**: Check System Preferences > Profiles
-
-### Support
-
-For technical support, contact your IT administrator or refer to the ConfigMaster documentation.
-`;
-
-    res.setHeader('Content-Type', 'text/plain');
-    res.setHeader('Content-Disposition', `attachment; filename="ConfigMaster-MDM-Instructions.txt"`);
-    res.send(instructions);
-
-  } catch (error) {
-    console.error('Error generating instructions:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+publicRouter.get('/agent/installer', agentInstallerHandler);
+publicRouter.get('/download/agent-installer', agentInstallerHandler);
 
 export { router as mdmRoutes, publicRouter as mdmPublicRoutes };

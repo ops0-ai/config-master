@@ -1,0 +1,42 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install Python and build tools for node-gyp
+RUN apk add --no-cache python3 make g++ py3-pip
+
+# Copy package files
+COPY package*.json ./
+COPY packages/database/package*.json ./packages/database/
+COPY packages/ansible-engine/package*.json ./packages/ansible-engine/
+COPY apps/api/package*.json ./apps/api/
+
+# Install all dependencies
+RUN npm ci --workspaces
+
+# Copy source code
+COPY packages ./packages
+COPY apps/api ./apps/api
+COPY turbo.json ./
+
+# Build packages in order
+WORKDIR /app/packages/database
+RUN npm run build
+
+WORKDIR /app/packages/ansible-engine
+RUN npm run build
+
+WORKDIR /app/apps/api
+RUN npm run build
+
+# Create secure directory
+RUN mkdir -p /app/secure/pem-keys
+
+# Set working directory
+WORKDIR /app/apps/api
+
+# Expose port
+EXPOSE 5005
+
+# Start the API
+CMD ["node", "dist/index.js"]

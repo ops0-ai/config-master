@@ -2,11 +2,47 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../index';
-import { users, organizations } from '@config-management/database';
+import { users, organizations, mdmProfiles } from '@config-management/database';
 import { eq } from 'drizzle-orm';
 import Joi from 'joi';
+import * as crypto from 'crypto';
 
 const router = Router();
+
+// Create default MDM profile with unique enrollment key
+async function createDefaultMDMProfile(organizationId: string, createdBy: string): Promise<string> {
+  try {
+    // Generate unique enrollment key
+    const enrollmentKey = crypto.randomBytes(32).toString('hex');
+    
+    // Create default MDM profile
+    await db.insert(mdmProfiles).values({
+      name: 'Default MacOS Profile',
+      description: 'Default MDM profile for MacOS devices - automatically created',
+      organizationId: organizationId,
+      profileType: 'macos',
+      allowRemoteCommands: true,
+      allowLockDevice: true,
+      allowShutdown: false,
+      allowRestart: true,
+      allowWakeOnLan: true,
+      requireAuthentication: true,
+      maxSessionDuration: 3600,
+      allowedIpRanges: [],
+      enrollmentKey: enrollmentKey,
+      enrollmentExpiresAt: null, // No expiration
+      isActive: true,
+      createdBy: createdBy,
+    });
+    
+    console.log(`✅ Created default MDM profile for organization ${organizationId} with key: ${enrollmentKey}`);
+    return enrollmentKey;
+    
+  } catch (error) {
+    console.error('❌ Failed to create default MDM profile:', error);
+    throw error;
+  }
+}
 
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -53,6 +89,14 @@ router.post('/register', async (req, res): Promise<any> => {
       name: value.organizationName,
       ownerId: newUser[0].id,
     }).returning();
+
+    // Create default MDM profile for the new organization
+    try {
+      await createDefaultMDMProfile(newOrg[0].id, newUser[0].id);
+    } catch (error) {
+      console.error('Warning: Failed to create default MDM profile during registration:', error);
+      // Don't fail registration if MDM profile creation fails
+    }
 
     // Generate JWT
     const token = jwt.sign(

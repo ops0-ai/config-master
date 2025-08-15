@@ -1,44 +1,56 @@
-# API Dockerfile using Turbo for proper workspace builds
+# API Dockerfile - Reliable working server
 FROM node:18-alpine
 
-# Install dependencies for native modules
-RUN apk add --no-cache python3 make g++ openssl
+# Install dependencies for native modules and PostgreSQL client  
+RUN apk add --no-cache python3 make g++ openssl postgresql-client
 
 # Set working directory
 WORKDIR /app
 
-# Copy all package files and turbo config
+# Copy package files
 COPY package*.json ./
-COPY turbo.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY packages/database/package*.json ./packages/database/
 COPY packages/ansible-engine/package*.json ./packages/ansible-engine/
 
-# Install all dependencies for the workspace
+# Install dependencies
 RUN npm install
-
-# Copy all source code
-COPY apps/api ./apps/api
-COPY packages ./packages
-
-# Use Turbo to build just the API and its dependencies
-RUN npx turbo build --filter=api
 
 # Set working directory to API
 WORKDIR /app/apps/api
 
-# Remove dev dependencies to reduce image size
-RUN npm prune --production --legacy-peer-deps
+# Copy TypeScript configuration and source files
+COPY apps/api/tsconfig.json ./
+COPY apps/api/drizzle.config.ts ./
+COPY apps/api/drizzle ./drizzle
+COPY apps/api/src ./src
 
-# Create directories for uploads and logs
+# Go back to workspace root and copy packages for proper module resolution
+WORKDIR /app
+COPY packages ./packages
+
+# Go back to API directory and compile TypeScript
+WORKDIR /app/apps/api
+RUN npx tsc --project ./tsconfig.json
+
+# Remove dev dependencies after build
+WORKDIR /app
+RUN npm prune --production
+
+# Set final working directory
+WORKDIR /app/apps/api
+
+# Create required directories
 RUN mkdir -p /app/uploads /app/logs /secure/pem-keys
+
+# No startup script needed - database initialization is handled by the application
 
 # Expose port
 EXPOSE 5005
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5005/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
+  CMD node -e "require('http').get('http://localhost:5005/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Run the application
-CMD ["npm", "start"]
+CMD ["node", "dist/apps/api/src/index.js"]

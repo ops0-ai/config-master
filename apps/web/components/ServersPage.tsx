@@ -108,11 +108,23 @@ export default function ServersPage() {
     e.preventDefault();
     
     try {
+      // Prepare data based on server type
+      const submitData = { ...formData };
+      
+      // For Linux servers, remove password field and ensure pemKeyId is set
+      if (formData.type === 'linux') {
+        delete (submitData as any).password;
+      }
+      // For Windows servers, remove pemKeyId field
+      else if (formData.type === 'windows') {
+        delete (submitData as any).pemKeyId;
+      }
+      
       if (editingServer) {
-        await serversApi.update(editingServer.id, formData);
+        await serversApi.update(editingServer.id, submitData);
         toast.success('Server updated successfully');
       } else {
-        await serversApi.create(formData);
+        await serversApi.create(submitData);
         toast.success('Server created successfully');
       }
       
@@ -641,7 +653,7 @@ export default function ServersPage() {
                       Private key for SSH authentication
                     </p>
                   </div>
-                ) : (
+                ) : formData.type === 'windows' ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password {!editingServer ? '*' : '(optional)'}
@@ -651,7 +663,7 @@ export default function ServersPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="input"
-                      required={!editingServer}
+                      required={formData.type === 'windows' && !editingServer}
                       placeholder={editingServer ? "Leave empty to keep existing password" : "Enter WinRM password"}
                       autoComplete="new-password"
                     />
@@ -662,7 +674,7 @@ export default function ServersPage() {
                       }
                     </p>
                   </div>
-                )}
+                ) : null}
               </div>
               
               <div className="flex justify-end space-x-3 mt-8">

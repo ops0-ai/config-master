@@ -1,6 +1,7 @@
 import { db } from '../index';
-import { permissions, roles, rolePermissions, userRoles, organizations } from '@config-management/database';
+import { permissions, roles, rolePermissions, userRoles, organizations, users, mdmProfiles } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
+import crypto from 'crypto';
 
 // Define system permissions
 const systemPermissions = [
@@ -238,6 +239,9 @@ export async function seedRBACData() {
       }
     }
     
+    // Ensure each organization has a default MDM profile
+    await ensureDefaultMDMProfiles(orgs);
+    
     console.log('✅ RBAC seeding completed successfully!');
   } catch (error) {
     console.error('❌ RBAC seeding failed:', error);
@@ -245,9 +249,68 @@ export async function seedRBACData() {
   }
 }
 
+// Function to ensure each organization has a default MDM profile with unique enrollment key
+async function ensureDefaultMDMProfiles(organizations: any[]): Promise<void> {
+  console.log('🔐 Ensuring default MDM profiles for organizations...');
+  
+  for (const org of organizations) {
+    try {
+      // Check if organization already has an MDM profile
+      const existingProfile = await db
+        .select()
+        .from(mdmProfiles)
+        .where(eq(mdmProfiles.organizationId, org.id))
+        .limit(1);
+      
+      if (existingProfile.length === 0) {
+        // Generate unique enrollment key for this organization
+        const enrollmentKey = crypto.randomBytes(32).toString('hex');
+        
+        // Create default MDM profile
+        await db
+          .insert(mdmProfiles)
+          .values({
+            name: `${org.name} Default MDM Profile`,
+            description: 'Default MDM profile created automatically for organization',
+            organizationId: org.id,
+            profileType: 'macos',
+            allowRemoteCommands: true,
+            allowLockDevice: true,
+            allowShutdown: false,
+            allowRestart: true,
+            allowWakeOnLan: true,
+            requireAuthentication: true,
+            maxSessionDuration: 3600,
+            allowedIpRanges: [],
+            enrollmentKey: enrollmentKey,
+            isActive: true,
+            createdBy: org.ownerId,
+          });
+        
+        console.log(`  ✅ Created default MDM profile for organization: ${org.name}`);
+        console.log(`  🔑 Enrollment key: ${enrollmentKey}`);
+      }
+    } catch (error) {
+      console.warn(`  ⚠️ Failed to create MDM profile for organization ${org.name}:`, error);
+    }
+  }
+}
+
 // Helper function to check if user has permission
 export async function hasPermission(userId: string, resource: string, action: string): Promise<boolean> {
   try {
+    // First check if user has super_admin role directly in users table (for default admin)
+    const userResult = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (userResult.length > 0 && userResult[0].role === 'super_admin') {
+      return true; // Super admin has access to everything
+    }
+    
+    // Then check role-based permissions
     const result = await db
       .select()
       .from(userRoles)

@@ -82,7 +82,7 @@ router.put('/current', authMiddleware, async (req: AuthenticatedRequest, res) =>
     res.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     console.error('Error updating organization:', error);
     res.status(500).json({ error: 'Failed to update organization' });

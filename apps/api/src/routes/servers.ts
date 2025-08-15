@@ -20,7 +20,7 @@ const serverSchema = Joi.object({
   password: Joi.when('type', {
     is: 'windows',
     then: Joi.string().required(),
-    otherwise: Joi.string().optional(),
+    otherwise: Joi.string().allow('').optional(),
   }),
   // For Linux servers - PEM key ID
   pemKeyId: Joi.when('type', {

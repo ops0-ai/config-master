@@ -1,8 +1,8 @@
 {
   "schema": "./src/schema.ts",
-  "out": "./migrations",
-  "driver": "pg",
+  "out": "./migrations", 
+  "dialect": "postgresql",
   "dbCredentials": {
-    "connectionString": "postgresql://postgres:password123@localhost:5432/config_management"
+    "connectionString": "postgresql://postgres:password123@database:5432/config_management"
   }
 }
