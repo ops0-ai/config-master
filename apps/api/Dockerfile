@@ -43,17 +43,7 @@ WORKDIR /app/apps/api
 # Create required directories
 RUN mkdir -p /app/uploads /app/logs /secure/pem-keys
 
-# Create startup script that runs migrations and starts the server
-RUN cat > start.sh << 'EOF'
-#!/bin/sh
-echo "🗄️ Running database migrations..."
-npx drizzle-kit push:pg --config=./drizzle.config.ts 2>/dev/null || echo "⚠️ Migrations may have failed, continuing..."
-
-echo "🚀 Starting Pulse API Server..."
-node dist/apps/api/src/index.js
-EOF
-
-RUN chmod +x start.sh
+# No startup script needed - database initialization is handled by the application
 
 # Expose port
 EXPOSE 5005
@@ -62,5 +52,5 @@ EXPOSE 5005
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5005/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
-# Run the application with migrations
-CMD ["./start.sh"]
+# Run the application
+CMD ["node", "dist/apps/api/src/index.js"]

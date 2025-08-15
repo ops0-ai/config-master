@@ -142,6 +142,42 @@ router.get('/devices', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
+// Delete a device
+router.delete('/devices/:deviceId', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    // First find the device to ensure it belongs to the user's organization
+    const device = await db
+      .select()
+      .from(mdmDevices)
+      .where(
+        and(
+          eq(mdmDevices.deviceId, req.params.deviceId),
+          eq(mdmDevices.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!device[0]) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    // Delete all commands associated with this device first
+    await db
+      .delete(mdmCommands)
+      .where(eq(mdmCommands.deviceId, device[0].id));
+
+    // Delete the device
+    await db
+      .delete(mdmDevices)
+      .where(eq(mdmDevices.id, device[0].id));
+
+    res.json({ message: 'Device deleted successfully', deviceId: req.params.deviceId });
+  } catch (error) {
+    console.error('Error deleting MDM device:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Device enrollment endpoint - PUBLIC ENDPOINT
 publicRouter.post('/enroll', async (req, res): Promise<any> => {
   try {
@@ -276,6 +312,40 @@ publicRouter.post('/devices/:deviceId/heartbeat', async (req, res): Promise<any>
 });
 
 // Command Management
+
+// Get commands for a device (for UI display)
+router.get('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const device = await db
+      .select()
+      .from(mdmDevices)
+      .where(
+        and(
+          eq(mdmDevices.deviceId, req.params.deviceId),
+          eq(mdmDevices.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!device[0]) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    const commands = await db
+      .select()
+      .from(mdmCommands)
+      .where(eq(mdmCommands.deviceId, device[0].id))
+      .orderBy(desc(mdmCommands.createdAt))
+      .limit(50);
+
+    res.json(commands);
+  } catch (error) {
+    console.error('Error fetching device commands:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a new command for a device
 router.post('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = commandSchema.validate(req.body);
@@ -411,16 +481,66 @@ publicRouter.put('/commands/:commandId/status', async (req, res): Promise<any> =
 });
 
 // Agent installer endpoint
-publicRouter.get('/agent/installer', async (req, res): Promise<any> => {
+// Agent installer endpoint (both paths for compatibility)
+const agentInstallerHandler = async (req: any, res: any): Promise<any> => {
   try {
-    const enrollmentKey = req.query.key as string || 'YOUR_ENROLLMENT_KEY';
+    // The installer script should accept the enrollment key as a command line argument
+    // It will be passed via: bash -s <enrollment_key> or ./pulse-install.sh <enrollment_key>
     const serverUrl = req.query.server as string || `${req.protocol}://${req.get('host')}/api`;
     
     const installer = `#!/bin/bash
+set -e
+
+# Get enrollment key from command line argument
+ENROLLMENT_KEY="\${1}"
+SERVER_URL="${serverUrl}"
+
 echo "🚀 Installing Pulse MDM Agent"
-echo "Enrollment Key: ${enrollmentKey}"
-echo "Server URL: ${serverUrl}"
-echo "This installer will be implemented soon"
+
+# Validate enrollment key
+if [ -z "\$ENROLLMENT_KEY" ]; then
+  echo "❌ Error: Enrollment key required"
+  echo "Usage: \$0 <enrollment-key>"
+  echo "Example: \$0 715d6045fb653e6a85a83a06a3a3c36d5f881c6a1ed3fe46bdd0c82b32c8d633"
+  exit 1
+fi
+
+echo "📱 Enrollment Key: \$ENROLLMENT_KEY"
+echo "🌐 Server URL: \$SERVER_URL"
+
+# Create agent directory
+AGENT_DIR="\$HOME/.pulse-mdm"
+mkdir -p "\$AGENT_DIR"
+
+# Save enrollment configuration
+echo "\$ENROLLMENT_KEY" > "\$AGENT_DIR/enrollment_key"
+echo "\$SERVER_URL" > "\$AGENT_DIR/server_url"
+
+echo "🔐 Enrolling device with key: \$ENROLLMENT_KEY"
+
+# Get device info
+DEVICE_NAME=\$(hostname)
+DEVICE_ID=\$(uname -n)
+SERIAL_NUMBER=\$(system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk '{print \$4}' || echo "unknown")
+MODEL=\$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Name" | cut -d: -f2 | xargs || echo "unknown")
+OS_VERSION=\$(sw_vers -productVersion 2>/dev/null || uname -r)
+ARCHITECTURE=\$(uname -m)
+
+# Enroll device
+curl -X POST "\$SERVER_URL/mdm/enroll" \\
+  -H "Content-Type: application/json" \\
+  -d "{
+    \\"enrollmentKey\\": \\"\$ENROLLMENT_KEY\\",
+    \\"deviceName\\": \\"\$DEVICE_NAME\\",
+    \\"deviceId\\": \\"\$DEVICE_ID\\",
+    \\"serialNumber\\": \\"\$SERIAL_NUMBER\\",
+    \\"model\\": \\"\$MODEL\\",
+    \\"osVersion\\": \\"\$OS_VERSION\\",
+    \\"architecture\\": \\"\$ARCHITECTURE\\"
+  }" && echo "✅ Device enrolled successfully!" || echo "❌ Enrollment failed"
+
+echo "✅ Pulse MDM Agent installed"
+echo "📁 Agent configuration stored in: \$AGENT_DIR"
 `;
     
     res.setHeader('Content-Type', 'application/x-shellscript');
@@ -430,6 +550,9 @@ echo "This installer will be implemented soon"
     console.error('Error generating installer:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+};
+
+publicRouter.get('/agent/installer', agentInstallerHandler);
+publicRouter.get('/download/agent-installer', agentInstallerHandler);
 
 export { router as mdmRoutes, publicRouter as mdmPublicRoutes };

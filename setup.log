@@ -1,52 +1,54 @@
-Setup started at Thu Aug 14 16:43:03 CDT 2025
-[0;32m[2025-08-14 16:43:03][0m 🔍 Checking prerequisites...
-[0;32m[2025-08-14 16:43:04][0m ✅ Prerequisites check completed
-[0;32m[2025-08-14 16:43:04][0m 🔧 Setting up environment variables...
-[0;32m[2025-08-14 16:43:04][0m 🏠 Using localhost for local development
-[0;32m[2025-08-14 16:43:04][0m ✅ Using existing .env file
-[0;32m[2025-08-14 16:43:04][0m Configuring web .env file...
-[0;32m[2025-08-14 16:43:04][0m ✅ Updated apps/web/.env file with server IP: localhost
-[0;32m[2025-08-14 16:43:04][0m    API URL: http://localhost:5005/api
-[0;32m[2025-08-14 16:43:04][0m Updating docker-compose environment...
-[0;32m[2025-08-14 16:43:04][0m 🐳 Preparing Docker Compose configuration...
-[0;32m[2025-08-14 16:43:04][0m 🚀 Starting services...
-[0;32m[2025-08-14 16:43:04][0m Building Docker images...
-[0;32m[2025-08-14 16:43:04][0m 📦 Rebuilding web container with new API URL...
-[0;32m[2025-08-14 16:43:04][0m    This is required for the frontend to use the correct server IP
-[0;32m[2025-08-14 16:45:54][0m Starting Docker containers...
-[0;32m[2025-08-14 16:46:05][0m Waiting for services to be ready...
-[0;32m[2025-08-14 16:46:15][0m ✅ Services started successfully
-[0;32m[2025-08-14 16:46:15][0m    Frontend URL: http://localhost:3000
-[0;32m[2025-08-14 16:46:15][0m    API URL: http://localhost:5005/api
-[0;32m[2025-08-14 16:46:15][0m 🗄️ Validating database schema...
-[0;32m[2025-08-14 16:46:15][0m Waiting for database... (1/30)
-[0;32m[2025-08-14 16:46:18][0m Waiting for database... (2/30)
-[0;32m[2025-08-14 16:46:20][0m Waiting for database... (3/30)
-[0;32m[2025-08-14 16:46:22][0m Waiting for database... (4/30)
-[0;32m[2025-08-14 16:46:24][0m Waiting for database... (5/30)
-[0;32m[2025-08-14 16:46:26][0m Waiting for database... (6/30)
-[0;32m[2025-08-14 16:46:28][0m Waiting for database... (7/30)
-[0;32m[2025-08-14 16:46:30][0m Waiting for database... (8/30)
-[0;32m[2025-08-14 16:46:32][0m Waiting for database... (9/30)
-[0;32m[2025-08-14 16:46:34][0m Waiting for database... (10/30)
-[0;32m[2025-08-14 16:46:36][0m Waiting for database... (11/30)
-[0;32m[2025-08-14 16:46:39][0m Waiting for database... (12/30)
-[0;32m[2025-08-14 16:46:41][0m Waiting for database... (13/30)
-[0;32m[2025-08-14 16:46:43][0m Waiting for database... (14/30)
-[0;32m[2025-08-14 16:46:45][0m Waiting for database... (15/30)
-[0;32m[2025-08-14 16:46:47][0m Waiting for database... (16/30)
-[0;32m[2025-08-14 16:46:49][0m Waiting for database... (17/30)
-[0;32m[2025-08-14 16:46:51][0m Waiting for database... (18/30)
-[0;32m[2025-08-14 16:46:53][0m Waiting for database... (19/30)
-[0;32m[2025-08-14 16:46:55][0m Waiting for database... (20/30)
-[0;32m[2025-08-14 16:46:58][0m Waiting for database... (21/30)
-[0;32m[2025-08-14 16:47:00][0m Waiting for database... (22/30)
-[0;32m[2025-08-14 16:47:02][0m Waiting for database... (23/30)
-[0;32m[2025-08-14 16:47:04][0m Waiting for database... (24/30)
-[0;32m[2025-08-14 16:47:06][0m Waiting for database... (25/30)
-[0;32m[2025-08-14 16:47:08][0m Waiting for database... (26/30)
-[0;32m[2025-08-14 16:47:10][0m Waiting for database... (27/30)
-[0;32m[2025-08-14 16:47:12][0m Waiting for database... (28/30)
-[0;32m[2025-08-14 16:47:14][0m Waiting for database... (29/30)
-[0;32m[2025-08-14 16:47:16][0m Waiting for database... (30/30)
+Setup started at Thu Aug 14 22:15:44 CDT 2025
+[0;32m[2025-08-14 22:15:44][0m 🔍 Checking prerequisites...
+[0;32m[2025-08-14 22:15:45][0m ✅ Prerequisites check completed
+[0;32m[2025-08-14 22:15:45][0m 🔧 Setting up environment variables...
+[0;32m[2025-08-14 22:15:45][0m 🏠 Using localhost for local development
+[0;32m[2025-08-14 22:15:45][0m ✅ Using existing .env file
+[0;32m[2025-08-14 22:15:45][0m Configuring web .env file...
+[0;32m[2025-08-14 22:15:45][0m ✅ Updated apps/web/.env file with server IP: localhost
+[0;32m[2025-08-14 22:15:45][0m    API URL: http://localhost:5005/api
+[0;32m[2025-08-14 22:15:45][0m Updating docker-compose environment...
+[0;32m[2025-08-14 22:15:45][0m 🐳 Preparing Docker Compose configuration...
+[0;32m[2025-08-14 22:15:45][0m 🚀 Starting services...
+[0;32m[2025-08-14 22:15:45][0m 🔄 Performing fresh installation...
+[0;32m[2025-08-14 22:15:45][0m ✅ Clean slate achieved
+[0;32m[2025-08-14 22:15:45][0m Building Docker images...
+[0;32m[2025-08-14 22:15:45][0m 📦 Rebuilding web container with new API URL...
+[0;32m[2025-08-14 22:15:45][0m    This is required for the frontend to use the correct server IP
+[0;32m[2025-08-14 22:17:26][0m Starting Docker containers...
+[0;32m[2025-08-14 22:17:43][0m Waiting for services to be ready...
+[0;32m[2025-08-14 22:17:53][0m ✅ Services started successfully
+[0;32m[2025-08-14 22:17:53][0m    Frontend URL: http://localhost:3000
+[0;32m[2025-08-14 22:17:53][0m    API URL: http://localhost:5005/api
+[0;32m[2025-08-14 22:17:53][0m 🗄️ Validating database schema...
+[0;32m[2025-08-14 22:17:53][0m Waiting for database... (1/30)
+[0;32m[2025-08-14 22:17:55][0m Waiting for database... (2/30)
+[0;32m[2025-08-14 22:17:57][0m Waiting for database... (3/30)
+[0;32m[2025-08-14 22:17:59][0m Waiting for database... (4/30)
+[0;32m[2025-08-14 22:18:01][0m Waiting for database... (5/30)
+[0;32m[2025-08-14 22:18:03][0m Waiting for database... (6/30)
+[0;32m[2025-08-14 22:18:06][0m Waiting for database... (7/30)
+[0;32m[2025-08-14 22:18:08][0m Waiting for database... (8/30)
+[0;32m[2025-08-14 22:18:10][0m Waiting for database... (9/30)
+[0;32m[2025-08-14 22:18:12][0m Waiting for database... (10/30)
+[0;32m[2025-08-14 22:18:14][0m Waiting for database... (11/30)
+[0;32m[2025-08-14 22:18:16][0m Waiting for database... (12/30)
+[0;32m[2025-08-14 22:18:18][0m Waiting for database... (13/30)
+[0;32m[2025-08-14 22:18:20][0m Waiting for database... (14/30)
+[0;32m[2025-08-14 22:18:23][0m Waiting for database... (15/30)
+[0;32m[2025-08-14 22:18:25][0m Waiting for database... (16/30)
+[0;32m[2025-08-14 22:18:27][0m Waiting for database... (17/30)
+[0;32m[2025-08-14 22:18:29][0m Waiting for database... (18/30)
+[0;32m[2025-08-14 22:18:31][0m Waiting for database... (19/30)
+[0;32m[2025-08-14 22:18:33][0m Waiting for database... (20/30)
+[0;32m[2025-08-14 22:18:35][0m Waiting for database... (21/30)
+[0;32m[2025-08-14 22:18:37][0m Waiting for database... (22/30)
+[0;32m[2025-08-14 22:18:40][0m Waiting for database... (23/30)
+[0;32m[2025-08-14 22:18:42][0m Waiting for database... (24/30)
+[0;32m[2025-08-14 22:18:44][0m Waiting for database... (25/30)
+[0;32m[2025-08-14 22:18:46][0m Waiting for database... (26/30)
+[0;32m[2025-08-14 22:18:48][0m Waiting for database... (27/30)
+[0;32m[2025-08-14 22:18:50][0m Waiting for database... (28/30)
+[0;32m[2025-08-14 22:18:52][0m Waiting for database... (29/30)
+[0;32m[2025-08-14 22:18:54][0m Waiting for database... (30/30)
 [0;31m[ERROR][0m Database failed to start

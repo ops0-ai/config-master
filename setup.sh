@@ -229,12 +229,28 @@ prepare_docker_compose() {
     fi
 }
 
+# Fresh installation - completely reset everything
+fresh_install() {
+    log "🔄 Performing fresh installation..."
+    
+    # Stop and remove all containers, volumes, and images
+    $DOCKER_COMPOSE down -v --remove-orphans 2>/dev/null || true
+    
+    # Remove all pulse-related Docker volumes
+    docker volume ls -q | grep config-management | xargs docker volume rm 2>/dev/null || true
+    
+    # Remove all pulse-related Docker images
+    docker images | grep config-management | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
+    
+    log "✅ Clean slate achieved"
+}
+
 # Build and start services
 start_services() {
     log "🚀 Starting services..."
     
-    # Stop existing services
-    $DOCKER_COMPOSE down -v 2>/dev/null || true
+    # Perform fresh installation
+    fresh_install
     
     # Build images
     log "Building Docker images..."

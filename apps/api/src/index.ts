@@ -125,13 +125,13 @@ deploymentScheduler.start();
 // Initialize RBAC system
 import { seedRBACData } from './utils/rbacSeeder';
 import { populateUserOrganizations } from './migrations/populateUserOrganizations';
-import { runDatabaseMigrations } from './migrations/runMigrations';
+import { initializeDatabase } from './services/databaseInitializer';
 
 // Setup platform components with migrations first
 async function initializePlatform() {
   try {
-    // Run migrations first
-    await runDatabaseMigrations();
+    // Initialize database schema first - this is critical!
+    await initializeDatabase();
     
     // Then setup all other components
     await Promise.all([
