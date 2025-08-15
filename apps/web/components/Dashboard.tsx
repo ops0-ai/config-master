@@ -96,7 +96,7 @@ export default function Dashboard() {
 
   const loadRecentActivity = async () => {
     try {
-      const activityResponse = await dashboardApi.getActivity(8);
+      const activityResponse = await dashboardApi.getActivity(3);
       const activities = activityResponse.data.map((activity: any) => ({
         ...activity,
         timestamp: formatTimestamp(activity.timestamp)

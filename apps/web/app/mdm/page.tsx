@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { mdmApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import Layout from '@/components/Layout';
 
 interface MDMDevice {
   id: string;
@@ -52,7 +53,7 @@ interface MDMStats {
   recentCommands: number;
 }
 
-export default function MDMDashboard() {
+function MDMDashboard() {
   const [devices, setDevices] = useState<MDMDevice[]>([]);
   const [stats, setStats] = useState<MDMStats>({
     totalDevices: 0,
@@ -193,16 +194,23 @@ export default function MDMDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-24 bg-gray-200 rounded"></div>
-              ))}
+      <div className="h-full flex flex-col">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 max-w-7xl mx-auto">
+            <div className="animate-pulse space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-24 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+              <div className="h-96 bg-gray-200 rounded"></div>
             </div>
-            <div className="h-96 bg-gray-200 rounded"></div>
           </div>
         </div>
       </div>
@@ -212,16 +220,17 @@ export default function MDMDashboard() {
   const filteredDevices = getFilteredDevices();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+    <div className="h-full flex flex-col">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <h1 className="page-title flex items-center">
                 <DevicePhoneMobileIcon className="h-8 w-8 text-blue-600 mr-3" />
                 Mobile Device Management
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-muted mt-1">
                 Monitor and control your MacBook devices remotely
               </p>
             </div>
@@ -233,7 +242,9 @@ export default function MDMDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg p-6 shadow-sm border">
@@ -497,7 +508,16 @@ export default function MDMDashboard() {
             </div>
           )}
         </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function MDMPage() {
+  return (
+    <Layout>
+      <MDMDashboard />
+    </Layout>
   );
 }
