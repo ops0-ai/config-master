@@ -29,6 +29,13 @@ COPY apps/api/src ./src
 WORKDIR /app
 COPY packages ./packages
 
+# Build packages in dependency order
+WORKDIR /app/packages/database
+RUN npm run build || npx tsc
+
+WORKDIR /app/packages/ansible-engine  
+RUN npm run build || npx tsc || true
+
 # Go back to API directory and compile TypeScript
 WORKDIR /app/apps/api
 RUN npx tsc --project ./tsconfig.json
