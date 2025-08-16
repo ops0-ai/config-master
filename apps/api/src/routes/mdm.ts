@@ -35,6 +35,10 @@ const deviceEnrollmentSchema = Joi.object({
   architecture: Joi.string().valid('arm64', 'x86_64').optional(),
   macAddress: Joi.string().optional(),
   hostname: Joi.string().optional(),
+  platform: Joi.string().optional(),
+  ipAddress: Joi.string().optional(),
+  batteryLevel: Joi.number().min(0).max(100).optional(),
+  isCharging: Joi.boolean().optional(),
   agentVersion: Joi.string().optional(),
   agentInstallPath: Joi.string().optional(),
   metadata: Joi.object().optional(),
@@ -313,6 +317,77 @@ publicRouter.post('/devices/:deviceId/heartbeat', async (req, res): Promise<any>
 
 // Command Management
 
+// Get pending commands for a device - PUBLIC ENDPOINT
+publicRouter.get('/devices/:deviceId/commands/pending', async (req, res): Promise<any> => {
+  try {
+    const device = await db
+      .select()
+      .from(mdmDevices)
+      .where(eq(mdmDevices.deviceId, req.params.deviceId))
+      .limit(1);
+
+    if (!device[0]) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    // Get pending commands and mark them as sent
+    const pendingCommands = await db
+      .select()
+      .from(mdmCommands)
+      .where(
+        and(
+          eq(mdmCommands.deviceId, device[0].id),
+          eq(mdmCommands.status, 'pending')
+        )
+      )
+      .orderBy(mdmCommands.createdAt);
+
+    // Mark commands as sent
+    if (pendingCommands.length > 0) {
+      await db
+        .update(mdmCommands)
+        .set({
+          status: 'sent',
+          sentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(mdmCommands.deviceId, device[0].id),
+            eq(mdmCommands.status, 'pending')
+          )
+        );
+    }
+
+    res.json(pendingCommands);
+  } catch (error) {
+    console.error('Error fetching pending commands:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Report command result - PUBLIC ENDPOINT
+publicRouter.post('/commands/:commandId/result', async (req, res): Promise<any> => {
+  try {
+    const { status, output } = req.body;
+    
+    await db
+      .update(mdmCommands)
+      .set({
+        status: status || 'failed',
+        output: output || '',
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(mdmCommands.id, req.params.commandId));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating command result:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get commands for a device (for UI display)
 router.get('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
@@ -388,53 +463,6 @@ router.post('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res
   }
 });
 
-// Get pending commands for a device (used by agent) - PUBLIC ENDPOINT
-publicRouter.get('/devices/:deviceId/commands/pending', async (req, res): Promise<any> => {
-  try {
-    const device = await db
-      .select()
-      .from(mdmDevices)
-      .where(eq(mdmDevices.deviceId, req.params.deviceId))
-      .limit(1);
-
-    if (!device[0]) {
-      return res.status(404).json({ error: 'Device not found' });
-    }
-
-    const pendingCommands = await db
-      .select()
-      .from(mdmCommands)
-      .where(
-        and(
-          eq(mdmCommands.deviceId, device[0].id),
-          eq(mdmCommands.status, 'pending')
-        )
-      )
-      .orderBy(mdmCommands.createdAt);
-
-    // Mark commands as sent
-    if (pendingCommands.length > 0) {
-      await db
-        .update(mdmCommands)
-        .set({
-          status: 'sent',
-          sentAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(mdmCommands.deviceId, device[0].id),
-            eq(mdmCommands.status, 'pending')
-          )
-        );
-    }
-
-    res.json(pendingCommands);
-  } catch (error) {
-    console.error('Error fetching pending commands:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // Update command status (used by agent) - PUBLIC ENDPOINT
 publicRouter.put('/commands/:commandId/status', async (req, res): Promise<any> => {
@@ -484,64 +512,44 @@ publicRouter.put('/commands/:commandId/status', async (req, res): Promise<any> =
 // Agent installer endpoint (both paths for compatibility)
 const agentInstallerHandler = async (req: any, res: any): Promise<any> => {
   try {
-    // The installer script should accept the enrollment key as a command line argument
-    // It will be passed via: bash -s <enrollment_key> or ./pulse-install.sh <enrollment_key>
     const serverUrl = req.query.server as string || `${req.protocol}://${req.get('host')}/api`;
+    const fs = require('fs');
+    const path = require('path');
     
-    const installer = `#!/bin/bash
-set -e
-
-# Get enrollment key from command line argument
-ENROLLMENT_KEY="\${1}"
-SERVER_URL="${serverUrl}"
-
-echo "🚀 Installing Pulse MDM Agent"
-
-# Validate enrollment key
-if [ -z "\$ENROLLMENT_KEY" ]; then
-  echo "❌ Error: Enrollment key required"
-  echo "Usage: \$0 <enrollment-key>"
-  echo "Example: \$0 715d6045fb653e6a85a83a06a3a3c36d5f881c6a1ed3fe46bdd0c82b32c8d633"
-  exit 1
-fi
-
-echo "📱 Enrollment Key: \$ENROLLMENT_KEY"
-echo "🌐 Server URL: \$SERVER_URL"
-
-# Create agent directory
-AGENT_DIR="\$HOME/.pulse-mdm"
-mkdir -p "\$AGENT_DIR"
-
-# Save enrollment configuration
-echo "\$ENROLLMENT_KEY" > "\$AGENT_DIR/enrollment_key"
-echo "\$SERVER_URL" > "\$AGENT_DIR/server_url"
-
-echo "🔐 Enrolling device with key: \$ENROLLMENT_KEY"
-
-# Get device info
-DEVICE_NAME=\$(hostname)
-DEVICE_ID=\$(uname -n)
-SERIAL_NUMBER=\$(system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk '{print \$4}' || echo "unknown")
-MODEL=\$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Name" | cut -d: -f2 | xargs || echo "unknown")
-OS_VERSION=\$(sw_vers -productVersion 2>/dev/null || uname -r)
-ARCHITECTURE=\$(uname -m)
-
-# Enroll device
-curl -X POST "\$SERVER_URL/mdm/enroll" \\
-  -H "Content-Type: application/json" \\
-  -d "{
-    \\"enrollmentKey\\": \\"\$ENROLLMENT_KEY\\",
-    \\"deviceName\\": \\"\$DEVICE_NAME\\",
-    \\"deviceId\\": \\"\$DEVICE_ID\\",
-    \\"serialNumber\\": \\"\$SERIAL_NUMBER\\",
-    \\"model\\": \\"\$MODEL\\",
-    \\"osVersion\\": \\"\$OS_VERSION\\",
-    \\"architecture\\": \\"\$ARCHITECTURE\\"
-  }" && echo "✅ Device enrolled successfully!" || echo "❌ Enrollment failed"
-
-echo "✅ Pulse MDM Agent installed"
-echo "📁 Agent configuration stored in: \$AGENT_DIR"
-`;
+    // Read the installer template - adjust path for Docker environment
+    let installerTemplatePath = path.join(__dirname, '../../../../mdm-agent/pulse-installer-template.sh');
+    if (!fs.existsSync(installerTemplatePath)) {
+      // Try from Docker container root
+      installerTemplatePath = '/app/mdm-agent/pulse-installer-template.sh';
+    }
+    
+    let installerTemplate = '';
+    try {
+      installerTemplate = fs.readFileSync(installerTemplatePath, 'utf8');
+    } catch (error) {
+      console.error('Installer template not found at:', installerTemplatePath);
+      return res.status(500).json({ error: 'Installer template not found' });
+    }
+    
+    // Read the Python agent file - adjust path for Docker environment  
+    let agentScriptPath = path.join(__dirname, '../../../../mdm-agent/pulse-mdm-agent.py');
+    if (!fs.existsSync(agentScriptPath)) {
+      // Try from Docker container root
+      agentScriptPath = '/app/mdm-agent/pulse-mdm-agent.py';
+    }
+    
+    let agentScript = '';
+    try {
+      agentScript = fs.readFileSync(agentScriptPath, 'utf8');
+    } catch (error) {
+      console.error('Agent script not found at:', agentScriptPath);
+      return res.status(500).json({ error: 'Agent script not found' });
+    }
+    
+    // Replace placeholders in the installer template
+    const installer = installerTemplate
+      .replace('{{SERVER_URL}}', serverUrl)
+      .replace('{{AGENT_SCRIPT}}', agentScript);
     
     res.setHeader('Content-Type', 'application/x-shellscript');
     res.setHeader('Content-Disposition', 'attachment; filename="pulse-mdm-agent-install.sh"');
@@ -554,5 +562,140 @@ echo "📁 Agent configuration stored in: \$AGENT_DIR"
 
 publicRouter.get('/agent/installer', agentInstallerHandler);
 publicRouter.get('/download/agent-installer', agentInstallerHandler);
+
+// Download MDM agent installer
+router.get('/download/agent-installer', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Get enrollment key for this organization
+    const profile = await db
+      .select({
+        enrollmentKey: mdmProfiles.enrollmentKey,
+      })
+      .from(mdmProfiles)
+      .where(eq(mdmProfiles.organizationId, req.user!.organizationId))
+      .limit(1);
+
+    if (!profile[0]) {
+      return res.status(404).json({ error: 'No MDM profile found' });
+    }
+
+    // Path to the installer script
+    const installerPath = path.join(__dirname, '../../../../mdm-agent/install.sh');
+    
+    if (!fs.existsSync(installerPath)) {
+      return res.status(404).json({ error: 'Installer not found' });
+    }
+
+    // Read and modify the installer script
+    let installerContent = fs.readFileSync(installerPath, 'utf8');
+    
+    // Replace placeholders with actual values
+    const serverUrl = process.env.FRONTEND_URL || 'http://localhost:5005';
+    installerContent = installerContent.replace(
+      'PULSE_ENROLLMENT_KEY=""',
+      `PULSE_ENROLLMENT_KEY="${profile[0].enrollmentKey}"`
+    );
+    installerContent = installerContent.replace(
+      'PULSE_SERVER_URL="http://localhost:5005/api"',
+      `PULSE_SERVER_URL="${serverUrl}/api"`
+    );
+
+    // Send the modified installer
+    res.setHeader('Content-Type', 'application/x-sh');
+    res.setHeader('Content-Disposition', 'attachment; filename="pulse-mdm-install.sh"');
+    res.send(installerContent);
+  } catch (error) {
+    console.error('Error downloading installer:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Download MDM agent Python script
+router.get('/download/agent-script', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    
+    const scriptPath = path.join(__dirname, '../../../../mdm-agent/pulse-mdm-agent.py');
+    
+    if (!fs.existsSync(scriptPath)) {
+      return res.status(404).json({ error: 'Agent script not found' });
+    }
+
+    res.setHeader('Content-Type', 'text/x-python');
+    res.setHeader('Content-Disposition', 'attachment; filename="pulse-mdm-agent.py"');
+    res.sendFile(scriptPath);
+  } catch (error) {
+    console.error('Error downloading agent script:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Download uninstall script - PUBLIC ENDPOINT
+publicRouter.get('/download/uninstall-script', async (req, res): Promise<any> => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Try both local and Docker paths for the uninstall script
+    let uninstallScriptPath = path.join(__dirname, '../../../../pulse-agent-remove.sh');
+    if (!fs.existsSync(uninstallScriptPath)) {
+      uninstallScriptPath = '/app/pulse-agent-remove.sh';
+    }
+    
+    if (!fs.existsSync(uninstallScriptPath)) {
+      return res.status(404).json({ error: 'Uninstall script not found' });
+    }
+
+    res.setHeader('Content-Type', 'application/x-shellscript');
+    res.setHeader('Content-Disposition', 'attachment; filename="pulse-agent-remove.sh"');
+    res.sendFile(uninstallScriptPath);
+  } catch (error) {
+    console.error('Error downloading uninstall script:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Device uninstall notification - PUBLIC ENDPOINT
+publicRouter.post('/devices/:deviceId/uninstall', async (req, res): Promise<any> => {
+  try {
+    const { status, reason } = req.body;
+    
+    const device = await db
+      .select()
+      .from(mdmDevices)
+      .where(eq(mdmDevices.deviceId, req.params.deviceId))
+      .limit(1);
+
+    if (!device[0]) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    // Update device status to indicate it's been uninstalled
+    await db
+      .update(mdmDevices)
+      .set({
+        status: 'offline',
+        lastSeen: new Date(),
+        isActive: false,
+        metadata: {
+          ...device[0].metadata,
+          uninstalled: true,
+          uninstalledAt: new Date(),
+          uninstallReason: reason || 'agent_removed'
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(mdmDevices.id, device[0].id));
+
+    res.json({ success: true, message: 'Device marked as uninstalled' });
+  } catch (error) {
+    console.error('Error handling device uninstall:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export { router as mdmRoutes, publicRouter as mdmPublicRoutes };

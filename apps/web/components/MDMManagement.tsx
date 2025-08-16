@@ -69,8 +69,8 @@ export default function MDMManagement() {
   useEffect(() => {
     loadDevices();
     loadEnrollmentKey();
-    // Auto-refresh devices every 30 seconds
-    const interval = setInterval(loadDevices, 30000);
+    // Auto-refresh devices every 5 seconds for real-time updates
+    const interval = setInterval(loadDevices, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -141,12 +141,34 @@ export default function MDMManagement() {
     toast.success('Pulse MDM agent installer download started');
   };
 
+  const getActualStatus = (device: MDMDevice) => {
+    // Check if device was explicitly uninstalled
+    if (device.metadata?.uninstalled) {
+      return 'uninstalled';
+    }
+    
+    const lastTime = device.lastHeartbeat || device.lastSeen;
+    if (!lastTime) return 'offline';
+    
+    const lastDate = new Date(lastTime);
+    const twoMinutesAgo = new Date(Date.now() - 120000); // 2 minutes in milliseconds
+    
+    // If last heartbeat is older than 2 minutes, consider offline
+    if (lastDate < twoMinutesAgo) {
+      return 'offline';
+    }
+    
+    return device.status || 'online';
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'online':
         return <CheckCircleIcon className="h-4 w-4 text-green-500" />;
       case 'offline':
         return <XCircleIcon className="h-4 w-4 text-gray-400" />;
+      case 'uninstalled':
+        return <TrashIcon className="h-4 w-4 text-red-400" />;
       case 'locked':
         return <LockClosedIcon className="h-4 w-4 text-yellow-500" />;
       case 'shutdown':
@@ -212,24 +234,28 @@ export default function MDMManagement() {
 
       {/* Devices List */}
       <div className="space-y-4">
-        {devices.map((device) => (
+        {devices.map((device) => {
+          const actualStatus = getActualStatus(device);
+          return (
           <div key={device.id} className="card">
             <div className="card-content">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
-                    {getStatusIcon(device.status)}
+                    {getStatusIcon(actualStatus)}
                     <h3 className="text-lg font-semibold text-gray-900">{device.deviceName}</h3>
                     <span className={`px-2 py-1 text-xs rounded-full capitalize ${
-                      device.status === 'online' 
+                      actualStatus === 'online' 
                         ? 'bg-green-100 text-green-800'
-                        : device.status === 'locked'
+                        : actualStatus === 'locked'
                         ? 'bg-yellow-100 text-yellow-800'
-                        : device.status === 'shutdown'
+                        : actualStatus === 'shutdown'
+                        ? 'bg-red-100 text-red-800'
+                        : actualStatus === 'uninstalled'
                         ? 'bg-red-100 text-red-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {device.status}
+                      {actualStatus}
                     </span>
                     {device.agentVersion && (
                       <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
@@ -270,20 +296,55 @@ export default function MDMManagement() {
                     
                     <div>
                       <span className="font-medium text-gray-700">Last Seen:</span>
-                      <div className="mt-1 text-gray-600 text-xs">
-                        {device.lastHeartbeat 
-                          ? new Date(device.lastHeartbeat).toLocaleString()
-                          : device.lastSeen
-                          ? new Date(device.lastSeen).toLocaleString()
-                          : 'Never'
-                        }
+                      <div className="mt-1 text-xs">
+                        {(() => {
+                          // If device is uninstalled, don't show as active
+                          if (device.metadata?.uninstalled) {
+                            const uninstalledAt = device.metadata.uninstalledAt;
+                            return (
+                              <div>
+                                <span className="text-red-600">
+                                  Agent uninstalled
+                                </span>
+                                {uninstalledAt && (
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(uninstalledAt).toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                          
+                          const lastTime = device.lastHeartbeat || device.lastSeen;
+                          if (!lastTime) {
+                            return <span className="text-gray-500">Never</span>;
+                          }
+                          const lastDate = new Date(lastTime);
+                          const isActive = lastDate > new Date(Date.now() - 60000);
+                          const isRecent = lastDate > new Date(Date.now() - 300000);
+                          
+                          return (
+                            <>
+                              <span className={
+                                isActive ? 'text-green-600 font-medium' 
+                                : isRecent ? 'text-yellow-600'
+                                : 'text-gray-600'
+                              }>
+                                {lastDate.toLocaleString()}
+                              </span>
+                              {isActive && (
+                                <span className="ml-2 text-green-600">● Active</span>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  {device.status === 'online' && (
+                  {actualStatus === 'online' && (
                     <>
                       <button
                         onClick={() => handleSendCommand(device.deviceId, 'lock')}
@@ -308,7 +369,7 @@ export default function MDMManagement() {
                       </button>
                     </>
                   )}
-                  {device.status === 'shutdown' && (
+                  {actualStatus === 'shutdown' && (
                     <button
                       onClick={() => handleSendCommand(device.deviceId, 'wake')}
                       className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md"
@@ -316,6 +377,11 @@ export default function MDMManagement() {
                     >
                       <WifiIcon className="h-4 w-4" />
                     </button>
+                  )}
+                  {actualStatus === 'uninstalled' && (
+                    <span className="text-sm text-red-600 italic">
+                      Agent removed - device inactive
+                    </span>
                   )}
                   <button
                     onClick={() => {
@@ -337,7 +403,8 @@ export default function MDMManagement() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
         
         {devices.length === 0 && (
           <div className="text-center py-12">
@@ -535,6 +602,50 @@ export default function MDMManagement() {
                     <div># Manual restart if needed</div>
                     <div>launchctl unload ~/Library/LaunchAgents/com.pulse.mdm.agent.plist</div>
                     <div>launchctl load ~/Library/LaunchAgents/com.pulse.mdm.agent.plist</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Uninstallation */}
+              <div>
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                  <TrashIcon className="h-5 w-5 mr-2 text-red-600" />
+                  Uninstallation
+                </h4>
+                <div className="bg-red-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-700 mb-3">
+                    To completely remove the Pulse MDM agent from your device:
+                  </p>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-red-800 mb-2">Method 1: Download Uninstall Script</p>
+                    <div className="bg-gray-900 text-green-400 p-3 rounded font-mono text-sm overflow-x-auto">
+                      <div># Download and run uninstall script</div>
+                      <div>curl -L -o pulse-uninstall.sh \"{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api'}/mdm/download/uninstall-script\"</div>
+                      <div>chmod +x pulse-uninstall.sh</div>
+                      <div>./pulse-uninstall.sh</div>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-red-800 mb-2">Method 2: Manual Uninstall</p>
+                    <div className="bg-gray-900 text-green-400 p-3 rounded font-mono text-sm space-y-1 overflow-x-auto">
+                      <div># Stop and unload LaunchAgent</div>
+                      <div>launchctl unload ~/Library/LaunchAgents/com.pulse.mdm.agent.plist</div>
+                      <div></div>
+                      <div># Kill agent processes</div>
+                      <div>pkill -f pulse-mdm-agent</div>
+                      <div></div>
+                      <div># Remove files</div>
+                      <div>rm -rf ~/.pulse-mdm/</div>
+                      <div>rm -f ~/Library/LaunchAgents/com.pulse.mdm.agent.plist</div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-yellow-100 p-3 rounded">
+                    <p className="text-sm text-yellow-800">
+                      <strong>⚠️ Note:</strong> After uninstalling, the device will remain visible in this console until manually deleted using the trash icon.
+                    </p>
                   </div>
                 </div>
               </div>

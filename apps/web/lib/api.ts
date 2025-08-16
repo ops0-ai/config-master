@@ -306,4 +306,10 @@ export const mdmApi = {
   // Download endpoints
   generateDownloadToken: (profileId: string, type: 'profile' | 'installer' | 'instructions' = 'profile') => 
     api.post(`/mdm/profiles/${profileId}/download-token`, { type }),
+  
+  // Get enrollment key
+  getEnrollmentKey: () => api.get('/mdm/enrollment-key'),
+  
+  // Download installer
+  downloadInstaller: () => api.get('/mdm/download/agent-installer', { responseType: 'text' }),
 };
