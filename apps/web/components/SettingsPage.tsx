@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import toast from 'react-hot-toast';
-import { settingsApi, organizationApi } from '@/lib/api';
+import { settingsApi, organizationApi, authApi } from '@/lib/api';
 import RoleMatrixManagement from './RoleMatrixManagement';
 import UsersManagement from './UsersManagement';
 import dynamic from 'next/dynamic';
@@ -175,11 +175,51 @@ export default function SettingsPage() {
   const handleUpdateProfile = async () => {
     try {
       setSaving(true);
-      // TODO: Update user profile
-      // await userApi.updateProfile(userProfile);
-      toast.success('Profile updated successfully');
+      
+      // Validate password fields if user is trying to change password
+      if (userProfile.currentPassword || userProfile.newPassword || userProfile.confirmPassword) {
+        if (!userProfile.currentPassword) {
+          toast.error('Please enter your current password');
+          return;
+        }
+        if (!userProfile.newPassword) {
+          toast.error('Please enter a new password');
+          return;
+        }
+        if (!userProfile.confirmPassword) {
+          toast.error('Please confirm your new password');
+          return;
+        }
+        if (userProfile.newPassword !== userProfile.confirmPassword) {
+          toast.error('New passwords do not match');
+          return;
+        }
+        if (userProfile.newPassword.length < 8) {
+          toast.error('Password must be at least 8 characters long');
+          return;
+        }
+        
+        // Change password
+        await authApi.changePassword({
+          currentPassword: userProfile.currentPassword,
+          newPassword: userProfile.newPassword,
+          confirmPassword: userProfile.confirmPassword,
+        });
+        
+        // Clear password fields after successful change
+        setUserProfile({
+          ...userProfile,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        
+        toast.success('Password changed successfully');
+      } else {
+        toast('No changes to save', { icon: 'ℹ️' });
+      }
     } catch (error: any) {
-      toast.error('Failed to update profile');
+      toast.error(error.response?.data?.error || 'Failed to update profile');
     } finally {
       setSaving(false);
     }

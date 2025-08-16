@@ -204,4 +204,73 @@ router.post('/login', async (req, res): Promise<any> => {
   }
 });
 
+// Change password endpoint for authenticated users
+router.post('/change-password', async (req: any, res): Promise<any> => {
+  try {
+    // Get user from auth token
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.cookies?.['auth-token'];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No authentication token provided' });
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    } catch (error) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const changePasswordSchema = Joi.object({
+      currentPassword: Joi.string().required(),
+      newPassword: Joi.string().min(8).required(),
+      confirmPassword: Joi.string().valid(Joi.ref('newPassword')).required()
+        .messages({ 'any.only': 'Passwords do not match' })
+    });
+
+    const { error, value } = changePasswordSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { currentPassword, newPassword } = value;
+
+    // Get current user
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValidPassword) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await db
+      .update(users)
+      .set({ 
+        passwordHash: hashedPassword,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, decoded.userId));
+
+    console.log(`✅ Password changed successfully for user: ${user.email}`);
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
 export { router as authRoutes };

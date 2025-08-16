@@ -39,6 +39,12 @@ export const authApi = {
     name: string;
     organizationName: string;
   }) => api.post('/auth/register', data),
+  
+  changePassword: (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => api.post('/auth/change-password', data),
 };
 
 // Servers API
