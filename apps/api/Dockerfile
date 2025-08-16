@@ -1,8 +1,10 @@
 # API Dockerfile - Reliable working server
 FROM node:18-alpine
 
-# Install dependencies for native modules and PostgreSQL client  
-RUN apk add --no-cache python3 make g++ openssl postgresql-client
+# Install dependencies for native modules, PostgreSQL client, and Ansible
+RUN apk add --no-cache python3 py3-pip make g++ openssl postgresql-client openssh-client && \
+    python3 -m pip install --break-system-packages --upgrade pip && \
+    python3 -m pip install --break-system-packages ansible
 
 # Set working directory
 WORKDIR /app
