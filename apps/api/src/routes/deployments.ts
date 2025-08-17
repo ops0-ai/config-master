@@ -336,12 +336,21 @@ router.post('/:id/run', async (req: AuthenticatedRequest, res): Promise<any> => 
     }
 
     // Execute actual Ansible deployment
+    console.log(`[Deployment ${targetDeployment.id}] Starting Ansible execution...`);
     const { AnsibleExecutionService } = await import('../services/ansibleExecution');
     const ansibleService = AnsibleExecutionService.getInstance();
 
     // Run deployment asynchronously
     (async () => {
       try {
+        console.log(`[Deployment ${targetDeployment.id}] Calling executePlaybook with:`, {
+          deploymentId: targetDeployment.id,
+          configurationId: targetDeployment.configurationId,
+          targetType: targetDeployment.targetType,
+          targetId: targetDeployment.targetId,
+          organizationId: targetDeployment.organizationId,
+        });
+        
         await ansibleService.executePlaybook({
           deploymentId: targetDeployment.id,
           configurationId: targetDeployment.configurationId,
@@ -350,6 +359,8 @@ router.post('/:id/run', async (req: AuthenticatedRequest, res): Promise<any> => 
           organizationId: targetDeployment.organizationId,
           onProgress: async (logs: string) => {
             try {
+              console.log(`[Deployment ${targetDeployment.id}] Progress update: ${logs.substring(0, 100)}...`);
+              
               // Update logs in real-time
               const currentDeployment = await db
                 .select()
@@ -367,23 +378,18 @@ router.post('/:id/run', async (req: AuthenticatedRequest, res): Promise<any> => 
                   .where(eq(deployments.id, targetDeployment.id));
               }
             } catch (error) {
-              console.error('Error updating deployment logs:', error);
+              console.error(`[Deployment ${targetDeployment.id}] Error updating deployment logs:`, error);
             }
           }
         });
+        
+        console.log(`[Deployment ${targetDeployment.id}] executePlaybook completed successfully`);
 
-        // Mark as completed
-        await db
-          .update(deployments)
-          .set({
-            status: 'completed',
-            completedAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .where(eq(deployments.id, targetDeployment.id));
+        // The executePlaybook method will handle updating the status to completed/failed
+        // Don't mark as completed here - let the AnsibleExecutionService handle it
 
       } catch (error) {
-        console.error('Ansible execution error:', error);
+        console.error(`[Deployment ${targetDeployment.id}] Ansible execution error:`, error);
         
         // Mark as failed with error message
         await db
@@ -391,14 +397,16 @@ router.post('/:id/run', async (req: AuthenticatedRequest, res): Promise<any> => 
           .set({
             status: 'failed',
             completedAt: new Date(),
-            logs: `\n❌ Deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            logs: (targetDeployment.logs || '') + `\n❌ Deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
             updatedAt: new Date(),
           })
           .where(eq(deployments.id, targetDeployment.id));
+          
+        console.log(`[Deployment ${targetDeployment.id}] Marked as failed in database`);
       }
     })().catch((error) => {
       // Additional safety net to prevent uncaught promise rejections
-      console.error('Deployment execution error:', error);
+      console.error(`[Deployment ${targetDeployment.id}] Uncaught deployment execution error:`, error);
     });
 
     res.json({ message: 'Deployment started' });

@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { db } from '../index';
-import { servers, serverGroups, configurations, pemKeys } from '@config-management/database';
+import { servers, serverGroups, configurations, pemKeys, deployments } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { SecureKeyManager } from '../utils/keyManagement';
 
@@ -40,17 +40,25 @@ export class AnsibleExecutionService {
   async executePlaybook(options: AnsibleExecutionOptions): Promise<void> {
     const { deploymentId, configurationId, targetType, targetId, organizationId, onProgress } = options;
 
+    console.log(`[AnsibleExecution ${deploymentId}] Starting executePlaybook...`);
+    
     try {
       // Check if Ansible is installed and auto-install if needed
-      if (!await this.isAnsibleInstalled()) {
+      console.log(`[AnsibleExecution ${deploymentId}] Checking if Ansible is installed...`);
+      const isInstalled = await this.isAnsibleInstalled();
+      console.log(`[AnsibleExecution ${deploymentId}] Ansible installed: ${isInstalled}`);
+      
+      if (!isInstalled) {
         onProgress('📋 Ansible not found. Installing automatically...\n\n');
         
         try {
+          console.log(`[AnsibleExecution ${deploymentId}] Attempting to install Ansible...`);
           await this.installAnsible(onProgress);
           onProgress('\n✅ Ansible installation complete. Proceeding with deployment...\n\n');
         } catch (installError) {
+          console.log(`[AnsibleExecution ${deploymentId}] Ansible installation failed, using simulation mode:`, installError);
           onProgress('⚠️  Automatic installation failed. Running in simulation mode...\n\n');
-          await this.simulateDeployment(onProgress);
+          await this.simulateDeployment(onProgress, deploymentId);
           return;
         }
       } else {
@@ -58,6 +66,7 @@ export class AnsibleExecutionService {
       }
 
       // Get configuration
+      console.log(`[AnsibleExecution ${deploymentId}] Fetching configuration ${configurationId}...`);
       const config = await db
         .select()
         .from(configurations)
@@ -65,14 +74,19 @@ export class AnsibleExecutionService {
         .limit(1);
 
       if (!config[0]) {
+        console.error(`[AnsibleExecution ${deploymentId}] Configuration not found: ${configurationId}`);
         throw new Error('Configuration not found');
       }
+      console.log(`[AnsibleExecution ${deploymentId}] Configuration found: ${config[0].name}`);
 
       // Get target servers
+      console.log(`[AnsibleExecution ${deploymentId}] Getting target servers for ${targetType} ${targetId}...`);
       const targets = await this.getTargetServers(targetType, targetId, organizationId);
       if (targets.length === 0) {
+        console.error(`[AnsibleExecution ${deploymentId}] No target servers found`);
         throw new Error('No target servers found');
       }
+      console.log(`[AnsibleExecution ${deploymentId}] Found ${targets.length} target servers`);
 
       onProgress('📋 Preparing Ansible execution...\n');
       onProgress(`🎯 Target servers: ${targets.map(t => t.name).join(', ')}\n`);
@@ -112,13 +126,34 @@ export class AnsibleExecutionService {
       await this.testConnectivity(inventoryPath, tempDir, onProgress);
       
       // Execute Ansible playbook
+      console.log(`[AnsibleExecution ${deploymentId}] Running Ansible command...`);
       await this.runAnsibleCommand(playbookPath, inventoryPath, tempDir, onProgress, deploymentId);
+      console.log(`[AnsibleExecution ${deploymentId}] Ansible command completed`);
 
       // Cleanup temp files
       this.cleanup(tempDir);
+      console.log(`[AnsibleExecution ${deploymentId}] Cleanup completed`);
 
     } catch (error) {
+      console.error(`[AnsibleExecution ${deploymentId}] Execution failed:`, error);
       onProgress(`\n❌ Deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}\n`);
+      
+      // Make sure to update deployment status to failed
+      try {
+        await db
+          .update(deployments)
+          .set({
+            status: 'failed',
+            completedAt: new Date(),
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            updatedAt: new Date(),
+          })
+          .where(eq(deployments.id, deploymentId));
+        console.log(`[AnsibleExecution ${deploymentId}] Updated deployment status to failed`);
+      } catch (dbError) {
+        console.error(`[AnsibleExecution ${deploymentId}] Failed to update deployment status:`, dbError);
+      }
+      
       throw error;
     }
   }
@@ -387,7 +422,7 @@ export class AnsibleExecutionService {
           onProgress(chunk);
         });
 
-        ansibleProcess.on('close', (code, signal) => {
+        ansibleProcess.on('close', async (code, signal) => {
           this.runningDeployments.delete(deploymentId);
           
           onProgress(`\n🏁 Ansible process finished with exit code: ${code} (signal: ${signal})\n`);
@@ -395,6 +430,17 @@ export class AnsibleExecutionService {
 
           if (code === 0) {
             onProgress('✅ Ansible playbook executed successfully!\n');
+            
+            // Update deployment status to completed
+            await db
+              .update(deployments)
+              .set({
+                status: 'completed',
+                completedAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(deployments.id, deploymentId));
+            
             resolve();
           } else {
             const errorMsg = `Ansible execution failed with exit code: ${code}`;
@@ -412,6 +458,17 @@ export class AnsibleExecutionService {
               onProgress('\n⚠️ No output was captured from ansible-playbook command\n');
             }
             
+            // Update deployment status to failed
+            await db
+              .update(deployments)
+              .set({
+                status: 'failed',
+                completedAt: new Date(),
+                errorMessage: errorMsg,
+                updatedAt: new Date(),
+              })
+              .where(eq(deployments.id, deploymentId));
+            
             resolve(); // Don't reject to prevent crash, let caller handle the failure
           }
         });
@@ -419,6 +476,17 @@ export class AnsibleExecutionService {
         ansibleProcess.on('error', async (error) => {
           this.runningDeployments.delete(deploymentId);
           onProgress(`\n❌ Ansible execution error: ${error.message}\n`);
+          
+          // Update deployment status to failed
+          await db
+            .update(deployments)
+            .set({
+              status: 'failed',
+              completedAt: new Date(),
+              errorMessage: error.message,
+              updatedAt: new Date(),
+            })
+            .where(eq(deployments.id, deploymentId));
           
           if (error.message.includes('ENOENT')) {
             onProgress('\n🔧 Ansible not found. Installing automatically...\n');
@@ -658,7 +726,8 @@ export class AnsibleExecutionService {
     });
   }
 
-  private async simulateDeployment(onProgress: (logs: string) => void): Promise<void> {
+  private async simulateDeployment(onProgress: (logs: string) => void, deploymentId?: string): Promise<void> {
+    console.log(`[AnsibleExecution ${deploymentId}] Starting simulated deployment...`);
     return new Promise((resolve) => {
       onProgress('📦 Preparing playbook with stored server credentials...\n');
       onProgress('🔐 Using encrypted PEM keys from database...\n');
@@ -686,6 +755,24 @@ export class AnsibleExecutionService {
         onProgress('target-server              : ok=4    changed=3    unreachable=0    failed=0\n\n');
         onProgress('📝 NOTE: This was simulated. Ansible integration will auto-install when needed.\n');
         onProgress('🎉 Deployment completed (simulated)!\n');
+        
+        // Update deployment status to completed for simulated deployments
+        if (deploymentId) {
+          db.update(deployments)
+            .set({
+              status: 'completed',
+              completedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(deployments.id, deploymentId))
+            .then(() => {
+              console.log(`[AnsibleExecution ${deploymentId}] Updated simulated deployment to completed`);
+            })
+            .catch((error) => {
+              console.error(`[AnsibleExecution ${deploymentId}] Failed to update simulated deployment status:`, error);
+            });
+        }
+        
         resolve();
       }, 5000);
     });

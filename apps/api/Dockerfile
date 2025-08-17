@@ -1,8 +1,10 @@
 # API Dockerfile - Reliable working server
 FROM node:18-alpine
 
-# Install dependencies for native modules and PostgreSQL client  
-RUN apk add --no-cache python3 make g++ openssl postgresql-client
+# Install dependencies for native modules, PostgreSQL client, and Ansible
+RUN apk add --no-cache python3 py3-pip make g++ openssl postgresql-client openssh-client && \
+    python3 -m pip install --break-system-packages --upgrade pip && \
+    python3 -m pip install --break-system-packages ansible
 
 # Set working directory
 WORKDIR /app
@@ -28,6 +30,15 @@ COPY apps/api/src ./src
 # Go back to workspace root and copy packages for proper module resolution
 WORKDIR /app
 COPY packages ./packages
+COPY mdm-agent ./mdm-agent
+COPY pulse-agent-remove.sh ./pulse-agent-remove.sh
+
+# Build packages in dependency order
+WORKDIR /app/packages/database
+RUN npm run build || npx tsc
+
+WORKDIR /app/packages/ansible-engine  
+RUN npm run build || npx tsc || true
 
 # Go back to API directory and compile TypeScript
 WORKDIR /app/apps/api

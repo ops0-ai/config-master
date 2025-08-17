@@ -16,19 +16,21 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
     exit 1
 fi
 
-# Get enrollment key and server URL from environment or prompt
-if [ -z "$PULSE_ENROLLMENT_KEY" ]; then
-    read -p "Enter enrollment key: " PULSE_ENROLLMENT_KEY
-fi
+# Get enrollment key from command line argument
+ENROLLMENT_KEY="${1}"
+SERVER_URL="{{SERVER_URL}}"
 
-if [ -z "$PULSE_SERVER_URL" ]; then
-    read -p "Enter server URL (default: http://localhost:5005/api): " PULSE_SERVER_URL
-    PULSE_SERVER_URL=${PULSE_SERVER_URL:-"http://localhost:5005/api"}
+# Validate enrollment key
+if [ -z "$ENROLLMENT_KEY" ]; then
+    echo -e "${RED}❌ Error: Enrollment key required${NC}"
+    echo "Usage: $0 <enrollment-key>"
+    echo "Example: $0 715d6045fb653e6a85a83a06a3a3c36d5f881c6a1ed3fe46bdd0c82b32c8d633"
+    exit 1
 fi
 
 echo -e "\n${YELLOW}Configuration:${NC}"
-echo "  Server URL: $PULSE_SERVER_URL"
-echo "  Enrollment Key: ${PULSE_ENROLLMENT_KEY:0:10}..."
+echo "  Server URL: $SERVER_URL"
+echo "  Enrollment Key: ${ENROLLMENT_KEY:0:10}..."
 echo ""
 
 # Create agent directory
@@ -53,18 +55,20 @@ fi
 echo -e "${GREEN}📚 Installing Python packages...${NC}"
 python3 -m pip install --user requests psutil netifaces 2>/dev/null || true
 
-# Copy agent script
+# Create agent script
 echo -e "${GREEN}📄 Installing agent script...${NC}"
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cp "$SCRIPT_DIR/pulse-mdm-agent.py" "$AGENT_DIR/agent.py"
+cat > "$AGENT_DIR/agent.py" << 'AGENT_SCRIPT_EOF'
+{{AGENT_SCRIPT}}
+AGENT_SCRIPT_EOF
+
 chmod +x "$AGENT_DIR/agent.py"
 
 # Create configuration
 echo -e "${GREEN}⚙️  Creating configuration...${NC}"
 cat > "$AGENT_DIR/config.json" << EOF
 {
-  "server_url": "$PULSE_SERVER_URL",
-  "enrollment_key": "$PULSE_ENROLLMENT_KEY"
+  "server_url": "$SERVER_URL",
+  "enrollment_key": "$ENROLLMENT_KEY"
 }
 EOF
 
@@ -91,9 +95,9 @@ cat > "$PLIST_FILE" << EOF
     <key>EnvironmentVariables</key>
     <dict>
         <key>PULSE_SERVER_URL</key>
-        <string>$PULSE_SERVER_URL</string>
+        <string>$SERVER_URL</string>
         <key>PULSE_ENROLLMENT_KEY</key>
-        <string>$PULSE_ENROLLMENT_KEY</string>
+        <string>$ENROLLMENT_KEY</string>
     </dict>
     
     <key>RunAtLoad</key>
@@ -125,7 +129,7 @@ launchctl unload "$PLIST_FILE" 2>/dev/null || true
 launchctl load "$PLIST_FILE"
 
 # Verify agent is running
-sleep 2
+sleep 3
 if launchctl list | grep -q "com.pulse.mdm.agent"; then
     echo -e "${GREEN}✅ Pulse MDM Agent installed and running successfully!${NC}"
     echo ""
@@ -142,5 +146,7 @@ if launchctl list | grep -q "com.pulse.mdm.agent"; then
     echo "  • Restart agent: launchctl unload $PLIST_FILE && launchctl load $PLIST_FILE"
 else
     echo -e "${RED}❌ Failed to start agent. Check logs at $AGENT_DIR/agent.log${NC}"
-    exit 1
+    echo "Trying manual start..."
+    cd "$AGENT_DIR" && python3 agent.py > agent.log 2>&1 &
+    echo "Agent started manually. Check $AGENT_DIR/agent.log for status."
 fi
