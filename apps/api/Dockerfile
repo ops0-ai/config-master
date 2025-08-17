@@ -31,10 +31,13 @@ COPY apps/api/src ./src
 WORKDIR /app
 COPY packages ./packages
 
-# Copy MDM agent directory (create dummy if doesn't exist)
-COPY mdm-agent ./mdm-agent
+# Create empty mdm-agent directory first
+RUN mkdir -p ./mdm-agent
 
-# Copy pulse-agent-remove.sh (create dummy if doesn't exist)  
+# Copy MDM agent files (use shell expansion to handle missing files)
+COPY mdm-agent/ ./mdm-agent/
+
+# Copy pulse-agent-remove.sh 
 COPY pulse-agent-remove.sh ./pulse-agent-remove.sh
 
 # Build packages in dependency order

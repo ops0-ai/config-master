@@ -132,11 +132,17 @@ rm -rf ./apps/*/.next 2>/dev/null || true
 rm -rf ./apps/*/dist 2>/dev/null || true
 rm -rf ./packages/*/dist 2>/dev/null || true
 
-# Remove MDM agent installation files
+# Remove generated MDM agent installation files (but keep essential templates)
 rm -f ./pulse-agent-install.sh 2>/dev/null || true
-rm -f ./pulse-agent-remove.sh 2>/dev/null || true
 rm -f ./pulse-install.sh 2>/dev/null || true
-rm -rf ./mdm-agent 2>/dev/null || true
+
+# Clean MDM agent directory but preserve git-tracked template files
+# Only remove dynamically generated files and runtime data
+find ./mdm-agent -name "*-generated*" -delete 2>/dev/null || true
+find ./mdm-agent -name "*.tmp" -delete 2>/dev/null || true
+find ./mdm-agent -name "*.log" -delete 2>/dev/null || true
+
+# Note: Keep all git-tracked template files for Docker build compatibility
 
 # Remove any generated certificates or keys
 rm -rf ./certs 2>/dev/null || true
