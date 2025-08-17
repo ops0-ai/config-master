@@ -3,6 +3,13 @@
 # Pulse Configuration Management - Complete Cleanup Script
 # This script removes EVERYTHING - containers, images, volumes, networks, files, and MDM agents
 
+# Ensure we're running with bash
+if [ -z "$BASH_VERSION" ]; then
+    echo "❌ This script requires bash. Please run with: ./cleanup.sh"
+    echo "   (not: sh cleanup.sh)"
+    exit 1
+fi
+
 set -e
 
 echo "======================================"
@@ -17,9 +24,8 @@ echo "   • All MDM agents and device enrollments"
 echo "   • All uploaded files and logs"
 echo "   • All build caches and temporary data"
 echo ""
-read -p "Are you sure you want to continue? (y/N): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+read -p "Are you sure you want to continue? (y/N): " confirm
+if [[ ! $confirm =~ ^[Yy]$ ]]; then
     echo "❌ Cleanup cancelled"
     exit 1
 fi
