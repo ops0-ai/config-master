@@ -30,7 +30,11 @@ COPY apps/api/src ./src
 # Go back to workspace root and copy packages for proper module resolution
 WORKDIR /app
 COPY packages ./packages
+
+# Copy MDM agent directory (create dummy if doesn't exist)
 COPY mdm-agent ./mdm-agent
+
+# Copy pulse-agent-remove.sh (create dummy if doesn't exist)  
 COPY pulse-agent-remove.sh ./pulse-agent-remove.sh
 
 # Build packages in dependency order
