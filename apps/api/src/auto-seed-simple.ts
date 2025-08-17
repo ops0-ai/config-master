@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { users, organizations, mdmProfiles } from '@config-management/database';
+import { users, organizations, userOrganizations, mdmProfiles } from '@config-management/database';
 import { eq } from 'drizzle-orm';
 import * as crypto from 'crypto';
 
@@ -54,11 +54,15 @@ export async function ensureAdminUser() {
     
     const db = getDb();
     
+    // Get admin credentials from environment variables
+    const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@pulse.dev';
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'password123';
+    
     // Check if admin already exists
     const existingAdmin = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'admin@pulse.dev'))
+      .where(eq(users.email, adminEmail))
       .limit(1);
     
     if (existingAdmin.length > 0) {
@@ -69,7 +73,7 @@ export async function ensureAdminUser() {
     console.log('🌱 Creating default admin user...');
     
     // Create admin user first
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
     const adminUserId = randomUUID();
     const orgId = randomUUID();
     
@@ -79,16 +83,27 @@ export async function ensureAdminUser() {
       name: 'Pulse Admin Organization',
       description: 'Default admin organization for Pulse MDM',
       ownerId: adminUserId,
+      isActive: true,
+      isPrimary: true, // First organization is always primary
     });
     
     // Create admin user with super_admin role for full access
     await db.insert(users).values({
       id: adminUserId,
-      email: 'admin@pulse.dev',
+      email: adminEmail,
       passwordHash: hashedPassword,
       name: 'Pulse Admin',
       role: 'super_admin',
       organizationId: orgId,
+      isSuperAdmin: true, // Essential for multi-tenancy features
+    });
+    
+    // Create user-organization relationship
+    await db.insert(userOrganizations).values({
+      userId: adminUserId,
+      organizationId: orgId,
+      role: 'owner',
+      isActive: true,
     });
     
     // Create default MDM profile for the organization
@@ -100,8 +115,8 @@ export async function ensureAdminUser() {
     }
     
     console.log('✅ Default admin user created successfully!');
-    console.log('📧 Email: admin@pulse.dev');
-    console.log('🔑 Password: password123');
+    console.log(`📧 Email: ${adminEmail}`);
+    console.log(`🔑 Password: ${adminPassword}`);
     console.log('👑 Role: Super Admin (Full Access)');
     console.log('🌐 Access: http://localhost:3000');
     

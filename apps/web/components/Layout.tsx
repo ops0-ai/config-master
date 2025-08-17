@@ -17,6 +17,7 @@ import {
   ArrowRightOnRectangleIcon,
   AcademicCapIcon,
   DevicePhoneMobileIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -102,6 +103,8 @@ export default function Layout({ children }: LayoutProps) {
   );
 
   function SidebarContent() {
+    const { user } = useMinimalAuth();
+    
     return (
       <>
         <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-50 border-b border-gray-300">
@@ -145,6 +148,32 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
               );
             })}
+            
+            {/* Global Admin Section - Only visible to super admins */}
+            {user?.isSuperAdmin && (
+              <>
+                <div className="pt-4 mt-4 border-t border-gray-300">
+                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Global Admin
+                  </h3>
+                </div>
+                <Link
+                  href="/admin/organizations"
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                    pathname === '/admin/organizations'
+                      ? 'bg-white text-primary-900 border-r-2 border-primary-600 shadow-sm'
+                      : 'text-gray-700 hover:bg-white hover:text-gray-900 hover:shadow-sm'
+                  }`}
+                >
+                  <ShieldCheckIcon
+                    className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                      pathname === '/admin/organizations' ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                    }`}
+                  />
+                  Organization Management
+                </Link>
+              </>
+            )}
           </nav>
 
           <div className="flex-shrink-0 p-4 border-t border-gray-300 bg-gray-100">

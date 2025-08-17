@@ -104,6 +104,7 @@ router.post('/register', async (req, res): Promise<any> => {
         userId: newUser[0].id,
         email: newUser[0].email,
         organizationId: newOrg[0].id,
+        isSuperAdmin: newUser[0].isSuperAdmin,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -174,12 +175,29 @@ router.post('/login', async (req, res): Promise<any> => {
       return res.status(500).json({ error: 'Organization not found' });
     }
 
+    // Check if organization is active
+    if (!org[0].isActive) {
+      return res.status(403).json({ 
+        error: 'Organization has been disabled. Please contact your global administrator for assistance.',
+        code: 'ORGANIZATION_DISABLED'
+      });
+    }
+
+    // Check if user is active
+    if (!user[0].isActive) {
+      return res.status(403).json({ 
+        error: 'Your account has been disabled. Please contact your administrator.',
+        code: 'USER_DISABLED'
+      });
+    }
+
     // Generate JWT
     const token = jwt.sign(
       {
         userId: user[0].id,
         email: user[0].email,
         organizationId: org[0].id,
+        isSuperAdmin: user[0].isSuperAdmin,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -192,6 +210,7 @@ router.post('/login', async (req, res): Promise<any> => {
         email: user[0].email,
         name: user[0].name,
         role: user[0].role,
+        isSuperAdmin: user[0].isSuperAdmin,
       },
       organization: {
         id: org[0].id,

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../index';
-import { users } from '@config-management/database';
+import { users, organizations } from '@config-management/database';
 import { eq } from 'drizzle-orm';
 
 export interface AuthenticatedRequest extends Request {
@@ -11,6 +11,7 @@ export interface AuthenticatedRequest extends Request {
     name: string;
     role: string;
     organizationId: string;
+    isSuperAdmin: boolean;
   };
 }
 
@@ -37,12 +38,29 @@ export const authMiddleware = async (
       return res.status(401).json({ error: 'Invalid token or inactive user.' });
     }
 
+    // Check if user's organization is active (skip for super admins)
+    if (!user[0].isSuperAdmin) {
+      const organization = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, decoded.organizationId))
+        .limit(1);
+
+      if (!organization[0] || !organization[0].isActive) {
+        return res.status(403).json({ 
+          error: 'Organization has been disabled. Please contact your global administrator for assistance.',
+          code: 'ORGANIZATION_DISABLED'
+        });
+      }
+    }
+
     req.user = {
       id: user[0].id,
       email: user[0].email,
       name: user[0].name,
       role: user[0].role,
       organizationId: decoded.organizationId,
+      isSuperAdmin: user[0].isSuperAdmin || decoded.isSuperAdmin,
     };
 
     next();
