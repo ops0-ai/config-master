@@ -211,13 +211,14 @@ router.post('/register', async (req, res): Promise<any> => {
     }
 
     // Generate JWT
+    const newUserRecord = newUser[0] as any;
     const token = jwt.sign(
       {
-        userId: newUser[0].id,
-        email: newUser[0].email,
+        userId: newUserRecord.id,
+        email: newUserRecord.email,
         organizationId: newOrg[0].id,
-        isSuperAdmin: newUser[0].isSuperAdmin || false,
-        hasCompletedOnboarding: newUser[0].hasCompletedOnboarding || false,
+        isSuperAdmin: newUserRecord.isSuperAdmin || false,
+        hasCompletedOnboarding: newUserRecord.hasCompletedOnboarding || false,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -333,13 +334,14 @@ router.post('/login', async (req, res): Promise<any> => {
     }
 
     // Generate JWT with safe access to optional columns
+    const userRecord = user[0] as any;
     const token = jwt.sign(
       {
-        userId: user[0].id,
-        email: user[0].email,
+        userId: userRecord.id,
+        email: userRecord.email,
         organizationId: org[0].id,
-        isSuperAdmin: user[0].isSuperAdmin || false,
-        hasCompletedOnboarding: user[0].hasCompletedOnboarding || false,
+        isSuperAdmin: userRecord.isSuperAdmin || false,
+        hasCompletedOnboarding: userRecord.hasCompletedOnboarding || false,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
