@@ -50,30 +50,50 @@ export default function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const { user } = useMinimalAuth();
 
-  // Check if user needs onboarding - only on initial mount
+  // Check if user needs onboarding - trigger when user changes
   useEffect(() => {
-    // Check if we've already shown onboarding in this session
-    const hasShownOnboardingThisSession = sessionStorage.getItem('onboardingShown');
+    console.log('🚀 Layout onboarding effect triggered:', { 
+      user: user?.email, 
+      userExists: !!user,
+      sessionOnboarding: sessionStorage.getItem('onboardingShown'),
+      sessionOnboardingUser: sessionStorage.getItem('onboardingShownForUser')
+    });
     
     const checkOnboardingStatus = async () => {
-      if (!user || hasShownOnboardingThisSession === 'true') {
+      if (!user) {
+        console.log('❌ No user, skipping onboarding check');
         setIsCheckingOnboarding(false);
         return;
       }
 
       try {
-        // Check if user has completed onboarding from the token
+        // Check if user has completed onboarding from the token (from database)
         const token = localStorage.getItem('authToken');
         if (token) {
           const tokenData = JSON.parse(atob(token.split('.')[1]));
           const hasCompletedOnboarding = tokenData.hasCompletedOnboarding;
           
-          // Only show onboarding if user hasn't completed it AND we haven't shown it this session
-          if (hasCompletedOnboarding === false) {
-            console.log('Showing onboarding for first-time user:', user?.email);
+          console.log('🔍 Onboarding check:', {
+            email: user?.email,
+            hasCompletedOnboarding,
+            tokenData: tokenData
+          });
+          
+          // Only show onboarding if user has NEVER completed it (database value is false)
+          // AND we haven't shown it for this specific user in this session
+          const onboardingShownForUser = sessionStorage.getItem('onboardingShownForUser');
+          
+          if (hasCompletedOnboarding === false && onboardingShownForUser !== user.email) {
+            console.log('✅ Showing onboarding for first-time user:', user?.email);
             setShowOnboarding(true);
-            // Mark that we've shown onboarding in this session
-            sessionStorage.setItem('onboardingShown', 'true');
+            // Mark that we've shown onboarding for this specific user in this session
+            sessionStorage.setItem('onboardingShownForUser', user.email);
+          } else {
+            console.log('❌ Not showing onboarding:', {
+              hasCompletedOnboarding,
+              userEmail: user?.email,
+              alreadyShownForUser: onboardingShownForUser === user.email
+            });
           }
         }
       } catch (error) {
@@ -84,7 +104,7 @@ export default function Layout({ children }: LayoutProps) {
     };
 
     checkOnboardingStatus();
-  }, []); // Empty dependency array - only run once on mount
+  }, [user]); // Run when user changes
 
   const handleOnboardingComplete = async () => {
     try {
