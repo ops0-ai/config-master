@@ -337,14 +337,29 @@ router.put('/onboarding/complete', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
 
-    // Update user's onboarding status
-    await db
-      .update(users)
-      .set({ 
-        hasCompletedOnboarding: true,
-        updatedAt: new Date() 
-      })
-      .where(eq(users.id, userId));
+    // Update user's onboarding status - handle missing column safely
+    try {
+      await db
+        .update(users)
+        .set({ 
+          hasCompletedOnboarding: true,
+          updatedAt: new Date() 
+        })
+        .where(eq(users.id, userId));
+    } catch (error: any) {
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        // Fallback update without hasCompletedOnboarding column
+        await db
+          .update(users)
+          .set({ 
+            updatedAt: new Date() 
+          })
+          .where(eq(users.id, userId));
+        console.log('⚠️ hasCompletedOnboarding column not found, updated without it');
+      } else {
+        throw error;
+      }
+    }
 
     console.log(`✅ User ${req.user!.email} completed onboarding`);
     res.json({ message: 'Onboarding completed successfully' });

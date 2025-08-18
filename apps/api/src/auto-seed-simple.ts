@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { users, organizations, userOrganizations, mdmProfiles } from '@config-management/database';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as crypto from 'crypto';
 
 // Create database connection for admin seeding
@@ -88,15 +88,26 @@ export async function ensureAdminUser() {
     });
     
     // Create admin user with super_admin role for full access
-    await db.insert(users).values({
+    // Check if is_super_admin column exists first
+    let userValues: any = {
       id: adminUserId,
       email: adminEmail,
       passwordHash: hashedPassword,
       name: 'Pulse Admin',
       role: 'super_admin',
       organizationId: orgId,
-      isSuperAdmin: true, // Essential for multi-tenancy features
-    });
+    };
+    
+    // Only add isSuperAdmin if the column exists (for compatibility)
+    try {
+      // Check if column exists by running a simple query
+      await db.execute(sql`SELECT is_super_admin FROM users LIMIT 1`);
+      userValues.isSuperAdmin = true; // Essential for multi-tenancy features
+    } catch (error) {
+      console.log('⚠️ is_super_admin column not found, creating user without it (will be added by migration)');
+    }
+    
+    await db.insert(users).values(userValues);
     
     // Create user-organization relationship
     await db.insert(userOrganizations).values({

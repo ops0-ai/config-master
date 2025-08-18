@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../index';
 import { users, organizations, mdmProfiles, roles, permissions, rolePermissions, userRoles } from '@config-management/database';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import Joi from 'joi';
 import * as crypto from 'crypto';
 
@@ -157,15 +157,42 @@ router.post('/register', async (req, res): Promise<any> => {
     }).returning();
 
     // Create user with the pre-generated ID and organizationId
-    const newUser = await db.insert(users).values({
-      id: userId,
-      email: value.email,
-      name: value.name,
-      passwordHash,
-      role: 'admin',
-      organizationId: newOrg[0].id,
-      isActive: true,
-    }).returning();
+    // Handle missing columns safely during migration
+    let newUser;
+    try {
+      newUser = await db.insert(users).values({
+        id: userId,
+        email: value.email,
+        name: value.name,
+        passwordHash,
+        role: 'admin',
+        organizationId: newOrg[0].id,
+        isActive: true,
+        isSuperAdmin: false,
+        hasCompletedOnboarding: false,
+      }).returning();
+    } catch (error: any) {
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        // Fallback creation without new columns
+        newUser = await db.insert(users).values({
+          id: userId,
+          email: value.email,
+          name: value.name,
+          passwordHash,
+          role: 'admin',
+          organizationId: newOrg[0].id,
+          isActive: true,
+        }).returning();
+        
+        // Add missing properties for compatibility
+        if (newUser[0]) {
+          (newUser[0] as any).isSuperAdmin = false;
+          (newUser[0] as any).hasCompletedOnboarding = false;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     // Create RBAC roles and permissions for the new organization
     try {
@@ -189,8 +216,8 @@ router.post('/register', async (req, res): Promise<any> => {
         userId: newUser[0].id,
         email: newUser[0].email,
         organizationId: newOrg[0].id,
-        isSuperAdmin: newUser[0].isSuperAdmin,
-        hasCompletedOnboarding: newUser[0].hasCompletedOnboarding,
+        isSuperAdmin: newUser[0].isSuperAdmin || false,
+        hasCompletedOnboarding: newUser[0].hasCompletedOnboarding || false,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -222,12 +249,40 @@ router.post('/login', async (req, res): Promise<any> => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    // Find user
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, value.email))
-      .limit(1);
+    // Find user - handle missing columns safely during migration
+    let user;
+    try {
+      user = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, value.email))
+        .limit(1);
+    } catch (error: any) {
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        // Fallback query without new columns
+        user = await db
+          .select({
+            id: users.id,
+            email: users.email,
+            name: users.name,
+            passwordHash: users.passwordHash,
+            role: users.role,
+            organizationId: users.organizationId,
+            isActive: users.isActive,
+          })
+          .from(users)
+          .where(eq(users.email, value.email))
+          .limit(1);
+        
+        // Add missing properties for compatibility
+        if (user[0]) {
+          (user[0] as any).isSuperAdmin = false;
+          (user[0] as any).hasCompletedOnboarding = false;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     if (!user[0]) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -277,14 +332,14 @@ router.post('/login', async (req, res): Promise<any> => {
       });
     }
 
-    // Generate JWT
+    // Generate JWT with safe access to optional columns
     const token = jwt.sign(
       {
         userId: user[0].id,
         email: user[0].email,
         organizationId: org[0].id,
-        isSuperAdmin: user[0].isSuperAdmin,
-        hasCompletedOnboarding: user[0].hasCompletedOnboarding,
+        isSuperAdmin: user[0].isSuperAdmin || false,
+        hasCompletedOnboarding: user[0].hasCompletedOnboarding || false,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
