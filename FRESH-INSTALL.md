@@ -1,8 +1,8 @@
-# Pulse Configuration Management - Fresh Installation Guide
+# Pulse Configuration Management - Installation Guide
 
 ## Quick Start
 
-For a complete fresh installation on any server:
+For installation on any server:
 
 ```bash
 # 1. Clone the repository
@@ -12,8 +12,11 @@ cd config-management
 # 2. Switch to the stable branch
 git checkout feature/fixing-docker
 
-# 3. Run the fresh installation script
-./fresh-install.sh
+# 3. For clean installation (removes everything first)
+./cleanup.sh && ./install.sh
+
+# OR for installation without cleanup
+./install.sh
 ```
 
 ## Manual Installation Steps
@@ -26,20 +29,45 @@ If you prefer manual installation:
 - At least 4GB RAM and 10GB disk space
 
 ### 2. Environment Setup (Optional)
+
+#### Option A: Using .env file (Recommended)
+Create a `.env` file in the project root:
+```bash
+# Admin credentials
+DEFAULT_ADMIN_EMAIL=admin@yourcompany.com
+DEFAULT_ADMIN_PASSWORD=your-secure-password
+
+# Other environment variables...
+FRONTEND_URL=https://your-domain.com
+NEXT_PUBLIC_API_URL=https://your-domain.com/api
+```
+
+#### Option B: Using environment variables
 ```bash
 # Set custom admin credentials (optional)
 export DEFAULT_ADMIN_EMAIL="your-admin@company.com"
 export DEFAULT_ADMIN_PASSWORD="your-secure-password"
 ```
 
-### 3. Clean Installation
+### 3. Installation Options
+
+#### Option A: Fresh Installation (Clean Start)
 ```bash
-# Stop any existing containers
-docker compose down --volumes
+# Clean everything first
+./cleanup.sh
 
-# Remove existing volumes for clean start
-docker volume prune -f
+# Then install
+./install.sh
+```
 
+#### Option B: Install/Update without cleanup
+```bash
+# Install or update existing deployment
+./install.sh
+```
+
+#### Option C: Manual Installation
+```bash
 # Build and start
 docker compose up --build -d
 ```
