@@ -21,7 +21,22 @@ export async function initializeDatabase(): Promise<void> {
       await applyAllMigrations(client);
     } else {
       console.log(`📊 Database already has ${tableCount} tables, checking schema integrity...`);
-      await ensureAllTablesExist(client);
+      const needsMigration = await checkSchemaIntegrity(client);
+      if (needsMigration) {
+        console.log('📝 Schema is outdated, applying missing migrations...');
+        await applyAllMigrations(client);
+        
+        // Verify the fix worked
+        const stillNeedsMigration = await checkSchemaIntegrity(client);
+        if (stillNeedsMigration) {
+          console.error('❌ Migration failed - columns still missing after applying migrations');
+          throw new Error('Database migration incomplete - required columns not found');
+        } else {
+          console.log('✅ Schema integrity verified after migration');
+        }
+      } else {
+        await ensureAllTablesExist(client);
+      }
     }
     
     console.log('✅ Database schema initialized successfully');
@@ -61,11 +76,44 @@ async function checkTableCount(client: postgres.Sql): Promise<number> {
   return parseInt(result[0].count);
 }
 
+async function checkSchemaIntegrity(client: postgres.Sql): Promise<boolean> {
+  // Check for critical columns that were added in later migrations
+  const criticalColumns = [
+    { table: 'users', column: 'has_completed_onboarding' },
+    { table: 'users', column: 'is_super_admin' },
+    { table: 'organizations', column: 'is_active' },
+    { table: 'roles', column: 'is_system' }
+  ];
+  
+  for (const { table, column } of criticalColumns) {
+    try {
+      const result = await client`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = ${table} 
+          AND column_name = ${column}
+        ) as exists
+      `;
+      
+      if (!result[0].exists) {
+        console.log(`⚠️ Missing column '${column}' in table '${table}' - migration needed`);
+        return true; // Needs migration
+      }
+    } catch (error) {
+      console.log(`⚠️ Error checking column '${column}' in table '${table}' - migration needed`);
+      return true; // Assume migration needed if we can't check
+    }
+  }
+  
+  console.log('✅ All critical columns exist');
+  return false; // No migration needed
+}
+
 async function applyAllMigrations(client: postgres.Sql): Promise<void> {
   // In the container, migration files are at /app/apps/api/drizzle
   const migrationsDir = '/app/apps/api/drizzle';
   
-  // Get all migration files in order
+  // Get all actual migration files in order
   const migrationFiles = [
     '0000_rich_warlock.sql',
     '0001_rainy_aaron_stack.sql', 
@@ -73,44 +121,63 @@ async function applyAllMigrations(client: postgres.Sql): Promise<void> {
     '0003_lean_titanium_man.sql',
     '0004_open_gorgon.sql',
     '0005_motionless_stingray.sql',
-    '0006_clammy_celestials.sql'
+    '0006_clammy_celestials.sql',
+    '0007_multi_tenancy_support.sql',
+    '0008_onboarding_support.sql',
+    '0009_rbac_fixes.sql'
   ];
   
   for (const filename of migrationFiles) {
-    // Find the actual file (it might have a different name)
-    const files = fs.readdirSync(migrationsDir);
-    const actualFile = files.find(f => f.startsWith(filename.split('_')[0]));
+    const fullPath = path.join(migrationsDir, filename);
     
-    if (actualFile) {
-      const actualPath = path.join(migrationsDir, actualFile);
-      console.log(`📝 Applying migration: ${actualFile}`);
+    // Check if file exists
+    if (fs.existsSync(fullPath)) {
+      console.log(`📝 Applying migration: ${filename}`);
       
       try {
-        const sql = fs.readFileSync(actualPath, 'utf8');
+        const sql = fs.readFileSync(fullPath, 'utf8');
         
-        // Split by statement separator and execute each
-        const statements = sql.split('--> statement-breakpoint');
-        
-        for (const statement of statements) {
-          const trimmed = statement.trim();
-          if (trimmed && !trimmed.startsWith('--')) {
+        // For migrations 0007, 0008, 0009 - execute them in transaction for safety
+        if (filename.includes('0007') || filename.includes('0008') || filename.includes('0009')) {
+          console.log(`🔧 Executing critical migration ${filename} in transaction...`);
+          
+          await client.begin(async (txn) => {
+            // Execute the entire migration file without splitting to preserve DO blocks
             try {
-              await client.unsafe(trimmed);
+              await txn.unsafe(sql);
             } catch (error: any) {
-              // Ignore errors for already existing objects
-              if (!error.message?.includes('already exists')) {
-                console.error(`Error in statement: ${trimmed.substring(0, 100)}...`);
-                console.error(error.message);
+              // Only ignore specific errors that are expected
+              if (!error.message?.includes('already exists') && 
+                  !error.message?.includes('duplicate_object') &&
+                  !error.message?.includes('duplicate_constraint') &&
+                  !error.message?.includes('already defined')) {
+                console.error(`Error in migration ${filename}:`, error.message);
+                throw error;
               }
+            }
+          });
+        } else {
+          // For other migrations, use the old method
+          try {
+            await client.unsafe(sql);
+          } catch (error: any) {
+            // Ignore errors for already existing objects
+            if (!error.message?.includes('already exists') && 
+                !error.message?.includes('duplicate_object') &&
+                !error.message?.includes('already defined')) {
+              console.error(`Error in migration ${filename}:`, error.message);
+              throw error;
             }
           }
         }
         
-        console.log(`✅ Migration ${actualFile} applied successfully`);
+        console.log(`✅ Migration ${filename} applied successfully`);
       } catch (error) {
-        console.error(`❌ Failed to apply migration ${actualFile}:`, error);
+        console.error(`❌ Failed to apply migration ${filename}:`, error);
         throw error;
       }
+    } else {
+      console.log(`⚠️ Migration file not found: ${filename} - skipping`);
     }
   }
 }

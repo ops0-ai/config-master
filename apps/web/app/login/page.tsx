@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -22,6 +22,18 @@ export default function LoginPage() {
     password: '',
   });
 
+  // Check for disabled organization message on component mount
+  useEffect(() => {
+    const disabledMessage = localStorage.getItem('disabledOrgMessage');
+    if (disabledMessage) {
+      toast.error(disabledMessage, {
+        duration: 8000,
+        icon: '🚫',
+      });
+      localStorage.removeItem('disabledOrgMessage');
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,7 +46,26 @@ export default function LoginPage() {
       
       toast.success('Welcome back!');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Login failed');
+      const errorData = error.response?.data;
+      if (errorData?.code === 'ORGANIZATION_DISABLED') {
+        toast.error(
+          'Organization has been disabled. Please contact your global administrator for assistance.',
+          {
+            duration: 6000,
+            icon: '🚫',
+          }
+        );
+      } else if (errorData?.code === 'USER_DISABLED') {
+        toast.error(
+          'Your account has been disabled. Please contact your administrator.',
+          {
+            duration: 6000,
+            icon: '🚫',
+          }
+        );
+      } else {
+        toast.error(errorData?.error || 'Login failed');
+      }
       setLoading(false);
     }
   };

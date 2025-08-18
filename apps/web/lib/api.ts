@@ -23,6 +23,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken');
       window.location.href = '/login';
+    } else if (error.response?.status === 403 && error.response?.data?.code === 'ORGANIZATION_DISABLED') {
+      // Organization has been disabled, logout and redirect with message
+      localStorage.removeItem('authToken');
+      localStorage.setItem('disabledOrgMessage', 'Your organization has been disabled. Please contact your global administrator for assistance.');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
@@ -231,6 +236,28 @@ export const organizationApi = {
   
   switchOrganization: (organizationId: string) => 
     api.post('/organizations/switch', { organizationId }),
+  
+  // Super Admin endpoints
+  getAllOrganizations: (params?: { page?: number; limit?: number; search?: string }) => 
+    api.get('/organizations/admin/all', { params }),
+  
+  getOrganizationStats: () => api.get('/organizations/admin/stats'),
+  
+  createOrganization: (data: {
+    name: string;
+    description: string;
+    adminEmail: string;
+    adminName: string;
+    adminPassword: string;
+  }) => api.post('/organizations/admin/create', data),
+  
+  updateOrganization: (orgId: string, data: {
+    name?: string;
+    description?: string;
+    isActive?: boolean;
+  }) => api.patch(`/organizations/admin/${orgId}`, data),
+  
+  deleteOrganization: (orgId: string) => api.delete(`/organizations/admin/${orgId}`),
 };
 
 // MDM API

@@ -1,0 +1,2 @@
+# This file ensures the mdm-agent directory is tracked by git
+# MDM agent files will be generated dynamically when needed

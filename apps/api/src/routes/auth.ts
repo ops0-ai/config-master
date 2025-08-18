@@ -2,8 +2,8 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../index';
-import { users, organizations, mdmProfiles } from '@config-management/database';
-import { eq } from 'drizzle-orm';
+import { users, organizations, mdmProfiles, roles, permissions, rolePermissions, userRoles } from '@config-management/database';
+import { eq, sql } from 'drizzle-orm';
 import Joi from 'joi';
 import * as crypto from 'crypto';
 
@@ -44,6 +44,75 @@ async function createDefaultMDMProfile(organizationId: string, createdBy: string
   }
 }
 
+// Create RBAC roles and permissions for a new registered user
+async function createRBACForNewUser(organization: any, user: any) {
+  try {
+    console.log(`🔐 Setting up RBAC for new user ${user.email} in organization ${organization.name}`);
+    
+    // Get all system permissions (they should already exist from rbacSeeder)
+    const allPermissions = await db.select().from(permissions);
+    const permissionMap = new Map(allPermissions.map(p => [`${p.resource}:${p.action}`, p.id]));
+    
+    // Create Administrator role for the organization
+    const [adminRole] = await db
+      .insert(roles)
+      .values({
+        name: 'Administrator',
+        description: 'Full access to all platform features and settings',
+        organizationId: organization.id,
+        isSystem: true,
+        createdBy: user.id,
+      })
+      .returning();
+    
+    // Assign all permissions to Administrator role (47 permissions)
+    const adminPermissions = [
+      'dashboard:read', 'settings:read', 'settings:write', 
+      'users:read', 'users:write', 'users:delete',
+      'roles:read', 'roles:write', 'roles:delete',
+      'servers:read', 'servers:write', 'servers:execute', 'servers:delete',
+      'server-groups:read', 'server-groups:write', 'server-groups:execute', 'server-groups:delete',
+      'pem-keys:read', 'pem-keys:write', 'pem-keys:execute', 'pem-keys:delete',
+      'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:approve', 'configurations:delete',
+      'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
+      'training:read', 'chat:read', 'chat:write', 'chat:delete',
+      'audit-logs:view', 'audit-logs:export',
+      'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 'aws-integrations:sync', 'aws-integrations:import',
+      'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
+      'github-integrations:read', 'github-integrations:write', 'github-integrations:delete', 'github-integrations:validate', 'github-integrations:sync'
+    ];
+    
+    for (const permissionKey of adminPermissions) {
+      const permissionId = permissionMap.get(permissionKey);
+      if (permissionId) {
+        await db
+          .insert(rolePermissions)
+          .values({
+            roleId: adminRole.id,
+            permissionId: permissionId,
+          })
+          .onConflictDoNothing();
+      }
+    }
+    
+    // Assign Administrator role to the user
+    await db
+      .insert(userRoles)
+      .values({
+        userId: user.id,
+        roleId: adminRole.id,
+        assignedBy: user.id,
+        isActive: true,
+      })
+      .onConflictDoNothing();
+    
+    console.log(`✅ RBAC setup complete: User ${user.email} is now Administrator with full permissions`);
+  } catch (error) {
+    console.error('Error creating RBAC for new user:', error);
+    throw error;
+  }
+}
+
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(8).required(),
@@ -77,18 +146,61 @@ router.post('/register', async (req, res): Promise<any> => {
     // Hash password
     const passwordHash = await bcrypt.hash(value.password, 10);
 
-    // Create user and organization in transaction
-    const newUser = await db.insert(users).values({
-      email: value.email,
-      name: value.name,
-      passwordHash,
-      role: 'admin',
-    }).returning();
+    // Generate a temporary user ID first
+    const userId = crypto.randomUUID();
 
+    // Create organization with the user ID
     const newOrg = await db.insert(organizations).values({
       name: value.organizationName,
-      ownerId: newUser[0].id,
+      ownerId: userId,
+      isActive: true,
     }).returning();
+
+    // Create user with the pre-generated ID and organizationId
+    // Handle missing columns safely during migration
+    let newUser;
+    try {
+      newUser = await db.insert(users).values({
+        id: userId,
+        email: value.email,
+        name: value.name,
+        passwordHash,
+        role: 'admin',
+        organizationId: newOrg[0].id,
+        isActive: true,
+        isSuperAdmin: false,
+        hasCompletedOnboarding: false,
+      }).returning();
+    } catch (error: any) {
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        // Fallback creation without new columns
+        newUser = await db.insert(users).values({
+          id: userId,
+          email: value.email,
+          name: value.name,
+          passwordHash,
+          role: 'admin',
+          organizationId: newOrg[0].id,
+          isActive: true,
+        }).returning();
+        
+        // Add missing properties for compatibility
+        if (newUser[0]) {
+          (newUser[0] as any).isSuperAdmin = false;
+          (newUser[0] as any).hasCompletedOnboarding = false;
+        }
+      } else {
+        throw error;
+      }
+    }
+
+    // Create RBAC roles and permissions for the new organization
+    try {
+      await createRBACForNewUser(newOrg[0], newUser[0]);
+    } catch (error) {
+      console.error('Warning: Failed to create RBAC during registration:', error);
+      // Don't fail registration if RBAC creation fails
+    }
 
     // Create default MDM profile for the new organization
     try {
@@ -99,11 +211,14 @@ router.post('/register', async (req, res): Promise<any> => {
     }
 
     // Generate JWT
+    const newUserRecord = newUser[0] as any;
     const token = jwt.sign(
       {
-        userId: newUser[0].id,
-        email: newUser[0].email,
+        userId: newUserRecord.id,
+        email: newUserRecord.email,
         organizationId: newOrg[0].id,
+        isSuperAdmin: newUserRecord.isSuperAdmin || false,
+        hasCompletedOnboarding: newUserRecord.hasCompletedOnboarding || false,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -135,12 +250,40 @@ router.post('/login', async (req, res): Promise<any> => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    // Find user
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, value.email))
-      .limit(1);
+    // Find user - handle missing columns safely during migration
+    let user;
+    try {
+      user = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, value.email))
+        .limit(1);
+    } catch (error: any) {
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        // Fallback query without new columns
+        user = await db
+          .select({
+            id: users.id,
+            email: users.email,
+            name: users.name,
+            passwordHash: users.passwordHash,
+            role: users.role,
+            organizationId: users.organizationId,
+            isActive: users.isActive,
+          })
+          .from(users)
+          .where(eq(users.email, value.email))
+          .limit(1);
+        
+        // Add missing properties for compatibility
+        if (user[0]) {
+          (user[0] as any).isSuperAdmin = false;
+          (user[0] as any).hasCompletedOnboarding = false;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     if (!user[0]) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -174,12 +317,31 @@ router.post('/login', async (req, res): Promise<any> => {
       return res.status(500).json({ error: 'Organization not found' });
     }
 
-    // Generate JWT
+    // Check if organization is active
+    if (!org[0].isActive) {
+      return res.status(403).json({ 
+        error: 'Organization has been disabled. Please contact your global administrator for assistance.',
+        code: 'ORGANIZATION_DISABLED'
+      });
+    }
+
+    // Check if user is active
+    if (!user[0].isActive) {
+      return res.status(403).json({ 
+        error: 'Your account has been disabled. Please contact your administrator.',
+        code: 'USER_DISABLED'
+      });
+    }
+
+    // Generate JWT with safe access to optional columns
+    const userRecord = user[0] as any;
     const token = jwt.sign(
       {
-        userId: user[0].id,
-        email: user[0].email,
+        userId: userRecord.id,
+        email: userRecord.email,
         organizationId: org[0].id,
+        isSuperAdmin: userRecord.isSuperAdmin || false,
+        hasCompletedOnboarding: userRecord.hasCompletedOnboarding || false,
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -188,10 +350,11 @@ router.post('/login', async (req, res): Promise<any> => {
     res.json({
       token,
       user: {
-        id: user[0].id,
-        email: user[0].email,
-        name: user[0].name,
-        role: user[0].role,
+        id: userRecord.id,
+        email: userRecord.email,
+        name: userRecord.name,
+        role: userRecord.role,
+        isSuperAdmin: userRecord.isSuperAdmin || false,
       },
       organization: {
         id: org[0].id,

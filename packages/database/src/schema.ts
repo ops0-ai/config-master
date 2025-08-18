@@ -6,6 +6,9 @@ export const organizations = pgTable('organizations', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   ownerId: uuid('owner_id').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  isPrimary: boolean('is_primary').notNull().default(false), // First org created cannot be disabled
+  metadata: jsonb('metadata').$type<any>().default({}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -26,8 +29,10 @@ export const users = pgTable('users', {
   name: varchar('name', { length: 255 }).notNull(),
   passwordHash: text('password_hash').notNull(),
   role: varchar('role', { length: 50 }).notNull().default('user'),
+  isSuperAdmin: boolean('is_super_admin').notNull().default(false), // Global super admin
   organizationId: uuid('organization_id').references(() => organizations.id),
   isActive: boolean('is_active').notNull().default(true),
+  hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

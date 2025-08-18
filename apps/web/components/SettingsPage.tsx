@@ -610,6 +610,22 @@ export default function SettingsPage() {
           <div className="card-content space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Organization ID
+              </label>
+              <input
+                type="text"
+                value={organization?.id || ''}
+                className="input bg-gray-50 cursor-not-allowed"
+                disabled
+                readOnly
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This is your unique organization identifier and cannot be changed
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Organization Name
               </label>
               <input

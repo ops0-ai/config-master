@@ -11,6 +11,7 @@ import {
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import { organizationApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface Organization {
   id: string;
@@ -20,7 +21,8 @@ interface Organization {
 }
 
 export default function OrganizationSwitcher() {
-  const { organization, setOrganization } = useMinimalAuth();
+  const { user, organization, setOrganization } = useMinimalAuth();
+  const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -158,9 +160,13 @@ export default function OrganizationSwitcher() {
               {({ active }) => (
                 <button
                   onClick={() => {
-                    toast('Create organization feature coming soon!', {
-                      icon: '🚧',
-                    });
+                    if (user?.isSuperAdmin) {
+                      router.push('/admin/organizations');
+                    } else {
+                      toast('Only Global admins are permitted to create new organizations', {
+                        icon: '🔒',
+                      });
+                    }
                   }}
                   className={`
                     ${active ? 'bg-gray-100' : ''}
@@ -168,7 +174,9 @@ export default function OrganizationSwitcher() {
                   `}
                 >
                   <PlusIcon className="h-5 w-5 text-gray-400" />
-                  <span>Create New Organization</span>
+                  <span>
+                    {user?.isSuperAdmin ? 'Manage Organizations' : 'Only Global admins are permitted'}
+                  </span>
                 </button>
               )}
             </Menu.Item>
