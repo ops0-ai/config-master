@@ -331,12 +331,25 @@ router.post('/admin/create', authMiddleware, requireSuperAdmin, async (req: Auth
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    // Create admin user first
+    // Generate IDs first
     const passwordHash = await bcrypt.hash(adminPassword, 10);
     const adminUserId = crypto.randomUUID();
     const orgId = crypto.randomUUID();
 
-    // Create admin user for the organization
+    // Create organization first
+    const newOrg = await db
+      .insert(organizations)
+      .values({
+        id: orgId,
+        name,
+        description,
+        ownerId: adminUserId, // Organization admin is the owner
+        isActive: true,
+        isPrimary: false,
+      })
+      .returning();
+
+    // Create admin user for the organization (after organization exists)
     const newUser = await db
       .insert(users)
       .values({
@@ -347,19 +360,6 @@ router.post('/admin/create', authMiddleware, requireSuperAdmin, async (req: Auth
         role: 'admin',
         organizationId: orgId,
         isActive: true,
-      })
-      .returning();
-
-    // Create organization with admin user as owner
-    const newOrg = await db
-      .insert(organizations)
-      .values({
-        id: orgId,
-        name,
-        description,
-        ownerId: adminUserId, // Organization admin is the owner
-        isActive: true,
-        isPrimary: false,
       })
       .returning();
 
