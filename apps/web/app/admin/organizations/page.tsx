@@ -19,6 +19,9 @@ import {
   PencilIcon,
   TrashIcon,
   ExclamationTriangleIcon,
+  MagnifyingGlassIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 interface Organization {
@@ -34,6 +37,20 @@ interface Organization {
   configCount: number;
   deploymentCount: number;
   mdmDeviceCount: number;
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalOrganizations: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+interface OrganizationsResponse {
+  organizations: Organization[];
+  pagination: PaginationInfo;
 }
 
 interface OrganizationStats {
@@ -66,6 +83,7 @@ export default function OrganizationManagement() {
   const { user } = useMinimalAuth();
   const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [stats, setStats] = useState<OrganizationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -81,6 +99,9 @@ export default function OrganizationManagement() {
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [organizationToDisable, setOrganizationToDisable] = useState<Organization | null>(null);
   const [confirmationName, setConfirmationName] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Redirect if not super admin
   useEffect(() => {
@@ -91,22 +112,31 @@ export default function OrganizationManagement() {
 
   useEffect(() => {
     if (user?.isSuperAdmin) {
-      fetchData();
+      fetchData(currentPage, searchTerm);
     }
   }, [user]);
 
-  const fetchData = async () => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  const fetchData = async (page = 1, search = '') => {
     try {
       setLoading(true);
       
-      // Fetch organizations and stats in parallel (with cache bust)
-      const cacheBust = Date.now();
+      // Fetch organizations and stats in parallel
       const [orgsResponse, statsResponse] = await Promise.all([
-        organizationApi.getAllOrganizations(),
+        organizationApi.getAllOrganizations({ page, limit: 6, search }),
         organizationApi.getOrganizationStats(),
       ]);
 
-      setOrganizations(orgsResponse.data);
+      setOrganizations(orgsResponse.data.organizations);
+      setPagination(orgsResponse.data.pagination);
       setStats(statsResponse.data);
     } catch (error) {
       console.error('Error fetching organization data:', error);
@@ -114,6 +144,28 @@ export default function OrganizationManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      fetchData(1, term);
+    }, 300);
+    
+    setSearchTimeout(timeout);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchData(page, searchTerm);
   };
 
   const handleCreateOrganization = async (e: React.FormEvent) => {
@@ -131,7 +183,7 @@ export default function OrganizationManagement() {
         adminName: '',
         adminPassword: '',
       });
-      await fetchData(); // Refresh data
+      await fetchData(currentPage, searchTerm); // Refresh data
     } catch (error: any) {
       console.error('Error creating organization:', error);
       setError(error.response?.data?.error || 'Failed to create organization');
@@ -153,7 +205,7 @@ export default function OrganizationManagement() {
           isActive: true,
         });
         toast.success(`Organization "${org.name}" has been enabled`);
-        await fetchData(); // Refresh data
+        await fetchData(currentPage, searchTerm); // Refresh data
       } catch (error: any) {
         console.error('Error enabling organization:', error);
         toast.error(error.response?.data?.error || 'Failed to enable organization');
@@ -177,7 +229,7 @@ export default function OrganizationManagement() {
       setShowDisableModal(false);
       setOrganizationToDisable(null);
       setConfirmationName('');
-      await fetchData(); // Refresh data
+      await fetchData(currentPage, searchTerm); // Refresh data
     } catch (error: any) {
       console.error('Error disabling organization:', error);
       toast.error(error.response?.data?.error || 'Failed to disable organization');
@@ -211,10 +263,15 @@ export default function OrganizationManagement() {
 
   return (
     <Layout>
-      <div className="py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <style jsx global>{`
+        main {
+          overflow: hidden !important;
+        }
+      `}</style>
+      <div className="h-full flex flex-col overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="mb-8">
+        <div className="flex-shrink-0 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Organization Management</h1>
@@ -234,14 +291,14 @@ export default function OrganizationManagement() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="flex-shrink-0 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             {error}
           </div>
         )}
 
         {/* Stats Overview */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <div className="flex items-center">
                 <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
@@ -289,11 +346,25 @@ export default function OrganizationManagement() {
         )}
 
         {/* Organizations Table */}
-        <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+        <div className="flex-1 bg-white shadow-sm rounded-lg border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">All Organizations</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900">All Organizations</h2>
+              <div className="relative w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search organizations..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+            </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="flex-1 overflow-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -392,6 +463,91 @@ export default function OrganizationManagement() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {pagination && (
+            <div className="flex-shrink-0 bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!pagination.hasPrevPage}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing{' '}
+                    <span className="font-medium">
+                      {(pagination.currentPage - 1) * pagination.limit + 1}
+                    </span>{' '}
+                    to{' '}
+                    <span className="font-medium">
+                      {Math.min(pagination.currentPage * pagination.limit, pagination.totalOrganizations)}
+                    </span>{' '}
+                    of{' '}
+                    <span className="font-medium">{pagination.totalOrganizations}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={!pagination.hasPrevPage}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeftIcon className="h-5 w-5" />
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, index) => {
+                      let pageNumber;
+                      if (pagination.totalPages <= 5) {
+                        pageNumber = index + 1;
+                      } else if (pagination.currentPage <= 3) {
+                        pageNumber = index + 1;
+                      } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                        pageNumber = pagination.totalPages - 4 + index;
+                      } else {
+                        pageNumber = pagination.currentPage - 2 + index;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNumber}
+                          onClick={() => handlePageChange(pageNumber)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            pageNumber === pagination.currentPage
+                              ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNumber}
+                        </button>
+                      );
+                    })}
+                    
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={!pagination.hasNextPage}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRightIcon className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Create Organization Modal */}

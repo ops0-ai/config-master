@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import {
   HomeIcon,
   ServerIcon,
@@ -24,6 +24,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import OrganizationSwitcher from './OrganizationSwitcher';
+import TutorialButton from './TutorialButton';
+import Onboarding from './Onboarding';
 
 interface LayoutProps {
   children: ReactNode;
@@ -43,7 +45,84 @@ const navigation = [
 
 export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const pathname = usePathname();
+  const { user } = useMinimalAuth();
+
+  // Check if user needs onboarding - only on initial mount
+  useEffect(() => {
+    // Check if we've already shown onboarding in this session
+    const hasShownOnboardingThisSession = sessionStorage.getItem('onboardingShown');
+    
+    const checkOnboardingStatus = async () => {
+      if (!user || hasShownOnboardingThisSession === 'true') {
+        setIsCheckingOnboarding(false);
+        return;
+      }
+
+      try {
+        // Check if user has completed onboarding from the token
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const tokenData = JSON.parse(atob(token.split('.')[1]));
+          const hasCompletedOnboarding = tokenData.hasCompletedOnboarding;
+          
+          // Only show onboarding if user hasn't completed it AND we haven't shown it this session
+          if (hasCompletedOnboarding === false) {
+            console.log('Showing onboarding for first-time user:', user?.email);
+            setShowOnboarding(true);
+            // Mark that we've shown onboarding in this session
+            sessionStorage.setItem('onboardingShown', 'true');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      } finally {
+        setIsCheckingOnboarding(false);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, []); // Empty dependency array - only run once on mount
+
+  const handleOnboardingComplete = async () => {
+    try {
+      const response = await fetch('/api/users/onboarding/complete', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setShowOnboarding(false);
+        
+        // Update the token to reflect onboarding completion
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          try {
+            const parts = token.split('.');
+            const payload = JSON.parse(atob(parts[1]));
+            payload.hasCompletedOnboarding = true;
+            // Note: In production, you'd get a new token from the server
+            // For now, we'll just mark it as completed locally
+          } catch (e) {
+            console.error('Error updating token:', e);
+          }
+        }
+        
+        console.log('Onboarding completed successfully');
+      }
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+    }
+  };
+
+  const handleOnboardingClose = () => {
+    setShowOnboarding(false);
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
@@ -76,7 +155,8 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main content */}
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         {/* Desktop header with organization switcher */}
-        <div className="hidden lg:flex items-center justify-end bg-white px-6 py-3 shadow-sm border-b border-gray-200">
+        <div className="hidden lg:flex items-center justify-end bg-white px-6 py-3 shadow-sm border-b border-gray-200 space-x-3">
+          <TutorialButton onClick={() => setShowOnboarding(true)} />
           <OrganizationSwitcher />
         </div>
         
@@ -89,7 +169,8 @@ export default function Layout({ children }: LayoutProps) {
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
+              <TutorialButton onClick={() => setShowOnboarding(true)} />
               <OrganizationSwitcher />
             </div>
           </div>
@@ -99,6 +180,15 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Onboarding Modal */}
+      {!isCheckingOnboarding && (
+        <Onboarding
+          isOpen={showOnboarding}
+          onClose={handleOnboardingClose}
+          onComplete={handleOnboardingComplete}
+        />
+      )}
     </div>
   );
 

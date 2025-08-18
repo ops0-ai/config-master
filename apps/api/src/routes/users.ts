@@ -332,4 +332,26 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// PUT /api/users/onboarding/complete - Mark onboarding as completed
+router.put('/onboarding/complete', async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.user!.id;
+
+    // Update user's onboarding status
+    await db
+      .update(users)
+      .set({ 
+        hasCompletedOnboarding: true,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId));
+
+    console.log(`✅ User ${req.user!.email} completed onboarding`);
+    res.json({ message: 'Onboarding completed successfully' });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+});
+
 export { router as userRoutes };

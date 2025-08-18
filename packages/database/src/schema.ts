@@ -32,6 +32,7 @@ export const users = pgTable('users', {
   isSuperAdmin: boolean('is_super_admin').notNull().default(false), // Global super admin
   organizationId: uuid('organization_id').references(() => organizations.id),
   isActive: boolean('is_active').notNull().default(true),
+  hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

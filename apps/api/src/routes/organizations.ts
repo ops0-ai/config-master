@@ -416,11 +416,40 @@ router.post('/switch', authMiddleware, async (req: AuthenticatedRequest, res) =>
 // Get all organizations (Super Admin only)
 router.get('/admin/all', authMiddleware, requireSuperAdmin, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
-    // Get basic organization data first
-    const basicOrgs = await db
+    // Parse query parameters
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 6;
+    const search = (req.query.search as string) || '';
+    const offset = (page - 1) * limit;
+
+    // Build search conditions
+    let whereCondition = undefined;
+    if (search) {
+      whereCondition = sql`${organizations.name} ILIKE ${`%${search}%`}`;
+    }
+
+    // Get total count for pagination
+    const [totalResult] = await db
+      .select({ count: sql`COUNT(*)::int` })
+      .from(organizations)
+      .where(whereCondition);
+    
+    const totalOrganizations = totalResult.count as number;
+    const totalPages = Math.ceil(totalOrganizations / limit);
+
+    // Get paginated organization data
+    let query = db
       .select()
       .from(organizations)
-      .orderBy(desc(organizations.createdAt));
+      .orderBy(desc(organizations.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    if (whereCondition) {
+      query = query.where(whereCondition);
+    }
+
+    const basicOrgs = await query;
 
     // Manually add counts for each organization
     const orgsWithStats = await Promise.all(
@@ -442,8 +471,20 @@ router.get('/admin/all', authMiddleware, requireSuperAdmin, async (req: Authenti
       })
     );
 
-    console.log('🔍 Organizations with stats:', JSON.stringify(orgsWithStats, null, 2));
-    res.json(orgsWithStats);
+    const response = {
+      organizations: orgsWithStats,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalOrganizations,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      }
+    };
+
+    console.log(`🔍 Organizations (page ${page}/${totalPages}, search: "${search}"):`, orgsWithStats.length, 'results');
+    res.json(response);
   } catch (error) {
     console.error('Error fetching organizations:', error);
     res.status(500).json({ error: 'Internal server error' });

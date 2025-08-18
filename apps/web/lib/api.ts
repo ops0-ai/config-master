@@ -238,7 +238,8 @@ export const organizationApi = {
     api.post('/organizations/switch', { organizationId }),
   
   // Super Admin endpoints
-  getAllOrganizations: () => api.get('/organizations/admin/all'),
+  getAllOrganizations: (params?: { page?: number; limit?: number; search?: string }) => 
+    api.get('/organizations/admin/all', { params }),
   
   getOrganizationStats: () => api.get('/organizations/admin/stats'),
   
