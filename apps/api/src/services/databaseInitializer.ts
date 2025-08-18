@@ -142,25 +142,17 @@ async function applyAllMigrations(client: postgres.Sql): Promise<void> {
           console.log(`🔧 Executing critical migration ${filename} in transaction...`);
           
           await client.begin(async (txn) => {
-            // Split by statements and execute one by one for better error handling
-            const statements = sql.split(';').filter(s => s.trim().length > 0);
-            
-            for (const statement of statements) {
-              const trimmedStatement = statement.trim();
-              if (trimmedStatement) {
-                try {
-                  await txn.unsafe(trimmedStatement + ';');
-                } catch (error: any) {
-                  // Only ignore specific errors that are expected
-                  if (!error.message?.includes('already exists') && 
-                      !error.message?.includes('duplicate_object') &&
-                      !error.message?.includes('duplicate_constraint') &&
-                      !error.message?.includes('already defined')) {
-                    console.error(`Error in statement from ${filename}:`, trimmedStatement);
-                    console.error('Error:', error.message);
-                    throw error;
-                  }
-                }
+            // Execute the entire migration file without splitting to preserve DO blocks
+            try {
+              await txn.unsafe(sql);
+            } catch (error: any) {
+              // Only ignore specific errors that are expected
+              if (!error.message?.includes('already exists') && 
+                  !error.message?.includes('duplicate_object') &&
+                  !error.message?.includes('duplicate_constraint') &&
+                  !error.message?.includes('already defined')) {
+                console.error(`Error in migration ${filename}:`, error.message);
+                throw error;
               }
             }
           });
