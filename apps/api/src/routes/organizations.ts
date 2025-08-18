@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../index';
-import { organizations, userOrganizations, users, mdmDevices, servers, configurations, deployments, roles, userRoles } from '@config-management/database';
+import { organizations, userOrganizations, users, mdmDevices, servers, configurations, deployments, roles, userRoles, permissions, rolePermissions, mdmProfiles } from '@config-management/database';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { z } from 'zod';
@@ -24,6 +24,193 @@ const updateOrganizationSchema = z.object({
   description: z.string().max(1000).optional(),
   isActive: z.boolean().optional(),
 });
+
+// System permissions for RBAC
+const systemPermissions = [
+  { resource: 'dashboard', action: 'read', description: 'View dashboard and analytics' },
+  { resource: 'settings', action: 'read', description: 'View organization settings' },
+  { resource: 'settings', action: 'write', description: 'Modify organization settings' },
+  { resource: 'users', action: 'read', description: 'View users and roles' },
+  { resource: 'users', action: 'write', description: 'Create and modify users' },
+  { resource: 'users', action: 'delete', description: 'Delete users' },
+  { resource: 'roles', action: 'read', description: 'View roles and permissions' },
+  { resource: 'roles', action: 'write', description: 'Create and modify roles' },
+  { resource: 'roles', action: 'delete', description: 'Delete roles' },
+  { resource: 'servers', action: 'read', description: 'View servers' },
+  { resource: 'servers', action: 'write', description: 'Create and modify servers' },
+  { resource: 'servers', action: 'execute', description: 'Test server connections' },
+  { resource: 'servers', action: 'delete', description: 'Delete servers' },
+  { resource: 'server-groups', action: 'read', description: 'View server groups' },
+  { resource: 'server-groups', action: 'write', description: 'Create and modify server groups' },
+  { resource: 'server-groups', action: 'execute', description: 'Manage server group operations' },
+  { resource: 'server-groups', action: 'delete', description: 'Delete server groups' },
+  { resource: 'pem-keys', action: 'read', description: 'View PEM keys' },
+  { resource: 'pem-keys', action: 'write', description: 'Upload and modify PEM keys' },
+  { resource: 'pem-keys', action: 'execute', description: 'Test PEM key connections' },
+  { resource: 'pem-keys', action: 'delete', description: 'Delete PEM keys' },
+  { resource: 'configurations', action: 'read', description: 'View configurations' },
+  { resource: 'configurations', action: 'write', description: 'Create and modify configurations' },
+  { resource: 'configurations', action: 'execute', description: 'Validate and test configurations' },
+  { resource: 'configurations', action: 'approve', description: 'Approve or reject configurations for deployment' },
+  { resource: 'configurations', action: 'delete', description: 'Delete configurations' },
+  { resource: 'deployments', action: 'read', description: 'View deployments' },
+  { resource: 'deployments', action: 'write', description: 'Create and modify deployments' },
+  { resource: 'deployments', action: 'execute', description: 'Execute and redeploy configurations' },
+  { resource: 'deployments', action: 'delete', description: 'Delete deployments' },
+  { resource: 'training', action: 'read', description: 'Access infrastructure training modules' },
+  { resource: 'chat', action: 'read', description: 'View configuration chat' },
+  { resource: 'chat', action: 'write', description: 'Use AI configuration assistant' },
+  { resource: 'chat', action: 'delete', description: 'Delete chat conversations' },
+  { resource: 'audit-logs', action: 'view', description: 'View audit logs' },
+  { resource: 'audit-logs', action: 'export', description: 'Export audit logs' },
+  { resource: 'aws-integrations', action: 'read', description: 'View AWS integrations' },
+  { resource: 'aws-integrations', action: 'write', description: 'Create and modify AWS integrations' },
+  { resource: 'aws-integrations', action: 'delete', description: 'Delete AWS integrations' },
+  { resource: 'aws-integrations', action: 'sync', description: 'Sync AWS instances' },
+  { resource: 'aws-integrations', action: 'import', description: 'Import AWS instances as servers' },
+  { resource: 'mdm', action: 'read', description: 'View MDM profiles and devices' },
+  { resource: 'mdm', action: 'write', description: 'Create and modify MDM profiles' },
+  { resource: 'mdm', action: 'execute', description: 'Send commands to MDM devices' },
+  { resource: 'mdm', action: 'delete', description: 'Delete MDM profiles' },
+  { resource: 'github-integrations', action: 'read', description: 'View GitHub integrations' },
+  { resource: 'github-integrations', action: 'write', description: 'Create and modify GitHub integrations' },
+  { resource: 'github-integrations', action: 'delete', description: 'Delete GitHub integrations' },
+  { resource: 'github-integrations', action: 'validate', description: 'Validate GitHub tokens' },
+  { resource: 'github-integrations', action: 'sync', description: 'Sync configurations to GitHub' },
+];
+
+// All permissions for admin role
+const adminPermissions = systemPermissions.map(p => `${p.resource}:${p.action}`);
+
+// Function to create RBAC roles and permissions for a new organization
+async function createRBACForOrganization(organization: any, adminUserId: string) {
+  try {
+    console.log(`🔐 Creating RBAC system for organization: ${organization.name}`);
+    
+    // Get all system permissions (they should already exist)
+    const allPermissions = await db.select().from(permissions);
+    const permissionMap = new Map(allPermissions.map(p => [`${p.resource}:${p.action}`, p.id]));
+    
+    // Create Administrator role with all permissions
+    const [adminRole] = await db
+      .insert(roles)
+      .values({
+        name: 'Administrator',
+        description: 'Full access to all platform features and settings',
+        organizationId: organization.id,
+        isSystem: true,
+        createdBy: organization.ownerId,
+      })
+      .returning();
+    
+    // Assign all permissions to Administrator role
+    for (const permissionKey of adminPermissions) {
+      const permissionId = permissionMap.get(permissionKey);
+      if (permissionId) {
+        await db
+          .insert(rolePermissions)
+          .values({
+            roleId: adminRole.id,
+            permissionId: permissionId,
+          })
+          .onConflictDoNothing();
+      }
+    }
+    
+    // Create other standard roles
+    const standardRoles = [
+      {
+        name: 'Developer',
+        description: 'Access to configurations, deployments, and basic server management',
+        permissions: [
+          'dashboard:read', 'servers:read', 'servers:write', 'server-groups:read',
+          'pem-keys:read', 'pem-keys:write', 'configurations:read', 'configurations:write',
+          'configurations:execute', 'deployments:read', 'deployments:write', 'deployments:execute',
+          'training:read', 'chat:read', 'chat:write', 'aws-integrations:read',
+          'github-integrations:read', 'github-integrations:write', 'github-integrations:sync'
+        ]
+      },
+      {
+        name: 'Viewer',
+        description: 'Read-only access to most resources',
+        permissions: [
+          'dashboard:read', 'servers:read', 'server-groups:read', 'pem-keys:read',
+          'configurations:read', 'deployments:read', 'training:read', 'chat:read',
+          'aws-integrations:read', 'github-integrations:read', 'mdm:read'
+        ]
+      }
+    ];
+    
+    for (const roleData of standardRoles) {
+      const [newRole] = await db
+        .insert(roles)
+        .values({
+          name: roleData.name,
+          description: roleData.description,
+          organizationId: organization.id,
+          isSystem: true,
+          createdBy: organization.ownerId,
+        })
+        .returning();
+      
+      // Assign permissions to the role
+      for (const permissionKey of roleData.permissions) {
+        const permissionId = permissionMap.get(permissionKey);
+        if (permissionId) {
+          await db
+            .insert(rolePermissions)
+            .values({
+              roleId: newRole.id,
+              permissionId: permissionId,
+            })
+            .onConflictDoNothing();
+        }
+      }
+    }
+    
+    // Assign Administrator role to the admin user
+    await db
+      .insert(userRoles)
+      .values({
+        userId: adminUserId,
+        roleId: adminRole.id,
+        assignedBy: organization.ownerId,
+        isActive: true,
+      })
+      .onConflictDoNothing();
+    
+    // Create default MDM profile for the organization
+    const enrollmentKey = crypto.randomBytes(32).toString('hex');
+    await db
+      .insert(mdmProfiles)
+      .values({
+        name: `${organization.name} Default MDM Profile`,
+        description: 'Default MDM profile created automatically for organization',
+        organizationId: organization.id,
+        profileType: 'macos',
+        allowRemoteCommands: true,
+        allowLockDevice: true,
+        allowShutdown: false,
+        allowRestart: true,
+        allowWakeOnLan: true,
+        requireAuthentication: true,
+        maxSessionDuration: 3600,
+        allowedIpRanges: [],
+        enrollmentKey: enrollmentKey,
+        isActive: true,
+        createdBy: organization.ownerId,
+      });
+    
+    console.log(`  ✅ Created Administrator role with ${adminPermissions.length} permissions`);
+    console.log(`  ✅ Created 2 additional roles: Developer, Viewer`);
+    console.log(`  👤 Assigned Administrator role to admin user`);
+    console.log(`  📱 Created default MDM profile with enrollment key: ${enrollmentKey}`);
+    
+  } catch (error) {
+    console.error(`❌ Failed to create RBAC for organization ${organization.name}:`, error);
+    throw error;
+  }
+}
 
 // Middleware to check super admin access
 const requireSuperAdmin = (req: AuthenticatedRequest, res: any, next: any) => {
@@ -373,30 +560,10 @@ router.post('/admin/create', authMiddleware, requireSuperAdmin, async (req: Auth
         isActive: true,
       });
 
-    // Assign Administrator role to the organization admin user
-    const [adminRole] = await db
-      .select()
-      .from(roles)
-      .where(
-        and(
-          eq(roles.name, 'Administrator'),
-          eq(roles.organizationId, newOrg[0].id)
-        )
-      )
-      .limit(1);
-
-    if (adminRole) {
-      await db
-        .insert(userRoles)
-        .values({
-          userId: newUser[0].id,
-          roleId: adminRole.id,
-          isActive: true,
-        });
-      console.log(`✅ Assigned Administrator role to ${newUser[0].email} for organization ${newOrg[0].name}`);
-    } else {
-      console.warn(`⚠️ Administrator role not found for organization ${newOrg[0].name}. User will have limited permissions.`);
-    }
+    // Create RBAC roles for the new organization and assign admin permissions
+    await createRBACForOrganization(newOrg[0], newUser[0].id);
+    
+    console.log(`✅ Created RBAC roles and assigned Administrator permissions to ${newUser[0].email} for organization ${newOrg[0].name}`);
 
     res.status(201).json({
       organization: newOrg[0],
