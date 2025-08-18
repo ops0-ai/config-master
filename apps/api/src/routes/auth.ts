@@ -350,11 +350,11 @@ router.post('/login', async (req, res): Promise<any> => {
     res.json({
       token,
       user: {
-        id: user[0].id,
-        email: user[0].email,
-        name: user[0].name,
-        role: user[0].role,
-        isSuperAdmin: user[0].isSuperAdmin,
+        id: userRecord.id,
+        email: userRecord.email,
+        name: userRecord.name,
+        role: userRecord.role,
+        isSuperAdmin: userRecord.isSuperAdmin || false,
       },
       organization: {
         id: org[0].id,
