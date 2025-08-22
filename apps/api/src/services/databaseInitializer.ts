@@ -125,7 +125,7 @@ async function applyAllMigrations(client: postgres.Sql): Promise<void> {
     '0007_multi_tenancy_support.sql',
     '0008_onboarding_support.sql',
     '0009_rbac_fixes.sql',
-    '0010_asset_management.sql'
+    '0011_assets_with_mdm.sql'
   ];
   
   for (const filename of migrationFiles) {
@@ -211,7 +211,13 @@ async function ensureAllTablesExist(client: postgres.Sql): Promise<void> {
     'aws_instances',
     'github_integrations',
     'github_pull_requests',
-    'configuration_github_mappings'
+    'configuration_github_mappings',
+    'assets',
+    'asset_assignments',
+    'asset_history',
+    'asset_maintenance',
+    'asset_categories',
+    'asset_locations'
   ];
   
   for (const tableName of requiredTables) {

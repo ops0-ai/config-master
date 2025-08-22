@@ -1,248 +1,141 @@
 #!/bin/bash
 
-# Pulse Configuration Management - Installation Script
-# This script installs and sets up the system WITHOUT stopping existing containers
-
-set -e
-
-echo "======================================"
-echo "   Pulse Configuration Management"
-echo "        INSTALLATION SCRIPT"
-echo "======================================"
+echo "🚀 ConfigMaster Installation Script"
+echo "==================================="
 echo ""
 
-# Check if we're in the right directory
-if [ ! -f "docker-compose.yml" ]; then
-    echo "❌ Error: docker-compose.yml not found. Please run this script from the project root directory."
+# Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "❌ Docker is not running. Please start Docker and try again."
     exit 1
 fi
 
-# Check environment variables
-echo "🔧 Checking environment configuration..."
-
-# Load .env file if it exists
-if [ -f ".env" ]; then
-    echo "   Loading environment variables from .env file..."
-    set -a  # automatically export all variables
-    source .env
-    set +a  # stop automatically exporting
-fi
-
-# Set default admin credentials if not provided
-export DEFAULT_ADMIN_EMAIL="${DEFAULT_ADMIN_EMAIL:-admin@pulse.dev}"
-export DEFAULT_ADMIN_PASSWORD="${DEFAULT_ADMIN_PASSWORD:-password123}"
-
-echo "   Admin Email: $DEFAULT_ADMIN_EMAIL"
-echo "   Admin Password: [HIDDEN]"
-echo ""
-
-# Build and start containers (without stopping existing ones)
-echo "🏗️  Building and starting containers..."
-docker compose up --build -d
-
-echo ""
-echo "⏳ Waiting for database to be ready..."
-sleep 10
-
-# Wait for API to be healthy
-echo "⏳ Waiting for API to be ready..."
-for i in {1..30}; do
-    if curl -s http://localhost:5005/health > /dev/null 2>&1; then
-        echo "✅ API is ready!"
-        break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "❌ API failed to start within 5 minutes"
-        echo "   Check logs: docker logs configmaster-api"
-        exit 1
-    fi
-    echo "   Attempt $i/30 - waiting..."
-    sleep 10
-done
-
-echo ""
-echo "🔍 Checking database schema..."
-
-# Check if all required tables exist
-MISSING_TABLES=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
-SELECT string_agg(required_table, ', ') 
-FROM (
-    VALUES 
-    ('users'), ('organizations'), ('user_organizations'), ('roles'), ('permissions'), 
-    ('role_permissions'), ('user_roles'), ('servers'), ('server_groups'), ('pem_keys'),
-    ('configurations'), ('deployments'), ('mdm_profiles'), ('mdm_devices'), ('mdm_commands')
-) AS required(required_table)
-WHERE required_table NOT IN (
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public'
-);
-" | tr -d ' ')
-
-if [ ! -z "$MISSING_TABLES" ]; then
-    echo "❌ Missing required tables: $MISSING_TABLES"
-    echo "   Database schema incomplete. Check API logs:"
-    docker logs configmaster-api --tail 50
+# Check if Docker Compose is available
+if ! command -v docker-compose >/dev/null 2>&1 && ! docker compose version >/dev/null 2>&1; then
+    echo "❌ Docker Compose is not available. Please install Docker Compose and try again."
     exit 1
 fi
 
-# Check if required columns exist
-echo "🔍 Checking required columns..."
-
-MISSING_COLUMNS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
-SELECT string_agg(missing_col, ', ')
-FROM (
-    SELECT 'users.is_super_admin' as missing_col
-    WHERE NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'is_super_admin'
-    )
-    UNION ALL
-    SELECT 'users.organization_id' as missing_col
-    WHERE NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'organization_id'
-    )
-    UNION ALL
-    SELECT 'organizations.is_active' as missing_col
-    WHERE NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'organizations' AND column_name = 'is_active'
-    )
-    UNION ALL
-    SELECT 'organizations.is_primary' as missing_col
-    WHERE NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'organizations' AND column_name = 'is_primary'
-    )
-) missing
-WHERE missing_col IS NOT NULL;
-" | tr -d ' ')
-
-if [ ! -z "$MISSING_COLUMNS" ]; then
-    echo "❌ Missing required columns: $MISSING_COLUMNS"
-    echo ""
-    echo "🔧 Applying missing schema fixes..."
-    
-    # Apply the missing schema directly
-    docker exec configmaster-db psql -U postgres -d config_management -c "
-    -- Add missing columns to users table
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_super_admin boolean NOT NULL DEFAULT false;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id uuid;
-    
-    -- Add missing columns to organizations table  
-    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
-    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_primary boolean NOT NULL DEFAULT false;
-    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
-    
-    -- Add missing columns to servers table
-    ALTER TABLE servers ADD COLUMN IF NOT EXISTS type varchar(50) NOT NULL DEFAULT 'linux';
-    ALTER TABLE servers ADD COLUMN IF NOT EXISTS encrypted_password text;
-    
-    -- Add missing columns to server_groups table
-    ALTER TABLE server_groups ADD COLUMN IF NOT EXISTS type varchar(50) DEFAULT 'mixed';
-    
-    -- Add missing columns to configurations table
-    ALTER TABLE configurations ADD COLUMN IF NOT EXISTS source varchar(50) NOT NULL DEFAULT 'manual';
-    ALTER TABLE configurations ADD COLUMN IF NOT EXISTS approval_status varchar(50) NOT NULL DEFAULT 'pending';
-    ALTER TABLE configurations ADD COLUMN IF NOT EXISTS approved_by uuid;
-    ALTER TABLE configurations ADD COLUMN IF NOT EXISTS approved_at timestamp;
-    ALTER TABLE configurations ADD COLUMN IF NOT EXISTS rejection_reason text;
-    
-    -- Add foreign key constraints
-    DO \$\$ BEGIN
-     ALTER TABLE users ADD CONSTRAINT users_organization_id_organizations_id_fk 
-     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE no action ON UPDATE no action;
-    EXCEPTION
-     WHEN duplicate_object THEN null;
-    END \$\$;
-    
-    DO \$\$ BEGIN
-     ALTER TABLE configurations ADD CONSTRAINT configurations_approved_by_users_id_fk 
-     FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE no action ON UPDATE no action;
-    EXCEPTION
-     WHEN duplicate_object THEN null;
-    END \$\$;
-    "
-    
-    echo "✅ Schema fixes applied"
-    
-    # Restart API to reload with fixed schema
-    echo "🔄 Restarting API to apply schema changes..."
-    docker compose restart api
-    
-    # Wait for API to be ready again
-    echo "⏳ Waiting for API to restart..."
-    sleep 10
-    for i in {1..15}; do
-        if curl -s http://localhost:5005/health > /dev/null 2>&1; then
-            echo "✅ API restarted successfully!"
-            break
-        fi
-        if [ $i -eq 15 ]; then
-            echo "❌ API failed to restart"
-            exit 1
-        fi
-        echo "   Attempt $i/15 - waiting..."
-        sleep 5
-    done
+# Use docker compose or docker-compose based on availability
+COMPOSE_CMD="docker compose"
+if ! docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
 fi
 
+echo "🔧 Using: $COMPOSE_CMD"
 echo ""
-echo "🔍 Verifying admin user setup..."
 
-# Check if admin user exists and has correct permissions
-ADMIN_CHECK=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
-SELECT COUNT(*) FROM users WHERE email = '$DEFAULT_ADMIN_EMAIL' AND is_super_admin = true;
-" | tr -d ' ')
+# Clean up any existing installation
+echo "🧹 Cleaning up any existing installation..."
+$COMPOSE_CMD down -v 2>/dev/null || true
+docker system prune -f >/dev/null 2>&1 || true
 
-if [ "$ADMIN_CHECK" = "0" ]; then
-    echo "❌ Super admin user not properly configured"
-    echo "   Checking API logs for setup issues..."
-    docker logs configmaster-api --tail 20
+echo "📦 Building containers..."
+$COMPOSE_CMD build --no-cache
+
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed. Please check the logs above."
+    exit 1
+fi
+
+echo "🚀 Starting services..."
+$COMPOSE_CMD up -d
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to start services. Please check the logs above."
+    exit 1
+fi
+
+echo "⏳ Waiting for services to initialize..."
+sleep 30
+
+# Check if services are healthy
+echo "🔍 Checking service health..."
+
+# Check API
+API_HEALTH=$(curl -s http://localhost:5005/health 2>/dev/null || echo "failed")
+if [[ $API_HEALTH == *"ok"* ]]; then
+    echo "✅ API service is healthy"
 else
-    echo "✅ Super admin user configured correctly"
+    echo "❌ API service is not responding"
+    echo "📋 API logs:"
+    $COMPOSE_CMD logs api | tail -10
+    exit 1
 fi
 
-echo ""
-echo "🔍 Final system check..."
-
-# Test API endpoints
-if curl -s -X POST http://localhost:5005/api/auth/login \
-   -H "Content-Type: application/json" \
-   -d "{\"email\":\"$DEFAULT_ADMIN_EMAIL\",\"password\":\"$DEFAULT_ADMIN_PASSWORD\"}" \
-   | grep -q "token"; then
-    echo "✅ Authentication system working"
+# Check Web
+WEB_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+if [ "$WEB_HEALTH" = "200" ]; then
+    echo "✅ Web service is healthy"
 else
-    echo "❌ Authentication system failed"
-    echo "   Check API logs: docker logs configmaster-api"
+    echo "❌ Web service is not responding"
+    echo "📋 Web logs:"
+    $COMPOSE_CMD logs web | tail -10
+    exit 1
+fi
+
+# Check database
+DB_HEALTH=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT 1;" 2>/dev/null | grep -c "1 row" || echo "0")
+if [ "$DB_HEALTH" = "1" ]; then
+    echo "✅ Database is healthy"
+else
+    echo "❌ Database is not responding"
+    echo "📋 Database logs:"
+    $COMPOSE_CMD logs database | tail -10
+    exit 1
+fi
+
+# Verify asset tables exist
+ASSET_TABLES=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('assets', 'asset_assignments');" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
+if [ "$ASSET_TABLES" = "2" ]; then
+    echo "✅ Asset management tables created"
+else
+    echo "❌ Asset management tables missing"
+    exit 1
+fi
+
+# Verify MDM integration
+MDM_COLUMN=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'assets' AND column_name = 'mdm_device_id';" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
+if [ "$MDM_COLUMN" = "1" ]; then
+    echo "✅ MDM-Asset integration ready"
+else
+    echo "❌ MDM-Asset integration missing"
+    exit 1
+fi
+
+# Verify RBAC permissions
+ASSET_PERMISSIONS=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM permissions WHERE resource = 'asset';" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
+if [ "$ASSET_PERMISSIONS" -ge "6" ]; then
+    echo "✅ Asset RBAC permissions configured"
+else
+    echo "❌ Asset RBAC permissions missing"
+    exit 1
 fi
 
 echo ""
-echo "======================================"
-echo "✅ INSTALLATION COMPLETE!"
-echo "======================================"
+echo "🎉 Installation Complete!"
 echo ""
-echo "🚀 Your Pulse Configuration Management system is ready!"
+echo "🌐 Services:"
+echo "   Web Interface: http://localhost:3000"
+echo "   API Server: http://localhost:5005"
 echo ""
-echo "📋 ACCESS INFORMATION:"
-echo "   Web UI: http://localhost:3000"
-echo "   API: http://localhost:5005"
-echo "   Admin Email: $DEFAULT_ADMIN_EMAIL"
-echo "   Admin Password: $DEFAULT_ADMIN_PASSWORD"
+echo "📋 Features Available:"
+echo "   ✅ Complete Asset Management"
+echo "   ✅ MDM-to-Asset Sync (green 'Sync from MDM' button)"
+echo "   ✅ Asset Assignment & Reassignment"
+echo "   ✅ Role-based Access Control"
+echo "   ✅ Configuration Management"
+echo "   ✅ Server Management"
+echo "   ✅ Deployment Pipeline"
 echo ""
-echo "🔧 NEXT STEPS:"
+echo "🔗 Quick Start:"
 echo "   1. Open http://localhost:3000 in your browser"
-echo "   2. Login with the admin credentials above"
-echo "   3. Create your organization and users"
-echo "   4. Configure your servers and deployments"
+echo "   2. Register a new account or log in"
+echo "   3. Navigate to Assets to use MDM sync feature"
 echo ""
-echo "📚 DOCUMENTATION:"
-echo "   - MDM Setup: Check the MDM section in the web UI"
-echo "   - API Docs: http://localhost:5005/api/docs"
-echo ""
-echo "⚠️  IMPORTANT SECURITY NOTES:"
-echo "   - Change the default admin password after first login"
-echo "   - Configure environment variables for production"
-echo "   - Use HTTPS in production environments"
+echo "🛠️  Useful Commands:"
+echo "   Stop:     $COMPOSE_CMD down"
+echo "   Restart:  $COMPOSE_CMD restart"
+echo "   Logs:     $COMPOSE_CMD logs -f"
+echo "   Status:   $COMPOSE_CMD ps"
 echo ""

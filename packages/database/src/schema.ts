@@ -425,6 +425,7 @@ export const assets = pgTable('assets', {
   qrCode: varchar('qr_code', { length: 255 }),
   imageUrl: varchar('image_url', { length: 500 }),
   isActive: boolean('is_active').notNull().default(true),
+  mdmDeviceId: uuid('mdm_device_id').references(() => mdmDevices.id),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   createdBy: uuid('created_by').references(() => users.id).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),

@@ -576,4 +576,140 @@ router.post('/assignments', rbacMiddleware(['asset:assign']), async (req: Authen
   }
 });
 
+// Sync assets from MDM devices
+router.post('/sync-from-mdm', rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { mdmDevices } = await import('@config-management/database');
+    const organizationId = req.user!.organizationId!;
+    const createdBy = req.user!.id;
+    
+    const { deviceIds, syncPreview, options } = req.body;
+    
+    if (!deviceIds || !Array.isArray(deviceIds) || deviceIds.length === 0) {
+      return res.status(400).json({ error: 'Device IDs are required' });
+    }
+    
+    if (!syncPreview || typeof syncPreview !== 'object') {
+      return res.status(400).json({ error: 'Sync preview data is required' });
+    }
+    
+    // Verify all MDM devices exist and belong to the organization
+    const mdmDevicesList = await db
+      .select()
+      .from(mdmDevices)
+      .where(and(
+        eq(mdmDevices.organizationId, organizationId),
+        eq(mdmDevices.isActive, true)
+      ));
+    
+    const validDeviceIds = mdmDevicesList
+      .filter(device => deviceIds.includes(device.id))
+      .map(device => device.id);
+    
+    if (validDeviceIds.length === 0) {
+      return res.status(400).json({ error: 'No valid MDM devices found' });
+    }
+    
+    // Check for devices already synced
+    const existingAssets = await db
+      .select({ mdmDeviceId: assets.mdmDeviceId })
+      .from(assets)
+      .where(and(
+        eq(assets.organizationId, organizationId),
+        eq(assets.isActive, true)
+      ));
+    
+    const alreadyLinkedDevices = existingAssets
+      .map(asset => asset.mdmDeviceId)
+      .filter(Boolean);
+    
+    const devicesToSync = validDeviceIds.filter(deviceId => 
+      !alreadyLinkedDevices.includes(deviceId)
+    );
+    
+    if (devicesToSync.length === 0) {
+      return res.status(400).json({ 
+        error: 'All selected devices are already synced as assets' 
+      });
+    }
+    
+    // Create assets for each device
+    const createdAssets = [];
+    const errors = [];
+    
+    for (const deviceId of devicesToSync) {
+      const previewData = syncPreview[deviceId];
+      if (!previewData) {
+        errors.push(`Missing sync preview data for device ${deviceId}`);
+        continue;
+      }
+      
+      try {
+        // Generate unique asset tag
+        const timestamp = Date.now().toString().slice(-6);
+        const assetTag = `${previewData.assetTag}-${timestamp}` || generateAssetTag(organizationId, previewData.assetType);
+        
+        const [newAsset] = await db
+          .insert(assets)
+          .values({
+            assetTag,
+            serialNumber: previewData.serialNumber || null,
+            assetType: previewData.assetType,
+            brand: previewData.brand,
+            model: previewData.model,
+            status: previewData.status || 'available',
+            condition: previewData.condition || 'good',
+            specifications: previewData.specifications || {},
+            location: options?.defaultLocation || null,
+            department: options?.defaultDepartment || null,
+            mdmDeviceId: deviceId,
+            organizationId,
+            createdBy,
+            isActive: true,
+          })
+          .returning();
+        
+        // Log asset creation
+        await logAssetHistory(
+          newAsset.id,
+          'created',
+          {},
+          newAsset,
+          createdBy,
+          organizationId,
+          `Asset created from MDM device sync (Device ID: ${deviceId})`
+        );
+        
+        createdAssets.push(newAsset);
+      } catch (error: any) {
+        console.error(`Error creating asset for device ${deviceId}:`, error);
+        if (error.code === '23505') { // Unique constraint violation
+          errors.push(`Asset tag already exists for device ${deviceId}`);
+        } else {
+          errors.push(`Failed to create asset for device ${deviceId}: ${error.message}`);
+        }
+      }
+    }
+    
+    const response = {
+      success: true,
+      created: createdAssets.length,
+      errors: errors.length,
+      assets: createdAssets,
+      errorDetails: errors,
+    };
+    
+    if (errors.length > 0) {
+      response.success = createdAssets.length > 0;
+    }
+    
+    const statusCode = createdAssets.length > 0 ? 201 : 400;
+    res.status(statusCode).json(response);
+    
+  } catch (error) {
+    console.error('Error syncing assets from MDM:', error);
+    res.status(500).json({ error: 'Failed to sync assets from MDM devices' });
+  }
+});
+
 export { router as assetsRoutes };

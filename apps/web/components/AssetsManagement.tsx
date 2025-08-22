@@ -18,7 +18,9 @@ import {
   MapPinIcon,
   ClockIcon,
   DocumentTextIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+import MdmAssetSyncModal from './MdmAssetSyncModal';
 
 interface Asset {
   id: string;
@@ -94,6 +96,7 @@ export default function AssetsManagement({ initialAssets = [] }: AssetsManagemen
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   // Form states
@@ -361,13 +364,23 @@ export default function AssetsManagement({ initialAssets = [] }: AssetsManagemen
               Manage and track your organization's assets
             </p>
           </div>
-          <button
-            onClick={handleCreateAsset}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Add Asset
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowSyncModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
+              title="Sync assets from MDM devices"
+            >
+              <ArrowPathIcon className="h-4 w-4 mr-2" />
+              Sync from MDM
+            </button>
+            <button
+              onClick={handleCreateAsset}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Add Asset
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -1222,6 +1235,13 @@ export default function AssetsManagement({ initialAssets = [] }: AssetsManagemen
           </div>
         </div>
       )}
+
+      {/* MDM Asset Sync Modal */}
+      <MdmAssetSyncModal
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        onSyncComplete={fetchAssets}
+      />
     </div>
   );
 }
