@@ -340,3 +340,102 @@ export const mdmApi = {
   // Download installer
   downloadInstaller: () => api.get('/mdm/download/agent-installer', { responseType: 'text' }),
 };
+
+// Assets API
+export const assetsApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    assetType?: string;
+    brand?: string;
+    assignedUser?: string;
+  }) => api.get('/assets', { params }),
+  
+  getById: (id: string) => api.get(`/assets/${id}`),
+  
+  create: (data: {
+    assetTag?: string;
+    serialNumber?: string;
+    assetType: string;
+    brand?: string;
+    model?: string;
+    status?: string;
+    condition?: string;
+    purchaseDate?: string;
+    purchasePrice?: number;
+    currency?: string;
+    supplier?: string;
+    warrantyStartDate?: string;
+    warrantyEndDate?: string;
+    warrantyProvider?: string;
+    location?: string;
+    costCenter?: string;
+    department?: string;
+    category?: string;
+    subcategory?: string;
+    specifications?: any;
+    notes?: string;
+    barcode?: string;
+    qrCode?: string;
+    imageUrl?: string;
+  }) => api.post('/assets', data),
+  
+  update: (id: string, data: any) => api.put(`/assets/${id}`, data),
+  
+  delete: (id: string) => api.delete(`/assets/${id}`),
+};
+
+// Asset Assignments API
+export const assetAssignmentsApi = {
+  assign: (data: {
+    assetId: string;
+    userId: string;
+    assignmentType?: string;
+    expectedReturnDate?: string;
+    assignmentNotes?: string;
+    assignmentLocation?: string;
+  }) => api.post('/asset-assignments', data),
+  
+  return: (assignmentId: string, data: {
+    returnNotes?: string;
+    condition?: string;
+  }) => api.put(`/asset-assignments/${assignmentId}/return`, data),
+  
+  getAssetAssignments: (assetId: string) => api.get(`/asset-assignments/asset/${assetId}`),
+  
+  getUserAssignments: (userId: string) => api.get(`/asset-assignments/user/${userId}`),
+  
+  bulkAssign: (data: {
+    assignments: Array<{
+      assetId: string;
+      userId: string;
+      assignmentType?: string;
+      assignmentNotes?: string;
+    }>;
+  }) => api.post('/asset-assignments/bulk', data),
+};
+
+// Users API
+export const usersApi = {
+  getAll: () => api.get('/users'),
+  
+  getById: (id: string) => api.get(`/users/${id}`),
+  
+  create: (data: {
+    name: string;
+    email: string;
+    password: string;
+    isActive?: boolean;
+  }) => api.post('/users', data),
+  
+  update: (id: string, data: {
+    name?: string;
+    email?: string;
+    password?: string;
+    isActive?: boolean;
+  }) => api.put(`/users/${id}`, data),
+  
+  delete: (id: string) => api.delete(`/users/${id}`),
+};

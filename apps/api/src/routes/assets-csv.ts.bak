@@ -1,0 +1,561 @@
+import { Router } from 'express';
+import { db } from '../index';
+import { 
+  assets, 
+  assetAssignments, 
+  assetHistory,
+  users 
+} from '@config-management/database';
+import { eq, and, desc } from 'drizzle-orm';
+import { AuthenticatedRequest, rbacMiddleware } from '../middleware/rbacMiddleware';
+import multer from 'multer';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
+import { randomUUID } from 'crypto';
+
+const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper function to generate asset tag
+function generateAssetTag(organizationId: string, assetType: string): string {
+  const prefix = assetType.substring(0, 3).toUpperCase();
+  const timestamp = Date.now().toString().slice(-6);
+  return `${prefix}-${timestamp}`;
+}
+
+// Helper function to log asset history
+async function logAssetHistory(
+  assetId: string,
+  action: string,
+  oldValues: any,
+  newValues: any,
+  performedBy: string,
+  organizationId: string,
+  notes?: string
+) {
+  await db.insert(assetHistory).values({
+    assetId,
+    action,
+    oldValues,
+    newValues,
+    performedBy,
+    organizationId,
+    notes,
+  });
+}
+
+// Export assets to CSV
+router.get('/export', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const exportType = req.query.type as string || 'all'; // all, available, assigned, etc.
+
+    // Build where conditions based on export type
+    const whereConditions: any[] = [eq(assets.organizationId, organizationId), eq(assets.isActive, true)];
+    
+    if (exportType !== 'all') {
+      whereConditions.push(eq(assets.status, exportType));
+    }
+
+    // Get assets with assignment info
+    const assetsData = await db
+      .select({
+        assetTag: assets.assetTag,
+        serialNumber: assets.serialNumber,
+        assetType: assets.assetType,
+        brand: assets.brand,
+        model: assets.model,
+        status: assets.status,
+        condition: assets.condition,
+        purchaseDate: assets.purchaseDate,
+        purchasePrice: assets.purchasePrice,
+        currency: assets.currency,
+        supplier: assets.supplier,
+        warrantyStartDate: assets.warrantyStartDate,
+        warrantyEndDate: assets.warrantyEndDate,
+        warrantyProvider: assets.warrantyProvider,
+        location: assets.location,
+        costCenter: assets.costCenter,
+        department: assets.department,
+        category: assets.category,
+        subcategory: assets.subcategory,
+        notes: assets.notes,
+        assignedUserName: users.name,
+        assignedUserEmail: users.email,
+        assignedAt: assetAssignments.assignedAt,
+        createdAt: assets.createdAt,
+      })
+      .from(assets)
+      .leftJoin(
+        assetAssignments,
+        and(
+          eq(assetAssignments.assetId, assets.id),
+          eq(assetAssignments.isActive, true)
+        )
+      )
+      .leftJoin(users, eq(users.id, assetAssignments.userId))
+      .where(and(...whereConditions))
+      .orderBy(desc(assets.createdAt));
+
+    // Convert to CSV format
+    const csvHeaders = [
+      'Asset Tag',
+      'Serial Number',
+      'Asset Type',
+      'Brand',
+      'Model',
+      'Status',
+      'Condition',
+      'Purchase Date',
+      'Purchase Price',
+      'Currency',
+      'Supplier',
+      'Warranty Start Date',
+      'Warranty End Date',
+      'Warranty Provider',
+      'Location',
+      'Cost Center',
+      'Department',
+      'Category',
+      'Subcategory',
+      'Notes',
+      'Assigned User Name',
+      'Assigned User Email',
+      'Assigned Date',
+      'Created Date',
+    ];
+
+    const csvRows = assetsData.map(asset => [
+      asset.assetTag,
+      asset.serialNumber || '',
+      asset.assetType,
+      asset.brand,
+      asset.model,
+      asset.status,
+      asset.condition || '',
+      asset.purchaseDate || '',
+      asset.purchasePrice || '',
+      asset.currency || '',
+      asset.supplier || '',
+      asset.warrantyStartDate || '',
+      asset.warrantyEndDate || '',
+      asset.warrantyProvider || '',
+      asset.location || '',
+      asset.costCenter || '',
+      asset.department || '',
+      asset.category || '',
+      asset.subcategory || '',
+      asset.notes || '',
+      asset.assignedUserName || '',
+      asset.assignedUserEmail || '',
+      asset.assignedAt ? asset.assignedAt.toISOString() : '',
+      asset.createdAt.toISOString(),
+    ]);
+
+    // Generate CSV content
+    const csvContent = [csvHeaders, ...csvRows]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Set response headers for file download
+    const filename = `assets_export_${exportType}_${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Error exporting assets:', error);
+    res.status(500).json({ error: 'Failed to export assets' });
+  }
+});
+
+// Get CSV template for import
+router.get('/template', rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const templateType = req.query.type as string || 'new_assets';
+
+    let csvHeaders: string[] = [];
+    let sampleRows: string[][] = [];
+
+    switch (templateType) {
+      case 'new_assets':
+        csvHeaders = [
+          'Asset Tag', // Optional - will be auto-generated if empty
+          'Serial Number',
+          'Asset Type', // Required: laptop, desktop, tablet, phone, etc.
+          'Brand', // Required
+          'Model', // Required
+          'Status', // Optional - defaults to 'available'
+          'Condition', // Optional - defaults to 'good'
+          'Purchase Date', // Optional - format: YYYY-MM-DD
+          'Purchase Price', // Optional - numeric
+          'Currency', // Optional - defaults to 'USD'
+          'Supplier',
+          'Warranty Start Date', // Optional - format: YYYY-MM-DD
+          'Warranty End Date', // Optional - format: YYYY-MM-DD
+          'Warranty Provider',
+          'Location',
+          'Cost Center',
+          'Department',
+          'Category',
+          'Subcategory',
+          'Notes',
+        ];
+        sampleRows = [
+          ['LAP-001', 'ABC123456', 'laptop', 'Dell', 'Latitude 7420', 'available', 'good', '2024-01-15', '1200.00', 'USD', 'Dell Inc', '2024-01-15', '2027-01-15', 'Dell Support', 'Office Floor 1', 'IT-001', 'Engineering', 'IT Equipment', 'Laptop', 'High-performance laptop for development'],
+          ['', 'DEF789012', 'desktop', 'HP', 'EliteDesk 800', 'available', 'excellent', '2024-02-20', '800.00', 'USD', 'HP Inc', '2024-02-20', '2027-02-20', 'HP Care Pack', 'Office Floor 2', 'IT-002', 'Sales', 'IT Equipment', 'Desktop', ''],
+        ];
+        break;
+
+      case 'asset_assignments':
+        csvHeaders = [
+          'Asset Tag', // Required - must exist
+          'User Email', // Required - must exist in organization
+          'Assignment Type', // Optional - defaults to 'permanent'
+          'Expected Return Date', // Optional - format: YYYY-MM-DD
+          'Assignment Notes',
+          'Assignment Location',
+        ];
+        sampleRows = [
+          ['LAP-001', 'john.doe@company.com', 'permanent', '', 'Assigned for development work', 'Remote - Home Office'],
+          ['DES-002', 'jane.smith@company.com', 'temporary', '2024-12-31', 'Temporary assignment for project', 'Office Floor 2'],
+        ];
+        break;
+
+      case 'asset_updates':
+        csvHeaders = [
+          'Asset Tag', // Required - must exist
+          'Status', // Optional
+          'Condition', // Optional
+          'Location', // Optional
+          'Cost Center', // Optional
+          'Department', // Optional
+          'Notes', // Optional - will be appended to existing notes
+        ];
+        sampleRows = [
+          ['LAP-001', 'in_repair', 'fair', 'Repair Center', 'IT-001', 'Engineering', 'Sent for keyboard replacement'],
+          ['DES-002', 'available', 'good', 'Storage Room A', 'IT-002', 'Sales', 'Ready for assignment'],
+        ];
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Invalid template type' });
+    }
+
+    // Generate CSV content
+    const csvContent = [csvHeaders, ...sampleRows]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Set response headers for file download
+    const filename = `${templateType}_template.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Error generating template:', error);
+    res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+// Import assets from CSV
+router.post('/import', upload.single('csvFile'), rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const userId = req.user!.id;
+    const importType = req.body.importType || 'new_assets';
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No CSV file uploaded' });
+    }
+
+    const results = [];
+    const errors = [];
+    let rowIndex = 0;
+
+    // Parse CSV
+    const csvData = await new Promise<any[]>((resolve, reject) => {
+      const rows: any[] = [];
+      const stream = Readable.from(req.file!.buffer);
+      
+      stream
+        .pipe(csv())
+        .on('data', (row) => {
+          rows.push(row);
+        })
+        .on('end', () => {
+          resolve(rows);
+        })
+        .on('error', (error) => {
+          reject(error);
+        });
+    });
+
+    for (const row of csvData) {
+      rowIndex++;
+      
+      try {
+        if (importType === 'new_assets') {
+          // Validate required fields
+          if (!row['Asset Type'] || !row['Brand'] || !row['Model']) {
+            errors.push({
+              row: rowIndex,
+              error: 'Missing required fields: Asset Type, Brand, Model',
+              data: row
+            });
+            continue;
+          }
+
+          // Generate asset tag if not provided
+          const assetTag = row['Asset Tag'] || generateAssetTag(organizationId, row['Asset Type']);
+
+          // Check if asset tag already exists
+          const existingAsset = await db
+            .select()
+            .from(assets)
+            .where(and(eq(assets.assetTag, assetTag), eq(assets.organizationId, organizationId)))
+            .limit(1);
+
+          if (existingAsset.length > 0) {
+            errors.push({
+              row: rowIndex,
+              error: `Asset tag '${assetTag}' already exists`,
+              data: row
+            });
+            continue;
+          }
+
+          // Parse dates
+          const purchaseDate = row['Purchase Date'] ? new Date(row['Purchase Date']) : null;
+          const warrantyStartDate = row['Warranty Start Date'] ? new Date(row['Warranty Start Date']) : null;
+          const warrantyEndDate = row['Warranty End Date'] ? new Date(row['Warranty End Date']) : null;
+
+          // Create asset
+          const newAsset = await db.insert(assets).values({
+            assetTag,
+            serialNumber: row['Serial Number'] || null,
+            assetType: row['Asset Type'].toLowerCase(),
+            brand: row['Brand'] || 'Unknown',
+            model: row['Model'] || 'Unknown',
+            status: row['Status'] || 'available',
+            condition: row['Condition'] || 'good',
+            purchaseDate,
+            purchasePrice: row['Purchase Price'] || null,
+            currency: row['Currency'] || 'USD',
+            supplier: row['Supplier'] || null,
+            warrantyStartDate,
+            warrantyEndDate,
+            warrantyProvider: row['Warranty Provider'] || null,
+            location: row['Location'] || null,
+            costCenter: row['Cost Center'] || null,
+            department: row['Department'] || null,
+            category: row['Category'] || null,
+            subcategory: row['Subcategory'] || null,
+            notes: row['Notes'] || null,
+            organizationId,
+            createdBy: userId,
+          }).returning();
+
+          // Log asset creation
+          await logAssetHistory(
+            newAsset[0].id,
+            'created',
+            null,
+            newAsset[0],
+            userId,
+            organizationId,
+            `Asset imported from CSV (Row ${rowIndex})`
+          );
+
+          results.push({
+            row: rowIndex,
+            action: 'created',
+            assetTag: newAsset[0].assetTag,
+            assetId: newAsset[0].id,
+          });
+
+        } else if (importType === 'asset_assignments') {
+          // Validate required fields
+          if (!row['Asset Tag'] || !row['User Email']) {
+            errors.push({
+              row: rowIndex,
+              error: 'Missing required fields: Asset Tag, User Email',
+              data: row
+            });
+            continue;
+          }
+
+          // Find asset
+          const asset = await db
+            .select()
+            .from(assets)
+            .where(and(eq(assets.assetTag, row['Asset Tag']), eq(assets.organizationId, organizationId)))
+            .limit(1);
+
+          if (!asset[0]) {
+            errors.push({
+              row: rowIndex,
+              error: `Asset with tag '${row['Asset Tag']}' not found`,
+              data: row
+            });
+            continue;
+          }
+
+          if (asset[0].status !== 'available') {
+            errors.push({
+              row: rowIndex,
+              error: `Asset '${row['Asset Tag']}' is not available for assignment`,
+              data: row
+            });
+            continue;
+          }
+
+          // Find user
+          const user = await db
+            .select()
+            .from(users)
+            .where(and(eq(users.email, row['User Email']), eq(users.organizationId, organizationId)))
+            .limit(1);
+
+          if (!user[0]) {
+            errors.push({
+              row: rowIndex,
+              error: `User '${row['User Email']}' not found in organization`,
+              data: row
+            });
+            continue;
+          }
+
+          // Create assignment
+          const newAssignment = await db.insert(assetAssignments).values({
+            assetId: asset[0].id,
+            userId: user[0].id,
+            assignedBy: userId,
+            assignmentType: row['Assignment Type'] || 'permanent',
+            expectedReturnDate: row['Expected Return Date'] || null,
+            assignmentNotes: row['Assignment Notes'] || null,
+            assignmentLocation: row['Assignment Location'] || null,
+            organizationId,
+          }).returning();
+
+          // Update asset status
+          await db
+            .update(assets)
+            .set({ status: 'assigned', updatedAt: new Date() })
+            .where(eq(assets.id, asset[0].id));
+
+          // Log assignment
+          await logAssetHistory(
+            asset[0].id,
+            'assigned',
+            { status: 'available', assignedTo: null },
+            { status: 'assigned', assignedTo: user[0].id },
+            userId,
+            organizationId,
+            `Asset assigned via CSV import (Row ${rowIndex}) to ${user[0].name}`
+          );
+
+          results.push({
+            row: rowIndex,
+            action: 'assigned',
+            assetTag: asset[0].assetTag,
+            userEmail: user[0].email,
+            assignmentId: newAssignment[0].id,
+          });
+
+        } else if (importType === 'asset_updates') {
+          // Validate required fields
+          if (!row['Asset Tag']) {
+            errors.push({
+              row: rowIndex,
+              error: 'Missing required field: Asset Tag',
+              data: row
+            });
+            continue;
+          }
+
+          // Find asset
+          const asset = await db
+            .select()
+            .from(assets)
+            .where(and(eq(assets.assetTag, row['Asset Tag']), eq(assets.organizationId, organizationId)))
+            .limit(1);
+
+          if (!asset[0]) {
+            errors.push({
+              row: rowIndex,
+              error: `Asset with tag '${row['Asset Tag']}' not found`,
+              data: row
+            });
+            continue;
+          }
+
+          // Prepare update data
+          const updateData: any = { updatedAt: new Date() };
+          
+          if (row['Status']) updateData.status = row['Status'];
+          if (row['Condition']) updateData.condition = row['Condition'];
+          if (row['Location']) updateData.location = row['Location'];
+          if (row['Cost Center']) updateData.costCenter = row['Cost Center'];
+          if (row['Department']) updateData.department = row['Department'];
+          if (row['Notes']) {
+            // Append to existing notes
+            const existingNotes = asset[0].notes || '';
+            updateData.notes = existingNotes + (existingNotes ? '\n' : '') + `[${new Date().toISOString().split('T')[0]}] ${row['Notes']}`;
+          }
+
+          // Update asset
+          const updatedAsset = await db
+            .update(assets)
+            .set(updateData)
+            .where(eq(assets.id, asset[0].id))
+            .returning();
+
+          // Log update
+          await logAssetHistory(
+            asset[0].id,
+            'updated',
+            asset[0],
+            updatedAsset[0],
+            userId,
+            organizationId,
+            `Asset updated via CSV import (Row ${rowIndex})`
+          );
+
+          results.push({
+            row: rowIndex,
+            action: 'updated',
+            assetTag: asset[0].assetTag,
+            changes: Object.keys(updateData).filter(key => key !== 'updatedAt'),
+          });
+        }
+
+      } catch (error) {
+        console.error(`Error processing row ${rowIndex}:`, error);
+        errors.push({
+          row: rowIndex,
+          error: 'Processing failed: ' + (error as Error).message,
+          data: row
+        });
+      }
+    }
+
+    res.json({
+      success: results,
+      errors,
+      summary: {
+        totalRows: csvData.length,
+        successful: results.length,
+        failed: errors.length,
+        importType,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error importing CSV:', error);
+    res.status(500).json({ error: 'Failed to import CSV file' });
+  }
+});
+
+export { router as assetsCsvRoutes };

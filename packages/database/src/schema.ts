@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, varchar, date, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const organizations = pgTable('organizations', {
@@ -395,6 +395,145 @@ export const awsIntegrationsRelations = relations(awsIntegrations, ({ one, many 
 
 export const awsInstancesRelations = relations(awsInstances, ({ one }) => ({
   integration: one(awsIntegrations, { fields: [awsInstances.integrationId], references: [awsIntegrations.id] }),
+}));
+
+// Asset Management Tables
+export const assets = pgTable('assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  assetTag: varchar('asset_tag', { length: 100 }).notNull().unique(),
+  serialNumber: varchar('serial_number', { length: 255 }),
+  assetType: varchar('asset_type', { length: 50 }).notNull(), // laptop, desktop, tablet, phone, monitor, printer, etc.
+  brand: varchar('brand', { length: 100 }).notNull(),
+  model: varchar('model', { length: 255 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('available'), // available, assigned, in_repair, retired, missing
+  condition: varchar('condition', { length: 50 }).default('good'), // excellent, good, fair, poor
+  purchaseDate: date('purchase_date'),
+  purchasePrice: decimal('purchase_price', { precision: 10, scale: 2 }),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  supplier: varchar('supplier', { length: 255 }),
+  warrantyStartDate: date('warranty_start_date'),
+  warrantyEndDate: date('warranty_end_date'),
+  warrantyProvider: varchar('warranty_provider', { length: 255 }),
+  location: varchar('location', { length: 255 }),
+  costCenter: varchar('cost_center', { length: 100 }),
+  department: varchar('department', { length: 100 }),
+  category: varchar('category', { length: 100 }), // IT Equipment, Office Equipment, Furniture, etc.
+  subcategory: varchar('subcategory', { length: 100 }), // Laptop, Desktop, Mobile Device, etc.
+  specifications: jsonb('specifications').$type<Record<string, any>>().default({}), // CPU, RAM, Storage, OS, etc.
+  notes: text('notes'),
+  barcode: varchar('barcode', { length: 255 }),
+  qrCode: varchar('qr_code', { length: 255 }),
+  imageUrl: varchar('image_url', { length: 500 }),
+  isActive: boolean('is_active').notNull().default(true),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const assetAssignments = pgTable('asset_assignments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  assignedBy: uuid('assigned_by').references(() => users.id).notNull(),
+  assignedAt: timestamp('assigned_at').notNull().defaultNow(),
+  returnedAt: timestamp('returned_at'),
+  returnedBy: uuid('returned_by').references(() => users.id),
+  assignmentType: varchar('assignment_type', { length: 50 }).default('permanent'), // permanent, temporary, loan
+  expectedReturnDate: date('expected_return_date'),
+  assignmentNotes: text('assignment_notes'),
+  returnNotes: text('return_notes'),
+  assignmentLocation: varchar('assignment_location', { length: 255 }),
+  isActive: boolean('is_active').notNull().default(true),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const assetHistory = pgTable('asset_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'cascade' }).notNull(),
+  action: varchar('action', { length: 100 }).notNull(), // created, updated, assigned, returned, repaired, retired, etc.
+  oldValues: jsonb('old_values').$type<Record<string, any>>(),
+  newValues: jsonb('new_values').$type<Record<string, any>>(),
+  performedBy: uuid('performed_by').references(() => users.id).notNull(),
+  notes: text('notes'),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const assetMaintenance = pgTable('asset_maintenance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'cascade' }).notNull(),
+  maintenanceType: varchar('maintenance_type', { length: 50 }).notNull(), // repair, upgrade, inspection, cleaning
+  status: varchar('status', { length: 50 }).notNull().default('scheduled'), // scheduled, in_progress, completed, cancelled
+  scheduledDate: date('scheduled_date'),
+  completedDate: date('completed_date'),
+  cost: decimal('cost', { precision: 10, scale: 2 }),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  vendor: varchar('vendor', { length: 255 }),
+  description: text('description').notNull(),
+  notes: text('notes'),
+  performedBy: uuid('performed_by').references(() => users.id),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const assetCategories = pgTable('asset_categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  parentCategoryId: uuid('parent_category_id'),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const assetLocations = pgTable('asset_locations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  address: text('address'),
+  parentLocationId: uuid('parent_location_id'),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Asset Relations
+export const assetsRelations = relations(assets, ({ one, many }) => ({
+  organization: one(organizations, { fields: [assets.organizationId], references: [organizations.id] }),
+  createdBy: one(users, { fields: [assets.createdBy], references: [users.id] }),
+  assignments: many(assetAssignments),
+  history: many(assetHistory),
+  maintenance: many(assetMaintenance),
+}));
+
+export const assetAssignmentsRelations = relations(assetAssignments, ({ one }) => ({
+  asset: one(assets, { fields: [assetAssignments.assetId], references: [assets.id] }),
+  user: one(users, { fields: [assetAssignments.userId], references: [users.id] }),
+  assignedBy: one(users, { fields: [assetAssignments.assignedBy], references: [users.id] }),
+  returnedBy: one(users, { fields: [assetAssignments.returnedBy], references: [users.id] }),
+  organization: one(organizations, { fields: [assetAssignments.organizationId], references: [organizations.id] }),
+}));
+
+export const assetHistoryRelations = relations(assetHistory, ({ one }) => ({
+  asset: one(assets, { fields: [assetHistory.assetId], references: [assets.id] }),
+  performedBy: one(users, { fields: [assetHistory.performedBy], references: [users.id] }),
+  organization: one(organizations, { fields: [assetHistory.organizationId], references: [organizations.id] }),
+}));
+
+export const assetMaintenanceRelations = relations(assetMaintenance, ({ one }) => ({
+  asset: one(assets, { fields: [assetMaintenance.assetId], references: [assets.id] }),
+  performedBy: one(users, { fields: [assetMaintenance.performedBy], references: [users.id] }),
+  createdBy: one(users, { fields: [assetMaintenance.createdBy], references: [users.id] }),
+  organization: one(organizations, { fields: [assetMaintenance.organizationId], references: [organizations.id] }),
 }));
 
 // GitHub Integration Tables

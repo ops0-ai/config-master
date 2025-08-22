@@ -49,6 +49,7 @@ const RESOURCE_DISPLAY_NAMES: { [key: string]: string } = {
   'chat': 'AI Chat',
   'audit-logs': 'Audit Logs',
   'aws-integrations': 'Integrations',
+  'asset': 'Asset Management',
 };
 
 const ACTION_DISPLAY_NAMES: { [key: string]: string } = {
@@ -456,6 +457,43 @@ export default function CreateEditRolePage() {
                                     permission = resourcePermissions.find(p => p.action === actualAction);
                                   }
                                   
+                                  // For assets, map write to create/update actions
+                                  if (!permission && action === 'write' && resource === 'asset') {
+                                    const createPermission = resourcePermissions.find(p => p.action === 'create');
+                                    const updatePermission = resourcePermissions.find(p => p.action === 'update');
+                                    
+                                    if (createPermission && updatePermission) {
+                                      const createChecked = formData.permissions.includes(createPermission.id);
+                                      const updateChecked = formData.permissions.includes(updatePermission.id);
+                                      
+                                      return (
+                                        <td key={action} className="px-4 py-4 text-center">
+                                          <div className="space-y-1">
+                                            <label className="inline-flex items-center cursor-pointer" title="Create assets">
+                                              <input
+                                                type="checkbox"
+                                                checked={createChecked}
+                                                onChange={() => togglePermission(createPermission.id)}
+                                                className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                              />
+                                              <span className="ml-1 text-xs text-gray-600">Create</span>
+                                            </label>
+                                            <br />
+                                            <label className="inline-flex items-center cursor-pointer" title="Update assets">
+                                              <input
+                                                type="checkbox"
+                                                checked={updateChecked}
+                                                onChange={() => togglePermission(updatePermission.id)}
+                                                className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                              />
+                                              <span className="ml-1 text-xs text-gray-600">Update</span>
+                                            </label>
+                                          </div>
+                                        </td>
+                                      );
+                                    }
+                                  }
+                                  
                                   if (!permission) {
                                     // Check if this resource has any non-standard actions we should show
                                     const nonStandardActions = resourcePermissions.filter(p => 
@@ -480,6 +518,59 @@ export default function CreateEditRolePage() {
                                           </td>
                                         );
                                       }
+                                    }
+                                    
+                                    // For assets, show assign, import, export in the execute column
+                                    if (action === 'execute' && resource === 'asset') {
+                                      const assignPermission = resourcePermissions.find(p => p.action === 'assign');
+                                      const importPermission = resourcePermissions.find(p => p.action === 'import');
+                                      const exportPermission = resourcePermissions.find(p => p.action === 'export');
+                                      
+                                      return (
+                                        <td key={action} className="px-4 py-4 text-center">
+                                          <div className="space-y-1">
+                                            {assignPermission && (
+                                              <>
+                                                <label className="inline-flex items-center cursor-pointer" title="Assign assets to users">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={formData.permissions.includes(assignPermission.id)}
+                                                    onChange={() => togglePermission(assignPermission.id)}
+                                                    className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                  />
+                                                  <span className="ml-1 text-xs text-gray-600">Assign</span>
+                                                </label>
+                                                <br />
+                                              </>
+                                            )}
+                                            {importPermission && (
+                                              <>
+                                                <label className="inline-flex items-center cursor-pointer" title="Import assets from CSV">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={formData.permissions.includes(importPermission.id)}
+                                                    onChange={() => togglePermission(importPermission.id)}
+                                                    className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                  />
+                                                  <span className="ml-1 text-xs text-gray-600">Import</span>
+                                                </label>
+                                                <br />
+                                              </>
+                                            )}
+                                            {exportPermission && (
+                                              <label className="inline-flex items-center cursor-pointer" title="Export assets to CSV">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={formData.permissions.includes(exportPermission.id)}
+                                                  onChange={() => togglePermission(exportPermission.id)}
+                                                  className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <span className="ml-1 text-xs text-gray-600">Export</span>
+                                              </label>
+                                            )}
+                                          </div>
+                                        </td>
+                                      );
                                     }
                                     
                                     // For aws-integrations, show sync and import permissions in the execute column, but grey out the execute action

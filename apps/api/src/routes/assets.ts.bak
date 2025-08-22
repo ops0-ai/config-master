@@ -1,0 +1,477 @@
+import { Router } from 'express';
+import { db } from '../index';
+import { 
+  assets, 
+  assetAssignments, 
+  assetHistory,
+  users 
+} from '@config-management/database';
+import { eq, and, like, desc, asc, sql, or, isNull } from 'drizzle-orm';
+import { AuthenticatedRequest, rbacMiddleware } from '../middleware/rbacMiddleware';
+import multer from 'multer';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
+import { randomUUID } from 'crypto';
+
+const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper function to generate asset tag
+function generateAssetTag(organizationId: string, assetType: string): string {
+  const prefix = assetType.substring(0, 3).toUpperCase();
+  const timestamp = Date.now().toString().slice(-6);
+  return `${prefix}-${timestamp}`;
+}
+
+// Helper function to log asset history
+async function logAssetHistory(
+  assetId: string,
+  action: string,
+  oldValues: any,
+  newValues: any,
+  performedBy: string,
+  organizationId: string,
+  notes?: string
+) {
+  await db.insert(assetHistory).values({
+    assetId,
+    action,
+    oldValues,
+    newValues,
+    performedBy,
+    organizationId,
+    notes,
+  });
+}
+
+// Get all assets with filtering and pagination
+router.get('/', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = (page - 1) * limit;
+    
+    // Filters
+    const search = req.query.search as string;
+    const status = req.query.status as string;
+    const assetType = req.query.assetType as string;
+    const brand = req.query.brand as string;
+    const assignedUser = req.query.assignedUser as string;
+    
+    // Build where conditions
+    const whereConditions: any[] = [eq(assets.organizationId, organizationId), eq(assets.isActive, true)];
+    
+    if (search) {
+      whereConditions.push(
+        or(
+          like(assets.assetTag, `%${search}%`),
+          like(assets.serialNumber, `%${search}%`),
+          like(assets.brand, `%${search}%`),
+          like(assets.model, `%${search}%`)
+        )
+      );
+    }
+    
+    if (status) {
+      whereConditions.push(eq(assets.status, status));
+    }
+    
+    if (assetType) {
+      whereConditions.push(eq(assets.assetType, assetType));
+    }
+    
+    if (brand) {
+      whereConditions.push(eq(assets.brand, brand));
+    }
+
+    // Get assets with current assignment info
+    const assetsQuery = db
+      .select({
+        id: assets.id,
+        assetTag: assets.assetTag,
+        serialNumber: assets.serialNumber,
+        assetType: assets.assetType,
+        brand: assets.brand,
+        model: assets.model,
+        status: assets.status,
+        condition: assets.condition,
+        purchaseDate: assets.purchaseDate,
+        purchasePrice: assets.purchasePrice,
+        currency: assets.currency,
+        supplier: assets.supplier,
+        warrantyStartDate: assets.warrantyStartDate,
+        warrantyEndDate: assets.warrantyEndDate,
+        warrantyProvider: assets.warrantyProvider,
+        location: assets.location,
+        costCenter: assets.costCenter,
+        department: assets.department,
+        category: assets.category,
+        subcategory: assets.subcategory,
+        specifications: assets.specifications,
+        notes: assets.notes,
+        createdAt: assets.createdAt,
+        updatedAt: assets.updatedAt,
+        // Current assignment info
+        assignedUserId: assetAssignments.userId,
+        assignedUserName: users.name,
+        assignedUserEmail: users.email,
+        assignedAt: assetAssignments.assignedAt,
+        assignmentType: assetAssignments.assignmentType,
+      })
+      .from(assets)
+      .leftJoin(
+        assetAssignments,
+        and(
+          eq(assetAssignments.assetId, assets.id),
+          eq(assetAssignments.isActive, true)
+        )
+      )
+      .leftJoin(users, eq(users.id, assetAssignments.userId))
+      .where(and(...whereConditions))
+      .orderBy(desc(assets.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // If filtering by assigned user, add that condition
+    if (assignedUser) {
+      assetsQuery.where(
+        and(
+          ...whereConditions,
+          like(users.name, `%${assignedUser}%`)
+        )
+      );
+    }
+
+    const assetList = await assetsQuery;
+
+    // Get total count for pagination
+    const totalCountResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(assets)
+      .where(and(...whereConditions));
+    
+    const totalCount = totalCountResult[0].count;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Get asset statistics
+    const statsResult = await db
+      .select({
+        status: assets.status,
+        count: sql<number>`count(*)`
+      })
+      .from(assets)
+      .where(and(eq(assets.organizationId, organizationId), eq(assets.isActive, true)))
+      .groupBy(assets.status);
+
+    const stats = statsResult.reduce((acc, stat) => {
+      acc[stat.status] = stat.count;
+      return acc;
+    }, {} as Record<string, number>);
+
+    res.json({
+      assets: assetList,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      stats,
+    });
+  } catch (error) {
+    console.error('Error fetching assets:', error);
+    res.status(500).json({ error: 'Failed to fetch assets' });
+  }
+});
+
+// Get single asset by ID
+router.get('/:id', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const assetId = req.params.id;
+
+    const asset = await db
+      .select({
+        id: assets.id,
+        assetTag: assets.assetTag,
+        serialNumber: assets.serialNumber,
+        assetType: assets.assetType,
+        brand: assets.brand,
+        model: assets.model,
+        status: assets.status,
+        condition: assets.condition,
+        purchaseDate: assets.purchaseDate,
+        purchasePrice: assets.purchasePrice,
+        currency: assets.currency,
+        supplier: assets.supplier,
+        warrantyStartDate: assets.warrantyStartDate,
+        warrantyEndDate: assets.warrantyEndDate,
+        warrantyProvider: assets.warrantyProvider,
+        location: assets.location,
+        costCenter: assets.costCenter,
+        department: assets.department,
+        category: assets.category,
+        subcategory: assets.subcategory,
+        specifications: assets.specifications,
+        notes: assets.notes,
+        barcode: assets.barcode,
+        qrCode: assets.qrCode,
+        imageUrl: assets.imageUrl,
+        createdAt: assets.createdAt,
+        updatedAt: assets.updatedAt,
+        createdBy: assets.createdBy,
+      })
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.organizationId, organizationId)))
+      .limit(1);
+
+    if (!asset[0]) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Get current assignment
+    const currentAssignment = await db
+      .select({
+        id: assetAssignments.id,
+        userId: assetAssignments.userId,
+        userName: users.name,
+        userEmail: users.email,
+        assignedAt: assetAssignments.assignedAt,
+        assignmentType: assetAssignments.assignmentType,
+        assignmentNotes: assetAssignments.assignmentNotes,
+        assignmentLocation: assetAssignments.assignmentLocation,
+      })
+      .from(assetAssignments)
+      .leftJoin(users, eq(users.id, assetAssignments.userId))
+      .where(and(eq(assetAssignments.assetId, assetId), eq(assetAssignments.isActive, true)))
+      .limit(1);
+
+    // Get assignment history
+    const assignmentHistory = await db
+      .select({
+        id: assetAssignments.id,
+        userId: assetAssignments.userId,
+        userName: users.name,
+        userEmail: users.email,
+        assignedAt: assetAssignments.assignedAt,
+        returnedAt: assetAssignments.returnedAt,
+        assignmentType: assetAssignments.assignmentType,
+        assignmentNotes: assetAssignments.assignmentNotes,
+        returnNotes: assetAssignments.returnNotes,
+      })
+      .from(assetAssignments)
+      .leftJoin(users, eq(users.id, assetAssignments.userId))
+      .where(eq(assetAssignments.assetId, assetId))
+      .orderBy(desc(assetAssignments.assignedAt));
+
+    // Get maintenance history (commented out for now)
+    const maintenanceHistory: any[] = [];
+    // const maintenanceHistory = await db
+    //   .select()
+    //   .from(assetMaintenance)
+    //   .where(eq(assetMaintenance.assetId, assetId))
+    //   .orderBy(desc(assetMaintenance.createdAt));
+
+    res.json({
+      asset: asset[0],
+      currentAssignment: currentAssignment[0] || null,
+      assignmentHistory,
+      maintenanceHistory,
+    });
+  } catch (error) {
+    console.error('Error fetching asset:', error);
+    res.status(500).json({ error: 'Failed to fetch asset' });
+  }
+});
+
+// Create new asset
+router.post('/', rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const userId = req.user!.id;
+
+    const {
+      assetTag,
+      serialNumber,
+      assetType,
+      brand,
+      model,
+      status = 'available',
+      condition = 'good',
+      purchaseDate,
+      purchasePrice,
+      currency = 'USD',
+      supplier,
+      warrantyStartDate,
+      warrantyEndDate,
+      warrantyProvider,
+      location,
+      costCenter,
+      department,
+      category,
+      subcategory,
+      specifications = {},
+      notes,
+      barcode,
+      qrCode,
+      imageUrl,
+    } = req.body;
+
+    // Generate asset tag if not provided
+    const finalAssetTag = assetTag || generateAssetTag(organizationId, assetType);
+
+    const newAsset = await db.insert(assets).values({
+      assetTag: finalAssetTag,
+      serialNumber,
+      assetType,
+      brand: brand || 'Unknown',
+      model: model || 'Unknown',
+      status,
+      condition,
+      purchaseDate: purchaseDate || null,
+      purchasePrice: purchasePrice || null,
+      currency,
+      supplier,
+      warrantyStartDate: warrantyStartDate || null,
+      warrantyEndDate: warrantyEndDate || null,
+      warrantyProvider,
+      location,
+      costCenter,
+      department,
+      category,
+      subcategory,
+      specifications,
+      notes,
+      barcode,
+      qrCode,
+      imageUrl,
+      organizationId,
+      createdBy: userId,
+    }).returning();
+
+    // Log asset creation
+    await logAssetHistory(
+      newAsset[0].id,
+      'created',
+      null,
+      newAsset[0],
+      userId,
+      organizationId,
+      'Asset created'
+    );
+
+    res.status(201).json(newAsset[0]);
+  } catch (error) {
+    console.error('Error creating asset:', error);
+    if ((error as any).code === '23505') { // Unique constraint violation
+      res.status(400).json({ error: 'Asset tag already exists' });
+    } else {
+      res.status(500).json({ error: 'Failed to create asset' });
+    }
+  }
+});
+
+// Update asset
+router.put('/:id', rbacMiddleware(['asset:update']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const userId = req.user!.id;
+    const assetId = req.params.id;
+
+    // Get current asset for history
+    const currentAsset = await db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.organizationId, organizationId)))
+      .limit(1);
+
+    if (!currentAsset[0]) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    const updateData = { ...req.body };
+    delete updateData.id;
+    delete updateData.organizationId;
+    delete updateData.createdBy;
+    delete updateData.createdAt;
+    
+    // Dates are already in the correct format (YYYY-MM-DD strings)
+    
+    updateData.updatedAt = new Date();
+
+    const updatedAsset = await db
+      .update(assets)
+      .set(updateData)
+      .where(and(eq(assets.id, assetId), eq(assets.organizationId, organizationId)))
+      .returning();
+
+    // Log asset update
+    await logAssetHistory(
+      assetId,
+      'updated',
+      currentAsset[0],
+      updatedAsset[0],
+      userId,
+      organizationId,
+      'Asset updated'
+    );
+
+    res.json(updatedAsset[0]);
+  } catch (error) {
+    console.error('Error updating asset:', error);
+    res.status(500).json({ error: 'Failed to update asset' });
+  }
+});
+
+// Delete asset (soft delete)
+router.delete('/:id', rbacMiddleware(['asset:delete']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const userId = req.user!.id;
+    const assetId = req.params.id;
+
+    // Check if asset has active assignments
+    const activeAssignments = await db
+      .select()
+      .from(assetAssignments)
+      .where(and(eq(assetAssignments.assetId, assetId), eq(assetAssignments.isActive, true)))
+      .limit(1);
+
+    if (activeAssignments.length > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete asset with active assignments. Please return the asset first.' 
+      });
+    }
+
+    const deletedAsset = await db
+      .update(assets)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(eq(assets.id, assetId), eq(assets.organizationId, organizationId)))
+      .returning();
+
+    if (!deletedAsset[0]) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Log asset deletion
+    await logAssetHistory(
+      assetId,
+      'deleted',
+      { isActive: true },
+      { isActive: false },
+      userId,
+      organizationId,
+      'Asset deleted'
+    );
+
+    res.json({ message: 'Asset deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting asset:', error);
+    res.status(500).json({ error: 'Failed to delete asset' });
+  }
+});
+
+export { router as assetsRoutes };

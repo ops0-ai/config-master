@@ -124,7 +124,8 @@ async function applyAllMigrations(client: postgres.Sql): Promise<void> {
     '0006_clammy_celestials.sql',
     '0007_multi_tenancy_support.sql',
     '0008_onboarding_support.sql',
-    '0009_rbac_fixes.sql'
+    '0009_rbac_fixes.sql',
+    '0010_asset_management.sql'
   ];
   
   for (const filename of migrationFiles) {

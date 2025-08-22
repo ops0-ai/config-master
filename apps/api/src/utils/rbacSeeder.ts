@@ -86,6 +86,15 @@ const systemPermissions = [
   { resource: 'github-integrations', action: 'delete', description: 'Delete GitHub integrations' },
   { resource: 'github-integrations', action: 'validate', description: 'Validate GitHub tokens' },
   { resource: 'github-integrations', action: 'sync', description: 'Sync configurations to GitHub' },
+  
+  // Asset management permissions
+  { resource: 'asset', action: 'read', description: 'View assets and asset details' },
+  { resource: 'asset', action: 'create', description: 'Create new assets' },
+  { resource: 'asset', action: 'update', description: 'Update asset information' },
+  { resource: 'asset', action: 'delete', description: 'Delete assets' },
+  { resource: 'asset', action: 'assign', description: 'Assign assets to users and manage assignments' },
+  { resource: 'asset', action: 'import', description: 'Import assets from CSV files' },
+  { resource: 'asset', action: 'export', description: 'Export assets to CSV files' },
 ];
 
 // Define system roles with their permissions
@@ -108,7 +117,8 @@ const systemRoles = {
       'aws-integrations:sync', 'aws-integrations:import',
       'github-integrations:read', 'github-integrations:write', 'github-integrations:delete',
       'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
-      'github-integrations:validate', 'github-integrations:sync'
+      'github-integrations:validate', 'github-integrations:sync',
+      'asset:read', 'asset:create', 'asset:update', 'asset:delete', 'asset:assign', 'asset:import', 'asset:export'
     ]
   },
   operator: {
@@ -125,7 +135,8 @@ const systemRoles = {
       'aws-integrations:read', 'aws-integrations:sync', 'aws-integrations:import',
       'github-integrations:read', 'github-integrations:write', 'github-integrations:validate', 'github-integrations:sync',
       'mdm:read', 'mdm:write', 'mdm:execute',
-      'audit-logs:view'
+      'audit-logs:view',
+      'asset:read', 'asset:create', 'asset:update', 'asset:assign', 'asset:import', 'asset:export'
     ]
   },
   viewer: {
@@ -135,7 +146,8 @@ const systemRoles = {
       'dashboard:read',
       'servers:read', 'server-groups:read', 'pem-keys:read',
       'configurations:read', 'deployments:read',
-      'training:read', 'chat:read'
+      'training:read', 'chat:read',
+      'asset:read'
     ]
   },
   trainee: {

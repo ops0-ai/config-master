@@ -1,0 +1,418 @@
+import { Router } from 'express';
+import { db } from '../index';
+import { 
+  assets, 
+  assetAssignments, 
+  assetHistory,
+  users 
+} from '@config-management/database';
+import { eq, and, desc } from 'drizzle-orm';
+import { AuthenticatedRequest, rbacMiddleware } from '../middleware/rbacMiddleware';
+
+const router = Router();
+
+// Helper function to log asset history
+async function logAssetHistory(
+  assetId: string,
+  action: string,
+  oldValues: any,
+  newValues: any,
+  performedBy: string,
+  organizationId: string,
+  notes?: string
+) {
+  await db.insert(assetHistory).values({
+    assetId,
+    action,
+    oldValues,
+    newValues,
+    performedBy,
+    organizationId,
+    notes,
+  });
+}
+
+// Assign asset to user
+router.post('/', rbacMiddleware(['asset:assign']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const assignedBy = req.user!.id;
+
+    const {
+      assetId,
+      userId,
+      assignmentType = 'permanent',
+      expectedReturnDate,
+      assignmentNotes,
+      assignmentLocation,
+    } = req.body;
+
+    // Validate asset exists and is available
+    const asset = await db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.organizationId, organizationId)))
+      .limit(1);
+
+    if (!asset[0]) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    if (asset[0].status !== 'available') {
+      return res.status(400).json({ error: 'Asset is not available for assignment' });
+    }
+
+    // Validate user exists in organization
+    const user = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.organizationId, organizationId)))
+      .limit(1);
+
+    if (!user[0]) {
+      return res.status(404).json({ error: 'User not found in organization' });
+    }
+
+    // Check if asset already has active assignment
+    const existingAssignment = await db
+      .select()
+      .from(assetAssignments)
+      .where(and(eq(assetAssignments.assetId, assetId), eq(assetAssignments.isActive, true)))
+      .limit(1);
+
+    if (existingAssignment.length > 0) {
+      return res.status(400).json({ error: 'Asset is already assigned to another user' });
+    }
+
+    // Create assignment
+    const newAssignment = await db.insert(assetAssignments).values({
+      assetId,
+      userId,
+      assignedBy,
+      assignmentType,
+      expectedReturnDate: expectedReturnDate || null,
+      assignmentNotes,
+      assignmentLocation,
+      organizationId,
+    }).returning();
+
+    // Update asset status to assigned
+    await db
+      .update(assets)
+      .set({ status: 'assigned', updatedAt: new Date() })
+      .where(eq(assets.id, assetId));
+
+    // Log assignment
+    await logAssetHistory(
+      assetId,
+      'assigned',
+      { status: 'available', assignedTo: null },
+      { status: 'assigned', assignedTo: userId },
+      assignedBy,
+      organizationId,
+      `Asset assigned to ${user[0].name} (${user[0].email})`
+    );
+
+    // Get the assignment with user details
+    const assignmentWithUser = await db
+      .select({
+        id: assetAssignments.id,
+        assetId: assetAssignments.assetId,
+        assetTag: assets.assetTag,
+        assetBrand: assets.brand,
+        assetModel: assets.model,
+        userId: assetAssignments.userId,
+        userName: users.name,
+        userEmail: users.email,
+        assignedBy: assetAssignments.assignedBy,
+        assignedAt: assetAssignments.assignedAt,
+        assignmentType: assetAssignments.assignmentType,
+        expectedReturnDate: assetAssignments.expectedReturnDate,
+        assignmentNotes: assetAssignments.assignmentNotes,
+        assignmentLocation: assetAssignments.assignmentLocation,
+      })
+      .from(assetAssignments)
+      .leftJoin(users, eq(users.id, assetAssignments.userId))
+      .leftJoin(assets, eq(assets.id, assetAssignments.assetId))
+      .where(eq(assetAssignments.id, newAssignment[0].id))
+      .limit(1);
+
+    res.status(201).json(assignmentWithUser[0]);
+  } catch (error) {
+    console.error('Error assigning asset:', error);
+    res.status(500).json({ error: 'Failed to assign asset' });
+  }
+});
+
+// Return asset (end assignment)
+router.put('/:id/return', rbacMiddleware(['asset:assign']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const returnedBy = req.user!.id;
+    const assignmentId = req.params.id;
+
+    const { returnNotes, condition = 'good' } = req.body;
+
+    // Get assignment details
+    const assignment = await db
+      .select()
+      .from(assetAssignments)
+      .where(and(
+        eq(assetAssignments.id, assignmentId),
+        eq(assetAssignments.organizationId, organizationId),
+        eq(assetAssignments.isActive, true)
+      ))
+      .limit(1);
+
+    if (!assignment[0]) {
+      return res.status(404).json({ error: 'Active assignment not found' });
+    }
+
+    // End assignment
+    const updatedAssignment = await db
+      .update(assetAssignments)
+      .set({
+        returnedAt: new Date(),
+        returnedBy,
+        returnNotes,
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(assetAssignments.id, assignmentId))
+      .returning();
+
+    // Update asset status and condition
+    await db
+      .update(assets)
+      .set({ 
+        status: 'available', 
+        condition,
+        updatedAt: new Date() 
+      })
+      .where(eq(assets.id, assignment[0].assetId));
+
+    // Get user details for logging
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, assignment[0].userId))
+      .limit(1);
+
+    // Log return
+    await logAssetHistory(
+      assignment[0].assetId,
+      'returned',
+      { status: 'assigned', assignedTo: assignment[0].userId },
+      { status: 'available', assignedTo: null },
+      returnedBy,
+      organizationId,
+      `Asset returned from ${user[0]?.name} (${user[0]?.email}). ${returnNotes || ''}`
+    );
+
+    res.json(updatedAssignment[0]);
+  } catch (error) {
+    console.error('Error returning asset:', error);
+    res.status(500).json({ error: 'Failed to return asset' });
+  }
+});
+
+// Get all assignments for an asset
+router.get('/asset/:assetId', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const assetId = req.params.assetId;
+
+    const assignments = await db
+      .select({
+        id: assetAssignments.id,
+        userId: assetAssignments.userId,
+        userName: users.name,
+        userEmail: users.email,
+        assignedBy: assetAssignments.assignedBy,
+        assignedAt: assetAssignments.assignedAt,
+        returnedAt: assetAssignments.returnedAt,
+        returnedBy: assetAssignments.returnedBy,
+        assignmentType: assetAssignments.assignmentType,
+        expectedReturnDate: assetAssignments.expectedReturnDate,
+        assignmentNotes: assetAssignments.assignmentNotes,
+        returnNotes: assetAssignments.returnNotes,
+        assignmentLocation: assetAssignments.assignmentLocation,
+        isActive: assetAssignments.isActive,
+      })
+      .from(assetAssignments)
+      .leftJoin(users, eq(users.id, assetAssignments.userId))
+      .where(and(
+        eq(assetAssignments.assetId, assetId),
+        eq(assetAssignments.organizationId, organizationId)
+      ))
+      .orderBy(desc(assetAssignments.assignedAt));
+
+    res.json(assignments);
+  } catch (error) {
+    console.error('Error fetching asset assignments:', error);
+    res.status(500).json({ error: 'Failed to fetch assignments' });
+  }
+});
+
+// Get all assignments for a user
+router.get('/user/:userId', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const userId = req.params.userId;
+
+    const assignments = await db
+      .select({
+        id: assetAssignments.id,
+        assetId: assetAssignments.assetId,
+        assetTag: assets.assetTag,
+        assetType: assets.assetType,
+        assetBrand: assets.brand,
+        assetModel: assets.model,
+        assetStatus: assets.status,
+        assignedBy: assetAssignments.assignedBy,
+        assignedAt: assetAssignments.assignedAt,
+        returnedAt: assetAssignments.returnedAt,
+        returnedBy: assetAssignments.returnedBy,
+        assignmentType: assetAssignments.assignmentType,
+        expectedReturnDate: assetAssignments.expectedReturnDate,
+        assignmentNotes: assetAssignments.assignmentNotes,
+        returnNotes: assetAssignments.returnNotes,
+        assignmentLocation: assetAssignments.assignmentLocation,
+        isActive: assetAssignments.isActive,
+      })
+      .from(assetAssignments)
+      .leftJoin(assets, eq(assets.id, assetAssignments.assetId))
+      .where(and(
+        eq(assetAssignments.userId, userId),
+        eq(assetAssignments.organizationId, organizationId)
+      ))
+      .orderBy(desc(assetAssignments.assignedAt));
+
+    res.json(assignments);
+  } catch (error) {
+    console.error('Error fetching user assignments:', error);
+    res.status(500).json({ error: 'Failed to fetch assignments' });
+  }
+});
+
+// Bulk assign assets
+router.post('/bulk', rbacMiddleware(['asset:assign']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user!.organizationId!;
+    const assignedBy = req.user!.id;
+
+    const { assignments } = req.body; // Array of { assetId, userId, assignmentType?, assignmentNotes? }
+
+    if (!Array.isArray(assignments) || assignments.length === 0) {
+      return res.status(400).json({ error: 'No assignments provided' });
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (const assignment of assignments) {
+      try {
+        const { assetId, userId, assignmentType = 'permanent', assignmentNotes } = assignment;
+
+        // Validate asset
+        const asset = await db
+          .select()
+          .from(assets)
+          .where(and(eq(assets.id, assetId), eq(assets.organizationId, organizationId)))
+          .limit(1);
+
+        if (!asset[0]) {
+          errors.push({ assetId, error: 'Asset not found' });
+          continue;
+        }
+
+        if (asset[0].status !== 'available') {
+          errors.push({ assetId, error: 'Asset not available' });
+          continue;
+        }
+
+        // Validate user
+        const user = await db
+          .select()
+          .from(users)
+          .where(and(eq(users.id, userId), eq(users.organizationId, organizationId)))
+          .limit(1);
+
+        if (!user[0]) {
+          errors.push({ assetId, userId, error: 'User not found' });
+          continue;
+        }
+
+        // Check existing assignment
+        const existingAssignment = await db
+          .select()
+          .from(assetAssignments)
+          .where(and(eq(assetAssignments.assetId, assetId), eq(assetAssignments.isActive, true)))
+          .limit(1);
+
+        if (existingAssignment.length > 0) {
+          errors.push({ assetId, error: 'Asset already assigned' });
+          continue;
+        }
+
+        // Create assignment
+        const newAssignment = await db.insert(assetAssignments).values({
+          assetId,
+          userId,
+          assignedBy,
+          assignmentType,
+          assignmentNotes,
+          organizationId,
+        }).returning();
+
+        // Update asset status
+        await db
+          .update(assets)
+          .set({ status: 'assigned', updatedAt: new Date() })
+          .where(eq(assets.id, assetId));
+
+        // Log assignment
+        await logAssetHistory(
+          assetId,
+          'assigned',
+          { status: 'available', assignedTo: null },
+          { status: 'assigned', assignedTo: userId },
+          assignedBy,
+          organizationId,
+          `Bulk assigned to ${user[0].name} (${user[0].email})`
+        );
+
+        results.push({
+          assetId,
+          userId,
+          assignmentId: newAssignment[0].id,
+          assetTag: asset[0].assetTag,
+          userName: user[0].name,
+          success: true,
+        });
+      } catch (error) {
+        console.error('Error in bulk assignment:', error);
+        errors.push({ 
+          assetId: assignment.assetId, 
+          userId: assignment.userId, 
+          error: 'Assignment failed' 
+        });
+      }
+    }
+
+    res.json({
+      success: results,
+      errors,
+      summary: {
+        total: assignments.length,
+        successful: results.length,
+        failed: errors.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error in bulk assignment:', error);
+    res.status(500).json({ error: 'Bulk assignment failed' });
+  }
+});
+
+export { router as assetAssignmentsRoutes };
