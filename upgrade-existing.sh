@@ -1,21 +1,22 @@
-#\!/bin/bash
+#!/bin/bash
 
 echo "🔄 ConfigMaster Asset Management Upgrade Script"
 echo "=============================================="
 echo ""
 
 # Check if running
-if \! docker-compose ps | grep -q "Up"; then
+docker-compose ps | grep -q "Up"
+if [ $? -ne 0 ]; then
     echo "❌ System is not running. Please start with 'docker-compose up -d' first."
     exit 1
 fi
 
 echo "⚠️  CRITICAL: This will upgrade your existing system with asset management features."
-echo "   Make sure you have backups before proceeding\!"
+echo "   Make sure you have backups before proceeding."
 echo ""
 read -p "Have you backed up your database? (y/N): " -n 1 -r
 echo
-if [[ \! $REPLY =~ ^[Yy]$ ]]; then
+if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
     echo "❌ Please backup your database first. Exiting."
     exit 1
 fi
@@ -31,7 +32,7 @@ echo "6. Verify asset management is working"
 echo ""
 read -p "Proceed with upgrade? (y/N): " -n 1 -r
 echo
-if [[ \! $REPLY =~ ^[Yy]$ ]]; then
+if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
     echo "❌ Upgrade cancelled."
     exit 1
 fi
@@ -75,35 +76,38 @@ echo ""
 echo "🔍 Step 6: Verifying upgrade..."
 # Check if asset tables exist
 ASSET_TABLES=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'asset%';" 2>/dev/null | tr -d ' ')
-if [ "$ASSET_TABLES" -gt 0 ]; then
+if [ "$ASSET_TABLES" -gt 0 ] 2>/dev/null; then
     echo "✅ Asset tables created successfully ($ASSET_TABLES tables)"
 else
     echo "❌ Asset tables not found"
 fi
 
 # Check logs for successful RBAC seeding
-if docker-compose logs api | grep -q "RBAC seeding completed successfully"; then
+docker-compose logs api | grep -q "RBAC seeding completed successfully"
+if [ $? -eq 0 ]; then
     echo "✅ RBAC permissions updated successfully"
 else
-    echo "❌ RBAC seeding may have failed"
+    echo "⚠️  RBAC seeding may be in progress or may have failed"
 fi
 
 # Check API health
-if curl -s http://localhost:5005/health | grep -q "ok"; then
+curl -s http://localhost:5005/health | grep -q "ok"
+if [ $? -eq 0 ]; then
     echo "✅ API is responding"
 else
     echo "❌ API not responding"
 fi
 
 # Check web health
-if curl -s http://localhost:3000 >/dev/null 2>&1; then
+curl -s http://localhost:3000 >/dev/null 2>&1
+if [ $? -eq 0 ]; then
     echo "✅ Web interface is accessible"
 else
     echo "❌ Web interface not accessible"
 fi
 
 echo ""
-echo "🎉 Upgrade Complete\!"
+echo "🎉 Upgrade Complete!"
 echo ""
 echo "🌐 Services:"
 echo "   Web Interface: http://localhost:3000"
