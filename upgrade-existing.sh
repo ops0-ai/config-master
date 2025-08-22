@@ -5,9 +5,9 @@ echo "=============================================="
 echo ""
 
 # Check if running
-docker-compose ps | grep -q "Up"
+docker compose ps | grep -q "Up"
 if [ $? -ne 0 ]; then
-    echo "❌ System is not running. Please start with 'docker-compose up -d' first."
+    echo "❌ System is not running. Please start with 'docker compose up -d' first."
     exit 1
 fi
 
@@ -50,12 +50,12 @@ fi
 
 echo ""
 echo "🛑 Step 2: Stopping containers gracefully..."
-docker-compose down
+docker compose down
 echo "✅ Containers stopped"
 
 echo ""
 echo "📦 Step 3: Rebuilding containers with asset management..."
-docker-compose build --no-cache
+docker compose build --no-cache
 if [ $? -eq 0 ]; then
     echo "✅ Containers rebuilt successfully"
 else
@@ -65,7 +65,7 @@ fi
 
 echo ""
 echo "🚀 Step 4: Starting upgraded system..."
-docker-compose up -d
+docker compose up -d
 echo "✅ System started"
 
 echo ""
@@ -83,7 +83,7 @@ else
 fi
 
 # Check logs for successful RBAC seeding
-docker-compose logs api | grep -q "RBAC seeding completed successfully"
+docker compose logs api | grep -q "RBAC seeding completed successfully"
 if [ $? -eq 0 ]; then
     echo "✅ RBAC permissions updated successfully"
 else
