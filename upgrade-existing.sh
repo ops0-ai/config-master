@@ -74,9 +74,9 @@ sleep 20
 echo ""
 echo "🔍 Step 6: Verifying upgrade..."
 # Check if asset tables exist
-ASSET_TABLES=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'asset%';")
+ASSET_TABLES=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'asset%';" 2>/dev/null | tr -d ' ')
 if [ "$ASSET_TABLES" -gt 0 ]; then
-    echo "✅ Asset tables created successfully"
+    echo "✅ Asset tables created successfully ($ASSET_TABLES tables)"
 else
     echo "❌ Asset tables not found"
 fi
@@ -86,6 +86,20 @@ if docker-compose logs api | grep -q "RBAC seeding completed successfully"; then
     echo "✅ RBAC permissions updated successfully"
 else
     echo "❌ RBAC seeding may have failed"
+fi
+
+# Check API health
+if curl -s http://localhost:5005/health | grep -q "ok"; then
+    echo "✅ API is responding"
+else
+    echo "❌ API not responding"
+fi
+
+# Check web health
+if curl -s http://localhost:3000 >/dev/null 2>&1; then
+    echo "✅ Web interface is accessible"
+else
+    echo "❌ Web interface not accessible"
 fi
 
 echo ""
