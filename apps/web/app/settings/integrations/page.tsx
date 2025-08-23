@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { githubApi } from '@/lib/api';
 
 interface AWSIntegration {
   id: string;
@@ -82,6 +83,10 @@ export default function IntegrationsPage() {
   const [githubAccessToken, setGithubAccessToken] = useState<string | null>(null);
   const [showGitHubSetup, setShowGitHubSetup] = useState(false);
   const [showGitHubSetupModal, setShowGitHubSetupModal] = useState(false);
+  const [githubOrganizations, setGithubOrganizations] = useState<any[]>([]);
+  const [repositoriesByOrg, setRepositoriesByOrg] = useState<Record<string, any[]>>({});
+  const [personalRepos, setPersonalRepos] = useState<any[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<string>('personal');
   const [awsRegions, setAwsRegions] = useState<string[]>([]);
   const [awsInstances, setAwsInstances] = useState<AWSInstance[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
@@ -316,19 +321,8 @@ export default function IntegrationsPage() {
     
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
-      const response = await fetch('/api/github/integrations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const integrations = await response.json();
-        setGithubIntegrations(integrations);
-      }
+      const response = await githubApi.getIntegrations();
+      setGithubIntegrations(response.data);
     } catch (err) {
       console.error('Error loading GitHub data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load GitHub data');
@@ -337,91 +331,40 @@ export default function IntegrationsPage() {
     }
   };
 
-  const initiateGitHubAuth = async () => {
+  const [showTokenInput, setShowTokenInput] = useState(false);
+  const [githubToken, setGithubToken] = useState('');
+  const [editingIntegrationId, setEditingIntegrationId] = useState<string | null>(null);
+  
+  const authenticateWithGitHub = async () => {
+    if (!githubToken.trim()) {
+      setError('Please enter your GitHub Personal Access Token');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
       
-      const authToken = localStorage.getItem('authToken');
+      const response = await githubApi.authenticateWithToken(githubToken);
+      const data = response.data;
       
-      if (!authToken) {
-        // Redirect to login if no token
-        window.location.href = '/login';
-        return;
+      if (data.success) {
+        setGithubUser(data.user);
+        setGithubOrganizations(data.organizations || []);
+        setRepositoriesByOrg(data.repositoriesByOrg || {});
+        setPersonalRepos(data.personalRepos || []);
+        setGithubAccessToken(data.accessToken);
+        setShowGitHubSetup(true);
+        setShowTokenInput(false);
+        setGithubToken(''); // Clear token from state
       }
-      
-      const response = await fetch('/api/github/auth-url', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const { authUrl } = await response.json();
-      
-      if (!authUrl) {
-        throw new Error('Invalid response: missing authorization URL');
-      }
-      
-      // Redirect to GitHub OAuth
-      window.location.href = authUrl;
-    } catch (err) {
-      console.error('Error initiating GitHub auth:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initiate GitHub authorization');
+    } catch (err: any) {
+      console.error('Error authenticating with GitHub:', err);
+      setError(err.response?.data?.error || 'Failed to authenticate with GitHub. Please check your token.');
     } finally {
       setLoading(false);
     }
   };
-
-  // Handle OAuth callback success
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const success = urlParams.get('success');
-    const error = urlParams.get('error');
-    const data = urlParams.get('data');
-    
-    console.log('Processing GitHub OAuth callback:', { success, error, hasData: !!data });
-    
-    if (success && data) {
-      try {
-        // Decode URL-encoded base64 data
-        const decodedData = decodeURIComponent(data);
-        const successData = JSON.parse(atob(decodedData));
-        
-        console.log('GitHub OAuth success:', {
-          user: successData.user?.login,
-          repositoryCount: successData.repositories?.length,
-          hasToken: !!successData.accessToken
-        });
-        
-        setGithubUser(successData.user);
-        setGithubRepositories(successData.repositories || []);
-        setGithubAccessToken(successData.accessToken);
-        setShowGitHubSetup(true);
-        
-        // Clean up URL after a brief delay to ensure state is set
-        setTimeout(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }, 100);
-        
-      } catch (err) {
-        console.error('Error parsing OAuth callback data:', err);
-        console.error('Raw data:', data);
-        setError('Failed to process GitHub authorization');
-        // Clean up URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    } else if (error) {
-      console.error('GitHub OAuth error:', error);
-      setError(`GitHub authorization failed: ${error}`);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
 
   const createGitHubIntegration = async (formData: {
     name: string;
@@ -440,6 +383,25 @@ export default function IntegrationsPage() {
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
+      if (editingIntegrationId) {
+        // Update existing integration (delete old and create new)
+        const response = await fetch(`/api/github/integrations/${editingIntegrationId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update GitHub integration');
+        }
+        
+        // Remove old integration from state
+        setGithubIntegrations(githubIntegrations.filter(i => i.id !== editingIntegrationId));
+      }
+      
+      // Create new integration
       const response = await fetch('/api/github/integrations', {
         method: 'POST',
         headers: {
@@ -459,15 +421,92 @@ export default function IntegrationsPage() {
       }
 
       const integration = await response.json();
-      setGithubIntegrations([...githubIntegrations, integration]);
+      setGithubIntegrations([...githubIntegrations.filter(i => i.id !== editingIntegrationId), integration]);
       setShowGitHubSetup(false);
       setGithubUser(null);
       setGithubRepositories([]);
       setGithubAccessToken(null);
+      setEditingIntegrationId(null);
       
     } catch (err) {
-      console.error('Error creating GitHub integration:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create GitHub integration');
+      console.error('Error creating/updating GitHub integration:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create/update GitHub integration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshGitHubRepos = async (integrationId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Get the integration's stored token
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/github/integrations/${integrationId}/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh repositories');
+      }
+
+      const data = await response.json();
+      
+      // Update state with refreshed data
+      setGithubUser(data.user);
+      setGithubOrganizations(data.organizations || []);
+      setRepositoriesByOrg(data.repositoriesByOrg || {});
+      setPersonalRepos(data.personalRepos || []);
+      setGithubAccessToken(data.accessToken);
+      
+      // Show success message
+      setError(null);
+      alert('Repositories refreshed successfully!');
+    } catch (err) {
+      console.error('Error refreshing repositories:', err);
+      setError('Failed to refresh repositories. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const changeRepository = async (integrationId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setEditingIntegrationId(integrationId);
+      
+      // Get the integration's stored token and fetch repos
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/github/integrations/${integrationId}/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch repositories');
+      }
+
+      const data = await response.json();
+      
+      // Update state with data from stored token
+      setGithubUser(data.user);
+      setGithubOrganizations(data.organizations || []);
+      setRepositoriesByOrg(data.repositoriesByOrg || {});
+      setPersonalRepos(data.personalRepos || []);
+      setGithubAccessToken(data.accessToken);
+      setShowGitHubSetup(true);
+    } catch (err) {
+      console.error('Error fetching repositories:', err);
+      setError('Failed to fetch repositories. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1079,7 +1118,7 @@ export default function IntegrationsPage() {
               </div>
             </div>
             <button
-              onClick={initiateGitHubAuth}
+              onClick={() => setShowTokenInput(true)}
               disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
@@ -1100,6 +1139,71 @@ export default function IntegrationsPage() {
                   >
                     <span className="sr-only">Dismiss</span>
                     ×
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* GitHub Token Input Modal */}
+          {showTokenInput && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {editingIntegrationId ? 'Change Repository' : 'Connect to GitHub'}
+                </h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Personal Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={githubToken}
+                    onChange={(e) => setGithubToken(e.target.value)}
+                    placeholder="ghp_..."
+                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    {editingIntegrationId ? 
+                      'Enter your GitHub token to select a different repository.' :
+                      <>
+                        Create a token at{' '}
+                        <a
+                          href="https://github.com/settings/tokens/new?scopes=repo,read:org,user:email"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-500"
+                        >
+                          GitHub Settings
+                        </a>
+                        {' '}with repo, read:org, and user:email scopes.
+                      </>
+                    }
+                  </p>
+                </div>
+                {error && (
+                  <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowTokenInput(false);
+                      setGithubToken('');
+                      setError(null);
+                      setEditingIntegrationId(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={authenticateWithGitHub}
+                    disabled={loading || !githubToken.trim()}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {loading ? 'Authenticating...' : 'Connect'}
                   </button>
                 </div>
               </div>
@@ -1143,6 +1247,22 @@ export default function IntegrationsPage() {
                       </div>
                       <div className="flex space-x-2">
                         <button
+                          onClick={() => refreshGitHubRepos(integration.id)}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          title="Refresh repositories"
+                        >
+                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Refresh
+                        </button>
+                        <button
+                          onClick={() => changeRepository(integration.id)}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Change Repository
+                        </button>
+                        <button
                           onClick={() => deleteGitHubIntegration(integration.id)}
                           className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                         >
@@ -1161,16 +1281,23 @@ export default function IntegrationsPage() {
       {/* GitHub Setup Modal */}
       {showGitHubSetup && githubUser && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-5xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">GitHub Integration Setup</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {editingIntegrationId ? 'Change Repository' : 'GitHub Integration Setup'}
+                </h3>
                 <button
                   onClick={() => {
                     setShowGitHubSetup(false);
                     setGithubUser(null);
                     setGithubRepositories([]);
                     setGithubAccessToken(null);
+                    setGithubOrganizations([]);
+                    setEditingIntegrationId(null);
+                    setRepositoriesByOrg({});
+                    setPersonalRepos([]);
+                    setSelectedOrg('personal');
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -1183,17 +1310,35 @@ export default function IntegrationsPage() {
 
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-2">Connected as: {githubUser.login}</h4>
-                <p className="text-sm text-gray-600">Select a repository to sync your configurations with</p>
+                <p className="text-sm text-gray-600 mb-4">Select an organization and repository to sync your configurations with</p>
+                
+                {/* Organization Selector */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Organization</label>
+                  <select
+                    value={selectedOrg}
+                    onChange={(e) => setSelectedOrg(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="personal">Personal ({githubUser.login})</option>
+                    {githubOrganizations.map((org: any) => (
+                      <option key={org.login} value={org.login}>
+                        {org.login} {org.description && `- ${org.description}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                {githubRepositories.map((repo) => (
+              <div className="max-h-96 overflow-y-auto space-y-4">
+                {/* Show repositories based on selected organization */}
+                {(selectedOrg === 'personal' ? personalRepos : repositoriesByOrg[selectedOrg] || []).map((repo: any) => (
                   <div key={repo.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{repo.full_name}</h4>
-                        <p className="text-sm text-gray-600">{repo.description || 'No description'}</p>
-                        <div className="flex items-center mt-1 space-x-2">
+                        <p className="text-sm text-gray-600 mt-1">{repo.description || 'No description'}</p>
+                        <div className="flex items-center mt-2 space-x-2">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                             repo.private ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                           }`}>
@@ -1213,13 +1358,30 @@ export default function IntegrationsPage() {
                             basePath: '/configs'
                           });
                         }}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        className="ml-4 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         Select Repository
                       </button>
                     </div>
                   </div>
                 ))}
+                
+                {/* Show message if no repositories available */}
+                {selectedOrg !== 'personal' && (!repositoriesByOrg[selectedOrg] || repositoriesByOrg[selectedOrg].length === 0) && (
+                  <div className="text-center py-8 text-gray-500">
+                    No repositories found for this organization.
+                    <br />
+                    <span className="text-sm">Make sure you have access to repositories in this organization.</span>
+                  </div>
+                )}
+                
+                {selectedOrg === 'personal' && personalRepos.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No personal repositories found.
+                    <br />
+                    <span className="text-sm">Create a repository on GitHub first.</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

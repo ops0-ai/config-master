@@ -21,12 +21,16 @@ import {
   ChevronRightIcon,
   FunnelIcon,
   XMarkIcon,
+  LinkIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { configurationsApi } from '@/lib/api';
+import { configurationsApi, githubApi } from '@/lib/api';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 import ConfigurationApprovals from './ConfigurationApprovals';
 import ConfigurationEditor from './ConfigurationEditor';
+import GitHubSyncModal from './GitHubSyncModal';
+import GitHubImportModal from './GitHubImportModal';
 
 interface Configuration {
   id: string;
@@ -43,6 +47,13 @@ interface Configuration {
   rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
+  metadata?: {
+    sourcePath?: string;
+    sourceRepo?: string;
+    sourceBranch?: string;
+    importedAt?: string;
+    [key: string]: any;
+  };
 }
 
 const ANSIBLE_TEMPLATES = {
@@ -643,11 +654,14 @@ export default function ConfigurationsPage() {
   const [showEditor, setShowEditor] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showApprovals, setShowApprovals] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingConfig, setEditingConfig] = useState<Configuration | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedConfigForReject, setSelectedConfigForReject] = useState<Configuration | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [showGitHubSync, setShowGitHubSync] = useState(false);
+  const [selectedConfigForSync, setSelectedConfigForSync] = useState<Configuration | null>(null);
 
   // Search and pagination state
   const [searchQuery, setSearchQuery] = useState('');
@@ -848,6 +862,46 @@ export default function ConfigurationsPage() {
     }
   };
 
+  const handleImportFromGitHub = async (files: Array<{ name: string; content: string; path: string; type: string; metadata?: any }>) => {
+    try {
+      setLoading(true);
+      let successCount = 0;
+      
+      for (const file of files) {
+        try {
+          await configurationsApi.create({
+            name: file.name,
+            description: `Imported from GitHub: ${file.path}`,
+            type: file.type,
+            content: file.content,
+            tags: ['imported', 'github'],
+            metadata: {
+              sourcePath: file.path,
+              sourceRepo: file.metadata?.sourceRepo,
+              sourceBranch: file.metadata?.sourceBranch,
+              originalFileName: file.metadata?.originalFileName,
+              importedAt: new Date().toISOString()
+            }
+          });
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to import ${file.name}:`, error);
+          toast.error(`Failed to import ${file.name}`);
+        }
+      }
+      
+      if (successCount > 0) {
+        toast.success(`Successfully imported ${successCount} configuration(s)`);
+        await loadConfigurations();
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Failed to import configurations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Pagination logic
   const totalPages = Math.ceil(filteredConfigurations.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -904,6 +958,26 @@ export default function ConfigurationsPage() {
             if (editingConfig) {
               await configurationsApi.update(editingConfig.id, configData);
               toast.success('Configuration updated successfully');
+              
+              // Auto-sync to GitHub if configuration was previously synced
+              try {
+                const mappings = await githubApi.getConfigurationMappings(editingConfig.id);
+                if (mappings.data.length > 0) {
+                  // Configuration has GitHub mappings, sync automatically
+                  const mapping = mappings.data[0]; // Use first mapping
+                  await githubApi.syncConfiguration(mapping.githubIntegrationId, {
+                    configurationId: editingConfig.id,
+                    relativePath: mapping.relativePath,
+                    branch: mapping.branch,
+                    content: configData.content,
+                    commitMessage: `Update ${configData.name} configuration`,
+                  });
+                  toast.success('Configuration automatically synced to GitHub');
+                }
+              } catch (syncError) {
+                console.warn('Auto-sync to GitHub failed:', syncError);
+                // Don't show error to user, auto-sync is optional
+              }
             } else {
               await configurationsApi.create(configData);
               toast.success('Configuration created successfully');
@@ -952,6 +1026,13 @@ export default function ConfigurationsPage() {
                   Approvals
                 </button>
               )}
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="btn btn-secondary btn-md"
+              >
+                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                Import
+              </button>
               <button
                 onClick={() => setShowTemplates(true)}
                 className="btn btn-secondary btn-md"
@@ -1186,30 +1267,50 @@ export default function ConfigurationsPage() {
                   )}
 
                   {/* Action Buttons */}
-                  {config.approvalStatus === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleApprove(config.id);
-                        }}
-                        className="flex-1 btn btn-success btn-sm"
-                      >
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Approve
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReject(config.id);
-                        }}
-                        className="flex-1 btn btn-danger btn-sm"
-                      >
-                        <XCircleIcon className="h-4 w-4 mr-1" />
-                        Reject
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    {/* GitHub Sync Button - always visible for approved configs */}
+                    {config.approvalStatus === 'approved' && (
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedConfigForSync(config);
+                            setShowGitHubSync(true);
+                          }}
+                          className="flex-1 btn btn-primary btn-sm"
+                        >
+                          <LinkIcon className="h-4 w-4 mr-1" />
+                          Sync to GitHub
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Approval Buttons - only for pending configs */}
+                    {config.approvalStatus === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleApprove(config.id);
+                          }}
+                          className="flex-1 btn btn-success btn-sm"
+                        >
+                          <CheckCircleIcon className="h-4 w-4 mr-1" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReject(config.id);
+                          }}
+                          className="flex-1 btn btn-danger btn-sm"
+                        >
+                          <XCircleIcon className="h-4 w-4 mr-1" />
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1521,17 +1622,32 @@ export default function ConfigurationsPage() {
                   )}
                 </div>
                 
-                <button
-                  onClick={() => {
-                    setEditingConfig(selectedConfig);
-                    setShowConfigDetails(false);
-                    setShowEditor(true);
-                  }}
-                  className="btn btn-secondary btn-sm"
-                >
-                  <PencilIcon className="h-4 w-4 mr-1" />
-                  Edit
-                </button>
+                <div className="flex space-x-2">
+                  {selectedConfig.approvalStatus === 'approved' && (
+                    <button
+                      onClick={() => {
+                        setSelectedConfigForSync(selectedConfig);
+                        setShowConfigDetails(false);
+                        setShowGitHubSync(true);
+                      }}
+                      className="btn btn-primary btn-sm"
+                    >
+                      <LinkIcon className="h-4 w-4 mr-1" />
+                      Sync to GitHub
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditingConfig(selectedConfig);
+                      setShowConfigDetails(false);
+                      setShowEditor(true);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                    Edit
+                  </button>
+                </div>
               </div>
               
               {selectedConfig.approvalStatus === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
@@ -1695,6 +1811,27 @@ export default function ConfigurationsPage() {
           </div>
         </div>
       )}
+
+      {/* GitHub Sync Modal */}
+      {showGitHubSync && selectedConfigForSync && (
+        <GitHubSyncModal
+          configuration={selectedConfigForSync}
+          onClose={() => {
+            setShowGitHubSync(false);
+            setSelectedConfigForSync(null);
+          }}
+          onSyncComplete={() => {
+            loadConfigurations();
+          }}
+        />
+      )}
+
+      {/* GitHub Import Modal */}
+      <GitHubImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImportFromGitHub}
+      />
     </div>
   );
 }

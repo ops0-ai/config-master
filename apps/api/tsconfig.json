@@ -17,14 +17,14 @@
     "noUnusedParameters": false,
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": "../..",
+    "baseUrl": ".",
     "paths": {
-      "@config-management/database": ["packages/database/src"],
-      "@config-management/database/*": ["packages/database/src/*"],
-      "@config-management/ansible-engine": ["packages/ansible-engine/src"],
-      "@config-management/ansible-engine/*": ["packages/ansible-engine/src/*"]
+      "@config-management/database": ["../../packages/database/src"],
+      "@config-management/database/*": ["../../packages/database/src/*"],
+      "@config-management/ansible-engine": ["../../packages/ansible-engine/src"],
+      "@config-management/ansible-engine/*": ["../../packages/ansible-engine/src/*"]
     }
   },
-  "include": ["src/**/*", "../../packages/*/src/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

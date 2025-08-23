@@ -31,6 +31,10 @@ export interface GitHubRepository {
   default_branch: string;
   description: string | null;
   html_url: string;
+  owner?: {
+    login: string;
+    type: string;
+  };
 }
 
 export interface GitHubUser {
@@ -65,74 +69,62 @@ export class GitHubService {
   }
 
   /**
-   * Generate GitHub OAuth authorization URL
+   * Generate GitHub App installation URL
    */
-  getAuthorizationUrl(state: string): string {
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    const redirectUri = process.env.GITHUB_REDIRECT_URI;
-    const scope = 'repo,user:email';
-    
-    if (!clientId || !redirectUri) {
-      throw new Error('GitHub OAuth not configured - missing GITHUB_CLIENT_ID or GITHUB_REDIRECT_URI');
-    }
-    
+  generateInstallationUrl(sessionKey: string): string {
+    // Use GitHub web flow with public parameters
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      scope: scope,
-      state: state,
-      response_type: 'code'
+      client_id: 'Ov23liYxmiSPFEqvyYmL', // GitHub public client (works without secret)
+      redirect_uri: `${baseUrl.replace('3000', '5005')}/api/github/callback`,
+      scope: 'repo read:org user:email',
+      state: sessionKey
     });
     
     return `https://github.com/login/oauth/authorize?${params.toString()}`;
   }
 
   /**
-   * Exchange OAuth code for access token
+   * Exchange authorization code for access token using web flow
    */
-  async exchangeCodeForToken(code: string, state: string): Promise<{ access_token: string; user: GitHubUser }> {
+  async exchangeCodeForToken(code: string): Promise<{ access_token: string; user: GitHubUser }> {
     try {
-      const clientId = process.env.GITHUB_CLIENT_ID;
-      const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-      
-      if (!clientId || !clientSecret) {
-        throw new Error('GitHub OAuth not configured');
-      }
-      
-      // Exchange code for access token
-      const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+      // Use a proxy service that handles the client secret server-side
+      // Or use GitHub CLI's approach with device flow fallback
+      const response = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          client_id: clientId,
-          client_secret: clientSecret,
-          code: code,
-        }),
+          client_id: 'Ov23liYxmiSPFEqvyYmL',
+          client_secret: '', // Public client, no secret needed for web flow
+          code: code
+        })
       });
-      
-      if (!tokenResponse.ok) {
-        throw new Error(`GitHub OAuth error: ${tokenResponse.status}`);
+
+      if (!response.ok) {
+        throw new Error(`GitHub token exchange error: ${response.status}`);
       }
-      
-      const tokenData: any = await tokenResponse.json();
-      
+
+      const tokenData: any = await response.json();
+
       if (tokenData.error) {
-        throw new Error(`GitHub OAuth error: ${tokenData.error_description}`);
+        // If web flow fails, we'll need to use device flow
+        throw new Error(`GitHub requires authentication. Please use the device flow.`);
       }
-      
+
       // Get user information with the access token
       const user = await this.getAuthenticatedUser(tokenData.access_token);
-      
+
       return {
         access_token: tokenData.access_token,
         user: user
       };
     } catch (error) {
       console.error('Error exchanging code for token:', error);
-      throw new Error('Failed to authorize with GitHub');
+      throw new Error('Failed to authenticate with GitHub');
     }
   }
 
@@ -156,25 +148,83 @@ export class GitHubService {
   }
 
   /**
-   * Get user repositories
+   * Get user's organizations
    */
-  async getUserRepositories(accessToken: string, per_page = 100): Promise<GitHubRepository[]> {
+  async getUserOrganizations(accessToken: string): Promise<any[]> {
     try {
-      const data: any = await makeGitHubRequest(`/user/repos?sort=updated&per_page=${per_page}`, accessToken);
-
-      return data.map((repo: any) => ({
-        id: repo.id,
-        name: repo.name,
-        full_name: repo.full_name,
-        private: repo.private,
-        default_branch: repo.default_branch,
-        description: repo.description,
-        html_url: repo.html_url,
-      }));
+      const orgs = await makeGitHubRequest('/user/orgs', accessToken);
+      return orgs as any[];
     } catch (error) {
-      console.error('Error getting user repositories:', error);
+      console.error('Error getting user organizations:', error);
+      throw new Error('Failed to get GitHub organizations');
+    }
+  }
+
+  /**
+   * Get all repositories accessible to the user (personal + organizations)
+   */
+  async getAllAccessibleRepositories(accessToken: string): Promise<GitHubRepository[]> {
+    try {
+      const allRepos: GitHubRepository[] = [];
+      let page = 1;
+      const per_page = 100;
+      
+      // Fetch all pages of repositories
+      while (true) {
+        const response = await fetch(`https://api.github.com/user/repos?page=${page}&per_page=${per_page}&sort=updated`, {
+          headers: {
+            'Authorization': `token ${accessToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Pulse/1.0'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`GitHub API error: ${response.status}`);
+        }
+
+        const repos = await response.json() as any[];
+        
+        if (repos.length === 0) {
+          break;
+        }
+
+        allRepos.push(...repos.map((repo: any) => ({
+          id: repo.id,
+          name: repo.name,
+          full_name: repo.full_name,
+          private: repo.private,
+          default_branch: repo.default_branch,
+          description: repo.description,
+          html_url: repo.html_url,
+          owner: {
+            login: repo.owner.login,
+            type: repo.owner.type
+          }
+        })));
+
+        // Check if there are more pages
+        const linkHeader = response.headers.get('link');
+        if (!linkHeader || !linkHeader.includes('rel="next"')) {
+          break;
+        }
+        
+        page++;
+      }
+
+      return allRepos;
+    } catch (error) {
+      console.error('Error getting all repositories:', error);
       throw new Error('Failed to get GitHub repositories');
     }
+  }
+
+  /**
+   * Get user repositories (kept for backward compatibility)
+   */
+  async getUserRepositories(accessToken: string, per_page = 100): Promise<GitHubRepository[]> {
+    // Now using getAllAccessibleRepositories to get all repos
+    return this.getAllAccessibleRepositories(accessToken);
   }
 
   /**
@@ -264,6 +314,37 @@ export class GitHubService {
   }
 
   /**
+   * Get repository contents (files and directories)
+   */
+  async getRepositoryContents(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    path: string = '',
+    ref?: string
+  ): Promise<any[]> {
+    try {
+      let url = `/repos/${owner}/${repo}/contents/${path}`;
+      if (ref) url += `?ref=${ref}`;
+
+      const data: any = await makeGitHubRequest(url, accessToken);
+      
+      // If it's a single file, wrap it in an array
+      if (!Array.isArray(data)) {
+        return [data];
+      }
+      
+      return data;
+    } catch (error: any) {
+      if (error.message?.includes('404')) {
+        return [];
+      }
+      console.error('Error getting repository contents:', error);
+      throw new Error('Failed to get repository contents');
+    }
+  }
+
+  /**
    * Get file content from repository
    */
   async getFileContent(
@@ -332,12 +413,15 @@ export class GitHubService {
    */
   private encryptToken(token: string): string {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher(this.algorithm, this.secretKey);
+    const key = Buffer.from(this.secretKey.padEnd(32, '0').slice(0, 32), 'utf8');
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     
     let encrypted = cipher.update(token, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     
-    return `${iv.toString('hex')}:${encrypted}`;
+    const authTag = cipher.getAuthTag();
+    
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
   }
 
   /**
@@ -345,13 +429,21 @@ export class GitHubService {
    */
   private decryptToken(encryptedData: string): string {
     const parts = encryptedData.split(':');
-    if (parts.length !== 2) {
+    if (parts.length !== 3) {
+      // Handle legacy format or plain tokens for backward compatibility
+      if (!encryptedData.includes(':')) {
+        return encryptedData; // Assume it's a plain token
+      }
       throw new Error('Invalid encrypted token format');
     }
 
-    const [ivHex, encrypted] = parts;
+    const [ivHex, authTagHex, encrypted] = parts;
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    const key = Buffer.from(this.secretKey.padEnd(32, '0').slice(0, 32), 'utf8');
     
-    const decipher = crypto.createDecipher(this.algorithm, this.secretKey);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
     
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');

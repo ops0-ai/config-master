@@ -128,6 +128,7 @@ export const configurationsApi = {
     content: string;
     variables?: any;
     tags?: string[];
+    metadata?: any;
   }) => api.post('/configurations', data),
   
   update: (id: string, data: {
@@ -339,4 +340,181 @@ export const mdmApi = {
   
   // Download installer
   downloadInstaller: () => api.get('/mdm/download/agent-installer', { responseType: 'text' }),
+};
+
+// Assets API
+export const assetsApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    assetType?: string;
+    brand?: string;
+    assignedUser?: string;
+  }) => api.get('/assets', { params }),
+  
+  getById: (id: string) => api.get(`/assets/${id}`),
+  
+  create: (data: {
+    assetTag?: string;
+    serialNumber?: string;
+    assetType: string;
+    brand?: string;
+    model?: string;
+    status?: string;
+    condition?: string;
+    purchaseDate?: string;
+    purchasePrice?: number;
+    currency?: string;
+    supplier?: string;
+    warrantyStartDate?: string;
+    warrantyEndDate?: string;
+    warrantyProvider?: string;
+    location?: string;
+    costCenter?: string;
+    department?: string;
+    category?: string;
+    subcategory?: string;
+    specifications?: any;
+    notes?: string;
+    barcode?: string;
+    qrCode?: string;
+    imageUrl?: string;
+  }) => api.post('/assets', data),
+  
+  update: (id: string, data: any) => api.put(`/assets/${id}`, data),
+  
+  delete: (id: string) => api.delete(`/assets/${id}`),
+};
+
+// Asset Assignments API
+export const assetAssignmentsApi = {
+  assign: (data: {
+    assetId: string;
+    userId: string;
+    assignmentType?: string;
+    expectedReturnDate?: string;
+    assignmentNotes?: string;
+    assignmentLocation?: string;
+  }) => api.post('/asset-assignments', data),
+  
+  return: (assignmentId: string, data: {
+    returnNotes?: string;
+    condition?: string;
+  }) => api.put(`/asset-assignments/${assignmentId}/return`, data),
+  
+  getAssetAssignments: (assetId: string) => api.get(`/asset-assignments/asset/${assetId}`),
+  
+  getUserAssignments: (userId: string) => api.get(`/asset-assignments/user/${userId}`),
+  
+  bulkAssign: (data: {
+    assignments: Array<{
+      assetId: string;
+      userId: string;
+      assignmentType?: string;
+      assignmentNotes?: string;
+    }>;
+  }) => api.post('/asset-assignments/bulk', data),
+};
+
+// Users API
+export const usersApi = {
+  getAll: () => api.get('/users'),
+  
+  getById: (id: string) => api.get(`/users/${id}`),
+  
+  create: (data: {
+    name: string;
+    email: string;
+    password: string;
+    isActive?: boolean;
+  }) => api.post('/users', data),
+  
+  update: (id: string, data: {
+    name?: string;
+    email?: string;
+    password?: string;
+    isActive?: boolean;
+  }) => api.put(`/users/${id}`, data),
+  
+  delete: (id: string) => api.delete(`/users/${id}`),
+};
+
+// GitHub API
+export const githubApi = {
+  // Authenticate with Personal Access Token
+  authenticateWithToken: (token: string) => api.post('/github/auth/token', { token }),
+  
+  // Get GitHub integrations
+  getIntegrations: () => api.get('/github/integrations'),
+  
+  // Get OAuth session data
+  getSessionData: (sessionKey: string) => api.get(`/github/session/${sessionKey}`),
+  
+  // Create GitHub integration
+  createIntegration: (data: {
+    name: string;
+    repositoryId: string;
+    repositoryName: string;
+    repositoryFullName: string;
+    defaultBranch: string;
+    basePath: string;
+    accessToken: string;
+    user: any;
+  }) => api.post('/github/integrations', data),
+  
+  // Delete GitHub integration
+  deleteIntegration: (id: string) => api.delete(`/github/integrations/${id}`),
+  
+  // Update GitHub integration
+  updateIntegration: (id: string, data: {
+    name?: string;
+    defaultBranch?: string;
+    basePath?: string;
+    autoFetch?: boolean;
+    fetchInterval?: number;
+  }) => api.put(`/github/integrations/${id}`, data),
+  
+  // Get repository branches
+  getBranches: (integrationId: string, owner: string, repo: string) => 
+    api.get(`/github/integrations/${integrationId}/repositories/${owner}/${repo}/branches`),
+  
+  // Sync configuration to GitHub
+  syncConfiguration: (integrationId: string, data: {
+    configurationId: string;
+    relativePath: string;
+    branch: string;
+    content: string;
+    commitMessage: string;
+  }) => api.post(`/github/integrations/${integrationId}/sync-configuration`, data),
+
+  // Sync asset inventory to GitHub
+  syncAssetInventory: (integrationId: string, data: {
+    relativePath: string;
+    branch: string;
+    content: string;
+    commitMessage: string;
+    format?: 'csv' | 'json';
+  }) => api.post(`/github/integrations/${integrationId}/sync-asset-inventory`, data),
+  
+  // Get configuration mappings for a specific configuration
+  getConfigurationMappings: (configurationId: string) => 
+    api.get(`/configurations/${configurationId}/github-mappings`),
+  
+  // Get repository contents
+  getRepositoryContents: (integrationId: string, owner: string, repo: string, path: string, branch: string) =>
+    api.get(`/github/integrations/${integrationId}/repositories/${owner}/${repo}/contents`, {
+      params: { path, branch }
+    }),
+  
+  // Get file content
+  getFileContent: (integrationId: string, owner: string, repo: string, path: string, branch: string) =>
+    api.get(`/github/integrations/${integrationId}/repositories/${owner}/${repo}/file`, {
+      params: { path, branch }
+    }),
+
+  // Refresh repositories using stored token
+  refreshRepositories: (integrationId: string) => 
+    api.post(`/github/integrations/${integrationId}/refresh`),
 };

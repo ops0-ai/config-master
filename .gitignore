@@ -33,3 +33,5 @@ yarn-error.log*
 *.swp
 *.swo
 dist/
+
+CLAUDE.md

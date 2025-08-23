@@ -26,6 +26,8 @@ import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
 import organizationRoutes from './routes/organizations';
 import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
+import { assetsRoutes } from './routes/assets';
+import { assetAssignmentsRoutes } from './routes/asset-assignments';
 import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
@@ -112,6 +114,8 @@ app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/dashboard', authMiddleware, dashboardRoutes);
 app.use('/api/organizations', authMiddleware, organizationRoutes);
+app.use('/api/assets', authMiddleware, assetsRoutes);
+app.use('/api/asset-assignments', authMiddleware, assetAssignmentsRoutes);
 app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
 app.use('/api/mdm', authMiddleware, rbacMiddleware(), auditMiddleware, mdmRoutes);
 

@@ -51,6 +51,12 @@ RUN npm run build || npx tsc || true
 WORKDIR /app/apps/api
 RUN npx tsc --project ./tsconfig.json
 
+# Copy the compiled files to the expected structure
+RUN mkdir -p dist && \
+    cp dist/apps/api/src/index.js dist/index.js 2>/dev/null || true && \
+    cp -r dist/apps/api/src/* dist/ 2>/dev/null || true && \
+    cp src/routes/simple-assets.js dist/routes/simple-assets.js 2>/dev/null || true
+
 # Remove dev dependencies after build
 WORKDIR /app
 RUN npm prune --production
@@ -71,4 +77,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5005/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Run the application
-CMD ["node", "dist/apps/api/src/index.js"]
+CMD ["npm", "start"]

@@ -10,6 +10,8 @@ A comprehensive SaaS platform for infrastructure configuration management featur
 - **Secure Key Management**: Encrypted storage and rotation of SSH private keys
 - **Configuration Drift Detection**: Automated monitoring and alerting for configuration deviations
 - **Real-time Deployments**: Execute Ansible configurations with live progress tracking
+- **GitHub Integration**: Import/export configurations and sync asset inventory to GitHub repositories
+- **Asset Management**: Complete asset lifecycle management with MDM integration and GitHub sync
 - **Audit Logging**: Complete activity tracking for compliance and security
 
 ### Enterprise Features
@@ -89,6 +91,12 @@ config-management/
    PORT=5005
    FRONTEND_URL=http://localhost:3000
    PEM_KEYS_DIR=/secure/pem-keys
+   
+   # GitHub Integration (Optional - for GitHub features)
+   GITHUB_APP_ID=your-github-app-id
+   GITHUB_CLIENT_ID=your-github-client-id
+   GITHUB_CLIENT_SECRET=your-github-client-secret
+   GITHUB_PRIVATE_KEY=your-github-private-key
    ```
 
    **apps/web/.env.local**
@@ -115,6 +123,12 @@ config-management/
    cd apps/web && npm run dev    # Frontend on :3000
    ```
 
+6. **GitHub Integration Setup** (Optional)
+   - Create a GitHub Personal Access Token with `repo` permissions
+   - Navigate to Settings > Integrations in the Pulse web interface
+   - Add GitHub integration with your repository details
+   - Start importing configurations and syncing assets
+
 ## 📖 Usage Guide
 
 ### 1. Server Management
@@ -135,7 +149,21 @@ config-management/
 - **Remediation**: One-click re-application of configurations to fix drift
 - **Historical Tracking**: View drift history and compliance trends
 
-### 4. Enterprise Management
+### 4. GitHub Integration
+- **Configuration Import**: Import Ansible playbooks/roles from GitHub repositories
+- **Configuration Sync**: Push local configurations back to GitHub repositories
+- **Asset Inventory Export**: Sync asset data to GitHub in CSV or JSON formats
+- **Branch Management**: Work with different branches and maintain directory structure
+- **Metadata Tracking**: Preserve source repository information for imported configurations
+
+### 5. Asset Management
+- **Complete Lifecycle**: Track assets from procurement to disposal
+- **MDM Integration**: Sync asset data from Mobile Device Management systems
+- **GitHub Export**: Export asset inventory to GitHub repositories (CSV/JSON)
+- **Assignment Tracking**: Manage asset assignments to users and track history
+- **Audit Trail**: Complete asset movement and modification history
+
+### 6. Enterprise Management
 - **Organization Setup**: Multi-tenant architecture with isolated data
 - **User Management**: Role-based access with admin, operator, and viewer roles  
 - **Audit Logs**: Complete activity tracking for security and compliance

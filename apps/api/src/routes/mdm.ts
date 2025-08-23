@@ -698,4 +698,105 @@ publicRouter.post('/devices/:deviceId/uninstall', async (req, res): Promise<any>
   }
 });
 
+// Get MDM devices available for asset sync
+router.get('/devices/available-for-sync', async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const { assets } = await import('@config-management/database');
+    
+    // Get all active MDM devices for the organization
+    const allDevices = await db
+      .select()
+      .from(mdmDevices)
+      .where(
+        and(
+          eq(mdmDevices.organizationId, req.user!.organizationId),
+          eq(mdmDevices.isActive, true)
+        )
+      )
+      .orderBy(desc(mdmDevices.lastSeen));
+
+    // Get asset IDs that already have MDM device links
+    const linkedAssets = await db
+      .select({
+        mdmDeviceId: assets.mdmDeviceId
+      })
+      .from(assets)
+      .where(
+        and(
+          eq(assets.organizationId, req.user!.organizationId),
+          eq(assets.isActive, true)
+        )
+      );
+
+    const linkedDeviceIds = linkedAssets
+      .map(asset => asset.mdmDeviceId)
+      .filter(Boolean);
+
+    // Helper functions for smart mapping
+    const detectAssetType = (model: string): string => {
+      const modelLower = model?.toLowerCase() || '';
+      if (modelLower.includes('macbook') || modelLower.includes('laptop')) return 'laptop';
+      if (modelLower.includes('imac') || modelLower.includes('desktop')) return 'desktop';
+      if (modelLower.includes('ipad') || modelLower.includes('tablet')) return 'tablet';
+      if (modelLower.includes('iphone') || modelLower.includes('phone')) return 'phone';
+      if (modelLower.includes('monitor') || modelLower.includes('display')) return 'monitor';
+      return 'device';
+    };
+
+    const extractBrand = (model: string): string => {
+      const modelLower = model?.toLowerCase() || '';
+      if (modelLower.includes('macbook') || modelLower.includes('imac') || 
+          modelLower.includes('ipad') || modelLower.includes('iphone')) return 'Apple';
+      if (modelLower.includes('dell')) return 'Dell';
+      if (modelLower.includes('hp') || modelLower.includes('hewlett')) return 'HP';
+      if (modelLower.includes('lenovo')) return 'Lenovo';
+      if (modelLower.includes('asus')) return 'ASUS';
+      if (modelLower.includes('microsoft')) return 'Microsoft';
+      return 'Unknown';
+    };
+
+    const generateAssetTag = (assetType: string, index: number): string => {
+      const prefixes: Record<string, string> = {
+        laptop: 'LAP',
+        desktop: 'DT',
+        tablet: 'TAB',
+        phone: 'PHN',
+        monitor: 'MON',
+        device: 'DEV',
+      };
+      const prefix = prefixes[assetType] || 'DEV';
+      return `${prefix}-${(1000 + index).toString().slice(1)}`;
+    };
+
+    // Filter devices and add sync metadata
+    const availableDevices = allDevices
+      .filter(device => !linkedDeviceIds.includes(device.id))
+      .map((device, index) => ({
+        ...device,
+        suggestedAssetTag: generateAssetTag(detectAssetType(device.model || ''), index + 1),
+        suggestedAssetType: detectAssetType(device.model || ''),
+        suggestedBrand: extractBrand(device.model || ''),
+      }));
+
+    // Also get already synced devices for display
+    const syncedDevices = allDevices
+      .filter(device => linkedDeviceIds.includes(device.id))
+      .map(device => ({
+        ...device,
+        existingAssetId: linkedAssets.find(asset => asset.mdmDeviceId === device.id)?.mdmDeviceId
+      }));
+
+    res.json({
+      available: availableDevices,
+      alreadySynced: syncedDevices,
+      total: allDevices.length,
+      availableCount: availableDevices.length,
+      syncedCount: syncedDevices.length,
+    });
+  } catch (error) {
+    console.error('Error fetching devices for sync:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export { router as mdmRoutes, publicRouter as mdmPublicRoutes };

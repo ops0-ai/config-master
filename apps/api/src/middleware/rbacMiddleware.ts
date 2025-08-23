@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from './auth';
+
+export { AuthenticatedRequest };
 import { hasPermission } from '../utils/rbacSeeder';
 import { db } from '../index';
 import { auditLogs } from '@config-management/database';
@@ -147,6 +149,25 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'POST:/api/github/integrations/*/sync-configuration': { resource: 'github-integrations', action: 'sync' },
   'PUT:/api/github/integrations/*': { resource: 'github-integrations', action: 'write' },
   'DELETE:/api/github/integrations/*': { resource: 'github-integrations', action: 'delete' },
+  
+  // Assets
+  'GET:/api/assets': { resource: 'assets', action: 'read' },
+  'GET:/api/assets/*': { resource: 'assets', action: 'read' },
+  'POST:/api/assets': { resource: 'assets', action: 'write' },
+  'PUT:/api/assets/*': { resource: 'assets', action: 'write' },
+  'PATCH:/api/assets/*': { resource: 'assets', action: 'write' },
+  'DELETE:/api/assets/*': { resource: 'assets', action: 'delete' },
+  
+  // Asset Assignments
+  'GET:/api/asset-assignments': { resource: 'assets', action: 'read' },
+  'GET:/api/asset-assignments/*': { resource: 'assets', action: 'read' },
+  'POST:/api/asset-assignments': { resource: 'assets', action: 'assign' },
+  'PUT:/api/asset-assignments/*': { resource: 'assets', action: 'assign' },
+  'DELETE:/api/asset-assignments/*': { resource: 'assets', action: 'assign' },
+  
+  // Asset CSV Operations
+  'GET:/api/assets-csv/export': { resource: 'assets', action: 'export' },
+  'POST:/api/assets-csv/import': { resource: 'assets', action: 'import' },
 };
 
 // Routes that don't require authorization
@@ -223,8 +244,38 @@ export function requirePermission(resource: string, action: string) {
   };
 }
 
-export function rbacMiddleware() {
+// RBAC middleware with specific permissions (for new routes)
+export function rbacMiddleware(requiredPermissions?: string[]) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (requiredPermissions && requiredPermissions.length > 0) {
+      // Use specific permissions
+      try {
+        const userId = req.user!.id;
+        const organizationId = req.user!.organizationId!;
+        
+        // Check each permission
+        for (const permission of requiredPermissions) {
+          const [resource, action] = permission.split(':');
+          const hasAccess = await hasPermission(userId, resource, action);
+          
+          if (!hasAccess) {
+            return res.status(403).json({ 
+              error: 'Access denied', 
+              required: permission,
+              message: `You don't have permission to ${action} ${resource}` 
+            });
+          }
+        }
+        
+        next();
+      } catch (error) {
+        console.error('RBAC middleware error:', error);
+        res.status(500).json({ error: 'Authorization check failed' });
+      }
+      return;
+    }
+    
+    // Fall back to route-based mapping for existing routes
     try {
       const route = `${req.method}:${req.originalUrl.split('?')[0]}`;
       

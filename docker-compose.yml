@@ -59,6 +59,7 @@ services:
       AWS_REGION: ${AWS_REGION:-us-east-1}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:5005/api/github/callback}
       PORT: 5005
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       ALLOW_SELF_HOSTED_CORS: ${ALLOW_SELF_HOSTED_CORS:-true}
