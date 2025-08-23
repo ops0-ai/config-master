@@ -105,6 +105,47 @@ else
     exit 1
 fi
 
+# Verify asset management tables
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d assets" &>/dev/null; then
+    print_success "Asset management tables created successfully"
+else
+    print_error "Asset management tables not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d asset_assignments" &>/dev/null; then
+    print_success "Asset assignment tracking table created successfully"
+else
+    print_error "Asset assignment table not found"
+    exit 1
+fi
+
+# Verify MDM integration columns
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d assets" | grep -q "mdm_device_id"; then
+    print_success "MDM-Asset integration columns created successfully"
+else
+    print_error "MDM integration columns not found in assets table"
+    exit 1
+fi
+
+# Verify asset RBAC permissions
+ASSET_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions WHERE resource = 'asset';" | tr -d ' ')
+if [ "$ASSET_PERMS" -ge "7" ]; then
+    print_success "Asset RBAC permissions created successfully ($ASSET_PERMS permissions)"
+else
+    print_error "Asset RBAC permissions incomplete (found $ASSET_PERMS, expected 7+)"
+    exit 1
+fi
+
+# Verify GitHub integration permissions
+GITHUB_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions WHERE resource = 'github-integrations';" | tr -d ' ')
+if [ "$GITHUB_PERMS" -ge "5" ]; then
+    print_success "GitHub integration RBAC permissions created successfully ($GITHUB_PERMS permissions)"
+else
+    print_error "GitHub integration RBAC permissions incomplete (found $GITHUB_PERMS, expected 5+)"
+    exit 1
+fi
+
 # Verify API endpoints
 print_status "Verifying API endpoints..."
 API_HEALTH=$(curl -s http://localhost:5005/health 2>/dev/null || echo "failed")
@@ -138,13 +179,25 @@ echo ""
 echo "✅ Pulse Platform upgrade completed successfully\!"
 echo ""
 echo "📋 New Features Available:"
-echo "   • GitHub repository integration for configurations"
-echo "   • GitHub asset inventory sync (CSV/JSON export)"
-echo "   • Import configurations from GitHub repositories"  
+echo ""
+echo "🔧 GitHub Integration:"
+echo "   • Import configurations from GitHub repositories"
 echo "   • Sync configurations back to GitHub"
 echo "   • Directory structure preservation"
 echo "   • Configuration metadata tracking"
-echo "   • Enhanced admin permissions for new users"
+echo ""
+echo "📦 Asset Management:"
+echo "   • Complete asset lifecycle management"
+echo "   • Asset assignment and reassignment tracking"
+echo "   • Asset-to-GitHub sync (CSV/JSON export)"
+echo "   • MDM device integration for automatic asset sync"
+echo "   • Bulk asset import from CSV"
+echo "   • Asset audit trail and history"
+echo ""
+echo "🔐 Security & Permissions:"
+echo "   • Enhanced RBAC with asset permissions"
+echo "   • GitHub integration permissions"
+echo "   • Full admin permissions for new users"
 echo "   • Separate repository selection for assets vs configurations"
 echo ""
 echo "🌐 Access your upgraded Pulse at: http://localhost:3000"
