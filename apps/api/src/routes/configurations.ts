@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { db } from '../index';
 import { configurations } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { AuthenticatedRequest, authMiddleware } from '../middleware/auth';
+import { rbacMiddleware } from '../middleware/rbacMiddleware';
+import { auditMiddleware } from '../middleware/audit';
 import Joi from 'joi';
 
 const router = Router();
@@ -15,6 +17,7 @@ const configurationSchema = Joi.object({
   variables: Joi.object().optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   source: Joi.string().valid('manual', 'template', 'conversation').optional(),
+  metadata: Joi.object().optional(),
 });
 
 const configurationUpdateSchema = Joi.object({
@@ -240,6 +243,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
       organizationId: req.user!.organizationId,
       createdBy: req.user!.id,
       source: value.source || 'manual', // Default to manual if not specified
+      metadata: value.metadata || null,
     };
 
     const newConfig = await db
@@ -336,6 +340,64 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting configuration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/configurations/:id/github-mappings
+ * Get GitHub mappings for a configuration
+ */
+router.get('/:id/github-mappings', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const { configurationGithubMappings, githubIntegrations } = await import('@config-management/database');
+    
+    const configId = req.params.id;
+    
+    // Verify configuration exists and belongs to user's organization
+    const existingConfig = await db
+      .select()
+      .from(configurations)
+      .where(
+        and(
+          eq(configurations.id, configId),
+          eq(configurations.organizationId, req.user!.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!existingConfig[0]) {
+      return res.status(404).json({ error: 'Configuration not found' });
+    }
+
+    // Get GitHub mappings for this configuration
+    const mappings = await db
+      .select({
+        id: configurationGithubMappings.id,
+        configurationId: configurationGithubMappings.configurationId,
+        githubIntegrationId: configurationGithubMappings.githubIntegrationId,
+        relativePath: configurationGithubMappings.relativePath,
+        branch: configurationGithubMappings.branch,
+        lastSyncedSha: configurationGithubMappings.lastSyncedSha,
+        lastSyncAt: configurationGithubMappings.lastSyncAt,
+        syncStatus: configurationGithubMappings.syncStatus,
+        // Include integration details
+        integrationName: githubIntegrations.name,
+        repositoryName: githubIntegrations.repositoryName,
+        repositoryFullName: githubIntegrations.repositoryFullName,
+      })
+      .from(configurationGithubMappings)
+      .innerJoin(githubIntegrations, eq(configurationGithubMappings.githubIntegrationId, githubIntegrations.id))
+      .where(
+        and(
+          eq(configurationGithubMappings.configurationId, configId),
+          eq(githubIntegrations.organizationId, req.user!.organizationId)
+        )
+      );
+
+    res.json(mappings);
+  } catch (error) {
+    console.error('Error fetching GitHub mappings:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

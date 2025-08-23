@@ -101,6 +101,7 @@ export const configurations = pgTable('configurations', {
   approvedBy: uuid('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
   rejectionReason: text('rejection_reason'),
+  metadata: jsonb('metadata').$type<any>().default({}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

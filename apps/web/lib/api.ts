@@ -128,6 +128,7 @@ export const configurationsApi = {
     content: string;
     variables?: any;
     tags?: string[];
+    metadata?: any;
   }) => api.post('/configurations', data),
   
   update: (id: string, data: {
@@ -438,4 +439,73 @@ export const usersApi = {
   }) => api.put(`/users/${id}`, data),
   
   delete: (id: string) => api.delete(`/users/${id}`),
+};
+
+// GitHub API
+export const githubApi = {
+  // Authenticate with Personal Access Token
+  authenticateWithToken: (token: string) => api.post('/github/auth/token', { token }),
+  
+  // Get GitHub integrations
+  getIntegrations: () => api.get('/github/integrations'),
+  
+  // Get OAuth session data
+  getSessionData: (sessionKey: string) => api.get(`/github/session/${sessionKey}`),
+  
+  // Create GitHub integration
+  createIntegration: (data: {
+    name: string;
+    repositoryId: string;
+    repositoryName: string;
+    repositoryFullName: string;
+    defaultBranch: string;
+    basePath: string;
+    accessToken: string;
+    user: any;
+  }) => api.post('/github/integrations', data),
+  
+  // Delete GitHub integration
+  deleteIntegration: (id: string) => api.delete(`/github/integrations/${id}`),
+  
+  // Update GitHub integration
+  updateIntegration: (id: string, data: {
+    name?: string;
+    defaultBranch?: string;
+    basePath?: string;
+    autoFetch?: boolean;
+    fetchInterval?: number;
+  }) => api.put(`/github/integrations/${id}`, data),
+  
+  // Get repository branches
+  getBranches: (integrationId: string, owner: string, repo: string) => 
+    api.get(`/github/integrations/${integrationId}/repositories/${owner}/${repo}/branches`),
+  
+  // Sync configuration to GitHub
+  syncConfiguration: (integrationId: string, data: {
+    configurationId: string;
+    relativePath: string;
+    branch: string;
+    content: string;
+    commitMessage: string;
+  }) => api.post(`/github/integrations/${integrationId}/sync-configuration`, data),
+  
+  // Get configuration mappings for a specific configuration
+  getConfigurationMappings: (configurationId: string) => 
+    api.get(`/configurations/${configurationId}/github-mappings`),
+  
+  // Get repository contents
+  getRepositoryContents: (integrationId: string, owner: string, repo: string, path: string, branch: string) =>
+    api.get(`/github/integrations/${integrationId}/repositories/${owner}/${repo}/contents`, {
+      params: { path, branch }
+    }),
+  
+  // Get file content
+  getFileContent: (integrationId: string, owner: string, repo: string, path: string, branch: string) =>
+    api.get(`/github/integrations/${integrationId}/repositories/${owner}/${repo}/file`, {
+      params: { path, branch }
+    }),
+
+  // Refresh repositories using stored token
+  refreshRepositories: (integrationId: string) => 
+    api.post(`/github/integrations/${integrationId}/refresh`),
 };
