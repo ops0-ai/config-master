@@ -33,17 +33,17 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Check if docker-compose is available
-if \! command -v docker-compose &> /dev/null; then
-    print_error "docker-compose is required but not installed."
+# Check if docker compose is available
+if \! command -v docker compose &> /dev/null; then
+    print_error "docker compose is required but not installed."
     exit 1
 fi
 
 # Check if containers are running
 print_status "Checking ConfigMaster containers..."
-if \! docker-compose ps | grep -q "configmaster-db"; then
+if \! docker compose ps | grep -q "configmaster-db"; then
     print_error "ConfigMaster database container is not running."
-    print_status "Please start ConfigMaster with: docker-compose up -d"
+    print_status "Please start ConfigMaster with: docker compose up -d"
     exit 1
 fi
 
@@ -70,7 +70,7 @@ fi
 
 # Restart containers to load new schema
 print_status "Restarting ConfigMaster containers..."
-if docker-compose restart api web; then
+if docker compose restart api web; then
     print_success "Containers restarted successfully"
 else
     print_warning "Container restart failed, you may need to restart manually"
