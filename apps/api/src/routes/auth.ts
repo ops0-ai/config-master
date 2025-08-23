@@ -65,7 +65,7 @@ async function createRBACForNewUser(organization: any, user: any) {
       })
       .returning();
     
-    // Assign all permissions to Administrator role (47 permissions)
+    // Assign all permissions to Administrator role (54 permissions)
     const adminPermissions = [
       'dashboard:read', 'settings:read', 'settings:write', 
       'users:read', 'users:write', 'users:delete',
@@ -79,7 +79,8 @@ async function createRBACForNewUser(organization: any, user: any) {
       'audit-logs:view', 'audit-logs:export',
       'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 'aws-integrations:sync', 'aws-integrations:import',
       'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
-      'github-integrations:read', 'github-integrations:write', 'github-integrations:delete', 'github-integrations:validate', 'github-integrations:sync'
+      'github-integrations:read', 'github-integrations:write', 'github-integrations:delete', 'github-integrations:validate', 'github-integrations:sync',
+      'asset:read', 'asset:create', 'asset:update', 'asset:delete', 'asset:assign', 'asset:import', 'asset:export'
     ];
     
     for (const permissionKey of adminPermissions) {

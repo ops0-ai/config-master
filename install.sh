@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🚀 ConfigMaster Installation Script"
-echo "==================================="
+echo "🚀 Pulse Platform Installation Script"
+echo "====================================="
 echo ""
 
 # Check if Docker is running
@@ -94,6 +94,24 @@ else
     exit 1
 fi
 
+# Verify GitHub integration tables exist
+GITHUB_TABLES=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('github_integrations', 'configuration_github_mappings');" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
+if [ "$GITHUB_TABLES" = "2" ]; then
+    echo "✅ GitHub integration tables created"
+else
+    echo "❌ GitHub integration tables missing"
+    exit 1
+fi
+
+# Verify configuration metadata column exists
+METADATA_COLUMN=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'configurations' AND column_name = 'metadata';" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
+if [ "$METADATA_COLUMN" = "1" ]; then
+    echo "✅ Configuration metadata tracking ready"
+else
+    echo "❌ Configuration metadata tracking missing"
+    exit 1
+fi
+
 # Verify MDM integration
 MDM_COLUMN=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'assets' AND column_name = 'mdm_device_id';" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
 if [ "$MDM_COLUMN" = "1" ]; then
@@ -112,6 +130,25 @@ else
     exit 1
 fi
 
+# Verify GitHub integration permissions
+GITHUB_PERMISSIONS=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT COUNT(*) FROM permissions WHERE resource = 'github-integrations';" 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "0")
+if [ "$GITHUB_PERMISSIONS" -ge "4" ]; then
+    echo "✅ GitHub integration RBAC permissions configured"
+else
+    echo "❌ GitHub integration RBAC permissions missing"
+    exit 1
+fi
+
+# Test asset sync endpoint
+echo "🔍 Testing asset sync endpoint..."
+ASSET_SYNC_TEST=$(curl -s -X POST http://localhost:5005/api/github/integrations/test/sync-asset-inventory -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "failed")
+if echo "$ASSET_SYNC_TEST" | grep -q "Access denied\|Invalid token"; then
+    echo "✅ Asset sync endpoint is available"
+else
+    echo "❌ Asset sync endpoint not found"
+    exit 1
+fi
+
 echo ""
 echo "🎉 Installation Complete!"
 echo ""
@@ -122,6 +159,9 @@ echo ""
 echo "📋 Features Available:"
 echo "   ✅ Complete Asset Management"
 echo "   ✅ MDM-to-Asset Sync (green 'Sync from MDM' button)"
+echo "   ✅ Asset-to-GitHub Sync (purple 'Sync to GitHub' button)" 
+echo "   ✅ GitHub Configuration Integration"
+echo "   ✅ Configuration Import/Export to GitHub"
 echo "   ✅ Asset Assignment & Reassignment"
 echo "   ✅ Role-based Access Control"
 echo "   ✅ Configuration Management"
@@ -130,8 +170,10 @@ echo "   ✅ Deployment Pipeline"
 echo ""
 echo "🔗 Quick Start:"
 echo "   1. Open http://localhost:3000 in your browser"
-echo "   2. Register a new account or log in"
-echo "   3. Navigate to Assets to use MDM sync feature"
+echo "   2. Register a new account (gets admin privileges)"
+echo "   3. Set up GitHub integration: Settings > Integrations"
+echo "   4. Navigate to Assets to use MDM and GitHub sync features"
+echo "   5. Navigate to Configurations to import/sync with GitHub"
 echo ""
 echo "🛠️  Useful Commands:"
 echo "   Stop:     $COMPOSE_CMD down"

@@ -1,12 +1,12 @@
 #\!/bin/bash
 
-# ConfigMaster GitHub Integration Upgrade Script
-# This script safely upgrades existing ConfigMaster installations to support GitHub integration
+# Pulse Platform Upgrade Script
+# This script safely upgrades existing Pulse installations with all latest features
 
 set -e
 
-echo "🚀 ConfigMaster GitHub Integration Upgrade"
-echo "=========================================="
+echo "🚀 Pulse Platform Upgrade"
+echo "========================="
 echo ""
 
 # Colors for output
@@ -40,18 +40,18 @@ if \! command -v docker compose &> /dev/null; then
 fi
 
 # Check if containers are running
-print_status "Checking ConfigMaster containers..."
+print_status "Checking Pulse containers..."
 if \! docker compose ps | grep -q "configmaster-db"; then
-    print_error "ConfigMaster database container is not running."
-    print_status "Please start ConfigMaster with: docker compose up -d"
+    print_error "Pulse database container is not running."
+    print_status "Please start Pulse with: docker compose up -d"
     exit 1
 fi
 
-print_success "ConfigMaster containers are running"
+print_success "Pulse containers are running"
 
 # Backup database
 print_status "Creating database backup..."
-BACKUP_FILE="configmaster_backup_$(date +%Y%m%d_%H%M%S).sql"
+BACKUP_FILE="pulse_backup_$(date +%Y%m%d_%H%M%S).sql"
 
 if docker exec configmaster-db pg_dump -U postgres -d config_management > "$BACKUP_FILE" 2>/dev/null; then
     print_success "Database backup created: $BACKUP_FILE"
@@ -60,7 +60,7 @@ else
 fi
 
 # Run the upgrade SQL
-print_status "Applying GitHub integration upgrade..."
+print_status "Applying database schema upgrades..."
 if docker exec -i configmaster-db psql -U postgres -d config_management < upgrade.sql; then
     print_success "Database upgrade completed successfully"
 else
@@ -68,9 +68,18 @@ else
     exit 1
 fi
 
-# Restart containers to load new schema
-print_status "Restarting ConfigMaster containers..."
-if docker compose restart api web; then
+# Rebuild containers to ensure latest features
+print_status "Rebuilding containers with latest features..."
+if docker compose build --no-cache; then
+    print_success "Containers rebuilt successfully"
+else
+    print_error "Container rebuild failed"
+    exit 1
+fi
+
+# Restart containers to load new schema and features
+print_status "Restarting Pulse containers..."
+if docker compose restart; then
     print_success "Containers restarted successfully"
 else
     print_warning "Container restart failed, you may need to restart manually"
@@ -78,10 +87,10 @@ fi
 
 # Wait for containers to be healthy
 print_status "Waiting for containers to be healthy..."
-sleep 10
+sleep 15
 
-# Verify upgrade
-print_status "Verifying upgrade..."
+# Verify upgrade - Database schema
+print_status "Verifying database schema..."
 if docker exec configmaster-db psql -U postgres -d config_management -c "\d github_integrations" &>/dev/null; then
     print_success "GitHub integration tables created successfully"
 else
@@ -90,27 +99,59 @@ else
 fi
 
 if docker exec configmaster-db psql -U postgres -d config_management -c "\d configurations" | grep -q "metadata"; then
-    print_success "Metadata column added to configurations table"
+    print_success "Configuration metadata column created successfully"
 else
     print_error "Metadata column not found in configurations table"
     exit 1
 fi
 
+# Verify API endpoints
+print_status "Verifying API endpoints..."
+API_HEALTH=$(curl -s http://localhost:5005/health 2>/dev/null || echo "failed")
+if echo "$API_HEALTH" | grep -q "ok"; then
+    print_success "API service is healthy"
+else
+    print_error "API service health check failed"
+    exit 1
+fi
+
+# Verify asset sync endpoint exists
+ASSET_SYNC_TEST=$(curl -s -X POST http://localhost:5005/api/github/integrations/test/sync-asset-inventory -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "failed")
+if echo "$ASSET_SYNC_TEST" | grep -q "Access denied\|Invalid token"; then
+    print_success "Asset sync endpoint is available"
+else
+    print_error "Asset sync endpoint not found"
+    exit 1
+fi
+
+# Verify web interface
+print_status "Verifying web interface..."
+WEB_TEST=$(curl -s http://localhost:3000 2>/dev/null | head -10 || echo "failed")
+if echo "$WEB_TEST" | grep -q "ConfigMaster\|Pulse"; then
+    print_success "Web interface is accessible"
+else
+    print_error "Web interface not accessible"
+    exit 1
+fi
+
 echo ""
-echo "✅ ConfigMaster GitHub Integration upgrade completed successfully\!"
+echo "✅ Pulse Platform upgrade completed successfully\!"
 echo ""
-echo "📋 What's new:"
-echo "   • GitHub repository integration"
-echo "   • Import configurations from GitHub"
+echo "📋 New Features Available:"
+echo "   • GitHub repository integration for configurations"
+echo "   • GitHub asset inventory sync (CSV/JSON export)"
+echo "   • Import configurations from GitHub repositories"  
 echo "   • Sync configurations back to GitHub"
 echo "   • Directory structure preservation"
 echo "   • Configuration metadata tracking"
+echo "   • Enhanced admin permissions for new users"
+echo "   • Separate repository selection for assets vs configurations"
 echo ""
-echo "🌐 Access your upgraded ConfigMaster at: http://localhost:3000"
-echo "⚙️  Configure GitHub integration in: Settings > Integrations"
+echo "🌐 Access your upgraded Pulse at: http://localhost:3000"
+echo "⚙️  Configure GitHub integration: Settings > Integrations"
+echo "📦 Sync assets to GitHub: Assets > Sync to GitHub"
 echo ""
 echo "📁 Database backup saved as: $BACKUP_FILE"
-echo "   (Keep this backup in case you need to rollback)"
+echo "   (Keep this backup safe in case you need to rollback)"
 echo ""
-print_success "Upgrade complete\! 🎉"
-EOF < /dev/null
+print_success "Upgrade complete! Ready for production use 🎉"

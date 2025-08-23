@@ -321,6 +321,64 @@ router.get('/integrations/:id/repositories/:owner/:repo/file', authMiddleware, r
 });
 
 /**
+ * POST /api/github/integrations/:id/sync-asset-inventory
+ * Sync asset inventory to GitHub
+ */
+router.post('/integrations/:id/sync-asset-inventory', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const { relativePath, branch, content, commitMessage, format } = req.body;
+
+    if (!relativePath || !branch || !content || !commitMessage) {
+      return res.status(400).json({ 
+        error: 'Relative path, branch, content, and commit message are required' 
+      });
+    }
+
+    // Get the integration
+    const integration = await githubService.getGitHubIntegration(id, req.user!.organizationId);
+    
+    if (!integration) {
+      return res.status(404).json({ error: 'GitHub integration not found' });
+    }
+
+    const [owner, repo] = integration.repositoryFullName.split('/');
+
+    // Check if file exists to get its SHA
+    const existingFile = await githubService.getFileContent(
+      integration.accessToken,
+      owner,
+      repo,
+      relativePath,
+      branch
+    );
+
+    // Create or update the file
+    const result = await githubService.createOrUpdateFile(
+      integration.accessToken,
+      owner,
+      repo,
+      relativePath,
+      content,
+      commitMessage,
+      branch,
+      existingFile?.sha
+    );
+
+    res.json({
+      success: true,
+      sha: result.sha,
+      commitUrl: result.commit_url,
+      format: format || 'csv',
+      assetsCount: content.split('\n').length - 1, // Rough estimate for CSV
+    });
+  } catch (error) {
+    console.error('Error syncing asset inventory to GitHub:', error);
+    res.status(500).json({ error: 'Failed to sync asset inventory to GitHub' });
+  }
+});
+
+/**
  * POST /api/github/integrations/:id/sync-configuration
  * Sync a configuration to GitHub
  */

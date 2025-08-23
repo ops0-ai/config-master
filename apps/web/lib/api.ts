@@ -488,6 +488,15 @@ export const githubApi = {
     content: string;
     commitMessage: string;
   }) => api.post(`/github/integrations/${integrationId}/sync-configuration`, data),
+
+  // Sync asset inventory to GitHub
+  syncAssetInventory: (integrationId: string, data: {
+    relativePath: string;
+    branch: string;
+    content: string;
+    commitMessage: string;
+    format?: 'csv' | 'json';
+  }) => api.post(`/github/integrations/${integrationId}/sync-asset-inventory`, data),
   
   // Get configuration mappings for a specific configuration
   getConfigurationMappings: (configurationId: string) => 

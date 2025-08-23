@@ -19,8 +19,10 @@ import {
   ClockIcon,
   DocumentTextIcon,
   ArrowPathIcon,
+  CodeBracketIcon,
 } from '@heroicons/react/24/outline';
 import MdmAssetSyncModal from './MdmAssetSyncModal';
+import AssetGitHubSyncModal from './AssetGitHubSyncModal';
 
 interface Asset {
   id: string;
@@ -97,6 +99,7 @@ export default function AssetsManagement({ initialAssets = [] }: AssetsManagemen
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showGitHubSyncModal, setShowGitHubSyncModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   // Form states
@@ -372,6 +375,14 @@ export default function AssetsManagement({ initialAssets = [] }: AssetsManagemen
             >
               <ArrowPathIcon className="h-4 w-4 mr-2" />
               Sync from MDM
+            </button>
+            <button
+              onClick={() => setShowGitHubSyncModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
+              title="Sync asset inventory to GitHub"
+            >
+              <CodeBracketIcon className="h-4 w-4 mr-2" />
+              Sync to GitHub
             </button>
             <button
               onClick={handleCreateAsset}
@@ -1242,6 +1253,15 @@ export default function AssetsManagement({ initialAssets = [] }: AssetsManagemen
         onClose={() => setShowSyncModal(false)}
         onSyncComplete={fetchAssets}
       />
+
+      {/* GitHub Asset Sync Modal */}
+      {showGitHubSyncModal && (
+        <AssetGitHubSyncModal
+          assets={assets}
+          onClose={() => setShowGitHubSyncModal(false)}
+          onSyncComplete={fetchAssets}
+        />
+      )}
     </div>
   );
 }
