@@ -68,26 +68,57 @@ else
     exit 1
 fi
 
+# Stop containers before rebuilding
+print_status "Stopping current containers..."
+docker compose down
+
+# Remove old images to force complete rebuild
+print_status "Removing old container images to ensure fresh build..."
+docker rmi configmaster-web configmaster-api 2>/dev/null || true
+docker rmi $(docker images -q -f "dangling=true") 2>/dev/null || true
+
 # Rebuild containers to ensure latest features
-print_status "Rebuilding containers with latest features..."
-if docker compose build --no-cache; then
+print_status "Rebuilding containers with latest features (this will take a few minutes)..."
+if docker compose build --no-cache --pull; then
     print_success "Containers rebuilt successfully"
 else
     print_error "Container rebuild failed"
     exit 1
 fi
 
-# Restart containers to load new schema and features
-print_status "Restarting Pulse containers..."
-if docker compose restart; then
-    print_success "Containers restarted successfully"
+# Start fresh containers
+print_status "Starting fresh Pulse containers..."
+if docker compose up -d; then
+    print_success "Containers started successfully"
 else
-    print_warning "Container restart failed, you may need to restart manually"
+    print_error "Failed to start containers"
+    exit 1
 fi
 
 # Wait for containers to be healthy
-print_status "Waiting for containers to be healthy..."
-sleep 15
+print_status "Waiting for containers to be healthy (this may take up to 60 seconds)..."
+WAIT_TIME=0
+MAX_WAIT=60
+
+while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+    API_CHECK=$(curl -s http://localhost:5005/health 2>/dev/null || echo "waiting")
+    WEB_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+    
+    if [[ "$API_CHECK" == *"ok"* ]] && [ "$WEB_CHECK" = "200" ]; then
+        print_success "Services are ready!"
+        break
+    fi
+    
+    echo -n "."
+    sleep 5
+    WAIT_TIME=$((WAIT_TIME + 5))
+done
+
+echo ""
+
+if [ $WAIT_TIME -ge $MAX_WAIT ]; then
+    print_warning "Services took longer than expected to start"
+fi
 
 # Verify upgrade - Database schema
 print_status "Verifying database schema..."
@@ -157,12 +188,28 @@ else
 fi
 
 # Verify asset sync endpoint exists
+print_status "Testing asset sync API endpoint..."
 ASSET_SYNC_TEST=$(curl -s -X POST http://localhost:5005/api/github/integrations/test/sync-asset-inventory -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "failed")
-if echo "$ASSET_SYNC_TEST" | grep -q "Access denied\|Invalid token"; then
-    print_success "Asset sync endpoint is available"
-else
-    print_error "Asset sync endpoint not found"
+if echo "$ASSET_SYNC_TEST" | grep -q "Access denied\|Invalid token\|No token provided\|Unauthorized"; then
+    print_success "✅ Asset sync API endpoint is working correctly"
+elif echo "$ASSET_SYNC_TEST" | grep -q "not found\|Cannot POST"; then
+    print_error "❌ Asset sync endpoint not found"
+    print_warning "This is a critical error - the API container doesn't have the latest code"
+    print_status "Checking API container logs..."
+    docker compose logs api | tail -20
     exit 1
+else
+    print_warning "Asset sync endpoint returned unexpected response: $ASSET_SYNC_TEST"
+fi
+
+# Verify the frontend has the asset sync components
+print_status "Verifying frontend has asset sync UI components..."
+WEB_FILES=$(docker exec configmaster-web ls -la /app/.next/static/chunks/pages/ 2>/dev/null || echo "failed")
+if echo "$WEB_FILES" | grep -q "assets"; then
+    print_success "✅ Asset management UI components found"
+else
+    print_warning "⚠️  Asset UI components may not be properly built"
+    print_status "The web container may need a full rebuild"
 fi
 
 # Verify web interface
@@ -203,6 +250,12 @@ echo ""
 echo "🌐 Access your upgraded Pulse at: http://localhost:3000"
 echo "⚙️  Configure GitHub integration: Settings > Integrations"
 echo "📦 Sync assets to GitHub: Assets > Sync to GitHub"
+echo ""
+echo "⚠️  IMPORTANT: If you don't see the 'Sync to GitHub' button in Assets:"
+echo "   1. Clear your browser cache (Ctrl+Shift+R or Cmd+Shift+R)"
+echo "   2. Log out and log back in"
+echo "   3. Use an incognito/private browser window"
+echo "   4. Ensure you have a GitHub integration configured in Settings > Integrations"
 echo ""
 echo "📁 Database backup saved as: $BACKUP_FILE"
 echo "   (Keep this backup safe in case you need to rollback)"
