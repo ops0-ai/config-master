@@ -12,13 +12,37 @@ CREATE TABLE IF NOT EXISTS "system_settings" (
     "key" varchar(255) UNIQUE NOT NULL,
     "value" jsonb NOT NULL,
     "description" text,
+    "category" varchar(100) NOT NULL DEFAULT 'general',
+    "is_readonly" boolean NOT NULL DEFAULT false,
+    "created_by" uuid,
+    "updated_by" uuid,
     "created_at" timestamp DEFAULT now() NOT NULL,
     "updated_at" timestamp DEFAULT now() NOT NULL
 );
 
--- Add is_sensitive column if it doesn't exist
+-- Add missing columns to system_settings if they don't exist
 DO $$ 
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='system_settings' AND column_name='category') THEN
+        ALTER TABLE "system_settings" ADD COLUMN "category" varchar(100) NOT NULL DEFAULT 'general';
+        RAISE NOTICE 'Added category column to system_settings table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='system_settings' AND column_name='is_readonly') THEN
+        ALTER TABLE "system_settings" ADD COLUMN "is_readonly" boolean NOT NULL DEFAULT false;
+        RAISE NOTICE 'Added is_readonly column to system_settings table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='system_settings' AND column_name='created_by') THEN
+        ALTER TABLE "system_settings" ADD COLUMN "created_by" uuid;
+        RAISE NOTICE 'Added created_by column to system_settings table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='system_settings' AND column_name='updated_by') THEN
+        ALTER TABLE "system_settings" ADD COLUMN "updated_by" uuid;
+        RAISE NOTICE 'Added updated_by column to system_settings table';
+    END IF;
+    
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='system_settings' AND column_name='is_sensitive') THEN
         ALTER TABLE "system_settings" ADD COLUMN "is_sensitive" boolean DEFAULT false NOT NULL;
         RAISE NOTICE 'Added is_sensitive column to system_settings table';
@@ -171,12 +195,26 @@ CREATE TABLE IF NOT EXISTS "assets" (
     "manufacturer" varchar(255),
     "model" varchar(255),
     "status" varchar(50) DEFAULT 'available' NOT NULL,
-    "location" varchar(255),
-    "department" varchar(255),
+    "condition" varchar(50) DEFAULT 'good' NOT NULL,
     "purchase_date" date,
     "purchase_cost" decimal(10,2),
-    "warranty_expiry" date,
+    "purchase_price" decimal(10,2),
+    "currency" varchar(3) DEFAULT 'USD',
+    "supplier" varchar(255),
+    "warranty_start_date" date,
+    "warranty_end_date" date,
+    "warranty_provider" varchar(255),
+    "location" varchar(255),
+    "cost_center" varchar(100),
+    "department" varchar(100),
+    "category" varchar(100),
+    "subcategory" varchar(100),
+    "specifications" jsonb DEFAULT '{}',
     "notes" text,
+    "barcode" varchar(255),
+    "qr_code" varchar(255),
+    "image_url" varchar(500),
+    "is_active" boolean DEFAULT true NOT NULL,
     "metadata" jsonb DEFAULT '{}',
     "mdm_device_id" uuid,
     "last_sync_at" timestamp,
@@ -184,6 +222,85 @@ CREATE TABLE IF NOT EXISTS "assets" (
     "created_at" timestamp DEFAULT now() NOT NULL,
     "updated_at" timestamp DEFAULT now() NOT NULL
 );
+
+-- Add missing columns to assets table if they don't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='category') THEN
+        ALTER TABLE "assets" ADD COLUMN "category" varchar(100);
+        RAISE NOTICE 'Added category column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='subcategory') THEN
+        ALTER TABLE "assets" ADD COLUMN "subcategory" varchar(100);
+        RAISE NOTICE 'Added subcategory column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='condition') THEN
+        ALTER TABLE "assets" ADD COLUMN "condition" varchar(50) DEFAULT 'good' NOT NULL;
+        RAISE NOTICE 'Added condition column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='purchase_price') THEN
+        ALTER TABLE "assets" ADD COLUMN "purchase_price" decimal(10,2);
+        RAISE NOTICE 'Added purchase_price column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='currency') THEN
+        ALTER TABLE "assets" ADD COLUMN "currency" varchar(3) DEFAULT 'USD';
+        RAISE NOTICE 'Added currency column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='supplier') THEN
+        ALTER TABLE "assets" ADD COLUMN "supplier" varchar(255);
+        RAISE NOTICE 'Added supplier column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='warranty_start_date') THEN
+        ALTER TABLE "assets" ADD COLUMN "warranty_start_date" date;
+        RAISE NOTICE 'Added warranty_start_date column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='warranty_end_date') THEN
+        ALTER TABLE "assets" ADD COLUMN "warranty_end_date" date;
+        RAISE NOTICE 'Added warranty_end_date column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='warranty_provider') THEN
+        ALTER TABLE "assets" ADD COLUMN "warranty_provider" varchar(255);
+        RAISE NOTICE 'Added warranty_provider column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='cost_center') THEN
+        ALTER TABLE "assets" ADD COLUMN "cost_center" varchar(100);
+        RAISE NOTICE 'Added cost_center column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='specifications') THEN
+        ALTER TABLE "assets" ADD COLUMN "specifications" jsonb DEFAULT '{}';
+        RAISE NOTICE 'Added specifications column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='barcode') THEN
+        ALTER TABLE "assets" ADD COLUMN "barcode" varchar(255);
+        RAISE NOTICE 'Added barcode column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='qr_code') THEN
+        ALTER TABLE "assets" ADD COLUMN "qr_code" varchar(255);
+        RAISE NOTICE 'Added qr_code column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='image_url') THEN
+        ALTER TABLE "assets" ADD COLUMN "image_url" varchar(500);
+        RAISE NOTICE 'Added image_url column to assets table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assets' AND column_name='is_active') THEN
+        ALTER TABLE "assets" ADD COLUMN "is_active" boolean DEFAULT true NOT NULL;
+        RAISE NOTICE 'Added is_active column to assets table';
+    END IF;
+END $$;
 
 -- Create asset assignments table
 CREATE TABLE IF NOT EXISTS "asset_assignments" (
@@ -206,6 +323,17 @@ CREATE TABLE IF NOT EXISTS "asset_assignments" (
 
 DO $$ 
 BEGIN
+    -- System settings constraints
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'system_settings_created_by_users_id_fk') THEN
+        ALTER TABLE "system_settings" ADD CONSTRAINT "system_settings_created_by_users_id_fk" 
+        FOREIGN KEY ("created_by") REFERENCES "users"("id");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'system_settings_updated_by_users_id_fk') THEN
+        ALTER TABLE "system_settings" ADD CONSTRAINT "system_settings_updated_by_users_id_fk" 
+        FOREIGN KEY ("updated_by") REFERENCES "users"("id");
+    END IF;
+    
     -- GitHub integrations constraints
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'github_integrations_organization_id_organizations_id_fk') THEN
         ALTER TABLE "github_integrations" ADD CONSTRAINT "github_integrations_organization_id_organizations_id_fk" 
@@ -330,6 +458,22 @@ BEGIN
     END IF;
 END $$;
 
+-- ==============================
+-- FIX ADMINISTRATOR ROLE PERMISSIONS
+-- ==============================
+
+-- Ensure ALL Administrator roles have ALL permissions (fix common upgrade issue)
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id as role_id, p.id as permission_id
+FROM roles r
+CROSS JOIN permissions p
+WHERE r.name = 'Administrator'
+AND NOT EXISTS (
+    SELECT 1 FROM role_permissions rp 
+    WHERE rp.role_id = r.id AND rp.permission_id = p.id
+)
+ON CONFLICT DO NOTHING;
+
 COMMIT;
 
 -- Display success message
@@ -344,5 +488,6 @@ BEGIN
     RAISE NOTICE '   - Asset management tables created';
     RAISE NOTICE '   - All RBAC permissions added';
     RAISE NOTICE '   - All foreign key constraints added';
+    RAISE NOTICE '   - ✅ FIXED: All Administrator roles now have complete permissions';
     RAISE NOTICE '🚀 Your Pulse installation is now fully upgraded!';
 END $$;
