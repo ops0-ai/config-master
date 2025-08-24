@@ -21,23 +21,11 @@ export async function initializeDatabase(): Promise<void> {
       await applyAllMigrations(client);
     } else {
       console.log(`📊 Database already has ${tableCount} tables, checking schema integrity...`);
-      const needsMigration = await checkSchemaIntegrity(client);
-      if (needsMigration) {
-        console.log('📝 Schema is outdated, applying missing migrations...');
-        await applyAllMigrations(client);
-        
-        // Verify the fix worked
-        const stillNeedsMigration = await checkSchemaIntegrity(client);
-        if (stillNeedsMigration) {
-          console.error('❌ Migration failed - columns still missing after applying migrations');
-          throw new Error('Database migration incomplete - required columns not found');
-        } else {
-          console.log('✅ Schema integrity verified after migration');
-        }
-      } else {
-        await ensureAllTablesExist(client);
-      }
+      await ensureAllTablesExist(client);
     }
+    
+    // Always ensure critical columns exist after migrations
+    await ensureCriticalColumns(client);
     
     console.log('✅ Database schema initialized successfully');
   } catch (error) {
@@ -124,8 +112,12 @@ async function applyAllMigrations(client: postgres.Sql): Promise<void> {
     '0006_clammy_celestials.sql',
     '0007_multi_tenancy_support.sql',
     '0008_onboarding_support.sql',
+    '0009_happy_preak.sql',
     '0009_rbac_fixes.sql',
-    '0011_assets_with_mdm.sql'
+    '0010_asset_management.sql',
+    '0011_assets_with_mdm.sql',
+    '0012_missing_columns.sql',
+    '0013_system_settings.sql'
   ];
   
   for (const filename of migrationFiles) {
@@ -237,6 +229,86 @@ async function ensureAllTablesExist(client: postgres.Sql): Promise<void> {
   }
   
   console.log('✅ All required tables exist');
+}
+
+async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
+  console.log('🔧 Ensuring critical columns exist...');
+  
+  // IMPORTANT: Execute each ALTER TABLE in its own transaction
+  // This ensures columns are actually added before RBAC seeding
+  
+  const columnMigrations = [
+    {
+      table: 'organizations',
+      column: 'features_enabled',
+      sql: `ALTER TABLE organizations ADD COLUMN IF NOT EXISTS features_enabled jsonb DEFAULT '{"servers": true, "serverGroups": true, "pemKeys": true, "configurations": true, "deployments": true, "chat": true, "training": true, "awsIntegrations": true, "githubIntegrations": true, "mdm": true, "assets": true, "auditLogs": true}'::jsonb;`
+    },
+    {
+      table: 'organizations',
+      column: 'metadata',
+      sql: `ALTER TABLE organizations ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;`
+    },
+    {
+      table: 'configurations',
+      column: 'metadata',
+      sql: `ALTER TABLE configurations ADD COLUMN IF NOT EXISTS metadata jsonb;`
+    },
+    {
+      table: 'assets',
+      column: 'mdm_device_id',
+      sql: `ALTER TABLE assets ADD COLUMN IF NOT EXISTS mdm_device_id varchar;`
+    },
+    {
+      table: 'users',
+      column: 'is_super_admin',
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_super_admin boolean DEFAULT false;`
+    },
+    {
+      table: 'users',
+      column: 'has_completed_onboarding',
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding boolean DEFAULT false;`
+    }
+  ];
+
+  for (const migration of columnMigrations) {
+    try {
+      // Execute the SQL directly without any ORM interference
+      const result = await client.unsafe(migration.sql);
+      console.log(`✅ Column ${migration.table}.${migration.column} ensured`);
+      
+      // Verify the column actually exists after adding it
+      const verification = await client`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = ${migration.table} 
+        AND column_name = ${migration.column}
+      `;
+      
+      if (verification.length === 0) {
+        console.error(`❌ CRITICAL: Column ${migration.table}.${migration.column} was not created!`);
+        throw new Error(`Failed to create column ${migration.table}.${migration.column}`);
+      }
+    } catch (error: any) {
+      if (error.message?.includes('already exists')) {
+        console.log(`✅ Column ${migration.table}.${migration.column} already exists`);
+      } else {
+        console.error(`❌ Failed to add column ${migration.table}.${migration.column}:`, error.message);
+        throw error; // Re-throw to stop initialization if column creation fails
+      }
+    }
+  }
+  
+  // Update existing organizations that don't have features_enabled set
+  try {
+    await client.unsafe(`
+      UPDATE organizations 
+      SET features_enabled = '{"servers": true, "serverGroups": true, "pemKeys": true, "configurations": true, "deployments": true, "chat": true, "training": true, "awsIntegrations": true, "githubIntegrations": true, "mdm": true, "assets": true, "auditLogs": true}'::jsonb 
+      WHERE features_enabled IS NULL
+    `);
+    console.log('✅ Organization feature flags updated');
+  } catch (error) {
+    console.log(`⚠️ Failed to update organization features: ${error}`);
+  }
 }
 
 export async function verifyDatabaseSchema(): Promise<boolean> {

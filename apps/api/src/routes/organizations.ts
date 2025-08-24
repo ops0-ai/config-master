@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../index';
-import { organizations, userOrganizations, users, mdmDevices, servers, configurations, deployments, roles, userRoles, permissions, rolePermissions, mdmProfiles } from '@config-management/database';
+import { organizations, userOrganizations, users, mdmDevices, servers, configurations, deployments, roles, userRoles, permissions, rolePermissions, mdmProfiles, conversations, assets } from '@config-management/database';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { z } from 'zod';
@@ -9,6 +9,62 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
 const router = Router();
+
+// Get organization statistics (needs to be first to avoid route conflicts)
+router.get('/:id/stats', authMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🔍 Fetching stats for organization: ${id}`);
+    
+    // Query users directly from users table (primary relationship)
+    const usersResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(eq(users.organizationId, id));
+      
+    const configurationsResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(configurations)
+      .where(eq(configurations.organizationId, id));
+      
+    const deploymentsResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(deployments)
+      .where(eq(deployments.organizationId, id));
+      
+    const serversResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(servers)
+      .where(eq(servers.organizationId, id));
+      
+    const conversationsResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(conversations)
+      .where(eq(conversations.organizationId, id));
+      
+    const assetsResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(assets)
+      .where(eq(assets.organizationId, id));
+
+    const stats = {
+      users: usersResult[0]?.count || 0,
+      configurations: configurationsResult[0]?.count || 0,
+      deployments: deploymentsResult[0]?.count || 0,
+      servers: serversResult[0]?.count || 0,
+      conversations: conversationsResult[0]?.count || 0,
+      assets: assetsResult[0]?.count || 0
+    };
+    
+    console.log(`📊 Organization ${id} stats:`, stats);
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching organization stats:', error);
+    res.status(500).json({ error: 'Failed to fetch organization stats' });
+  }
+});
 
 // Validation schemas
 const createOrganizationSchema = z.object({
@@ -90,6 +146,9 @@ async function createRBACForOrganization(organization: any, adminUserId: string)
     // Get all system permissions (they should already exist)
     const allPermissions = await db.select().from(permissions);
     const permissionMap = new Map(allPermissions.map(p => [`${p.resource}:${p.action}`, p.id]));
+    const allPermissionKeys = allPermissions.map(p => `${p.resource}:${p.action}`);
+    
+    console.log(`  📋 Found ${allPermissions.length} total permissions in system`);
     
     // Create Administrator role with all permissions
     const [adminRole] = await db
@@ -103,8 +162,9 @@ async function createRBACForOrganization(organization: any, adminUserId: string)
       })
       .returning();
     
-    // Assign all permissions to Administrator role
-    for (const permissionKey of adminPermissions) {
+    // Assign ALL permissions to Administrator role
+    let assignedPermissions = 0;
+    for (const permissionKey of allPermissionKeys) {
       const permissionId = permissionMap.get(permissionKey);
       if (permissionId) {
         await db
@@ -114,6 +174,7 @@ async function createRBACForOrganization(organization: any, adminUserId: string)
             permissionId: permissionId,
           })
           .onConflictDoNothing();
+        assignedPermissions++;
       }
     }
     
@@ -127,7 +188,8 @@ async function createRBACForOrganization(organization: any, adminUserId: string)
           'pem-keys:read', 'pem-keys:write', 'configurations:read', 'configurations:write',
           'configurations:execute', 'deployments:read', 'deployments:write', 'deployments:execute',
           'training:read', 'chat:read', 'chat:write', 'aws-integrations:read',
-          'github-integrations:read', 'github-integrations:write', 'github-integrations:sync'
+          'github-integrations:read', 'github-integrations:write', 'github-integrations:sync',
+          'asset:read', 'asset:create', 'asset:update', 'asset:assign'
         ]
       },
       {
@@ -136,7 +198,7 @@ async function createRBACForOrganization(organization: any, adminUserId: string)
         permissions: [
           'dashboard:read', 'servers:read', 'server-groups:read', 'pem-keys:read',
           'configurations:read', 'deployments:read', 'training:read', 'chat:read',
-          'aws-integrations:read', 'github-integrations:read', 'mdm:read'
+          'aws-integrations:read', 'github-integrations:read', 'mdm:read', 'asset:read'
         ]
       }
     ];
@@ -201,7 +263,7 @@ async function createRBACForOrganization(organization: any, adminUserId: string)
         createdBy: organization.ownerId,
       });
     
-    console.log(`  ✅ Created Administrator role with ${adminPermissions.length} permissions`);
+    console.log(`  ✅ Created Administrator role with ${assignedPermissions} permissions`);
     console.log(`  ✅ Created 2 additional roles: Developer, Viewer`);
     console.log(`  👤 Assigned Administrator role to admin user`);
     console.log(`  📱 Created default MDM profile with enrollment key: ${enrollmentKey}`);
@@ -242,6 +304,52 @@ router.get('/current', authMiddleware, async (req: AuthenticatedRequest, res) =>
   } catch (error) {
     console.error('Error fetching organization:', error);
     res.status(500).json({ error: 'Failed to fetch organization' });
+  }
+});
+
+// Get current organization's feature flags
+router.get('/current/features', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const organizationId = req.user?.organizationId;
+    
+    if (!organizationId) {
+      return res.status(400).json({ error: 'No organization found for user' });
+    }
+
+    const [organization] = await db
+      .select({ featuresEnabled: organizations.featuresEnabled })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId));
+
+    if (!organization) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    // Return features with defaults for any missing ones
+    const defaultFeatures = {
+      servers: true,
+      serverGroups: true,
+      pemKeys: true,
+      configurations: true,
+      deployments: true,
+      chat: true,
+      training: true,
+      awsIntegrations: true,
+      githubIntegrations: true,
+      mdm: true,
+      assets: true,
+      auditLogs: true,
+    };
+
+    const features = {
+      ...defaultFeatures,
+      ...(organization.featuresEnabled || {}),
+    };
+
+    res.json({ features });
+  } catch (error) {
+    console.error('Error fetching organization features:', error);
+    res.status(500).json({ error: 'Failed to fetch organization features' });
   }
 });
 
@@ -715,5 +823,9 @@ router.delete('/admin/:orgId', authMiddleware, requireSuperAdmin, async (req: Au
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+// Export the RBAC function for use in admin user creation
+export { createRBACForOrganization };
 
 export default router;

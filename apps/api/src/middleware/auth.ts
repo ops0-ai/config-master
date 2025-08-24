@@ -13,6 +13,20 @@ export interface AuthenticatedRequest extends Request {
     organizationId: string;
     isSuperAdmin: boolean;
   };
+  organizationFeatures?: {
+    servers?: boolean;
+    serverGroups?: boolean;
+    pemKeys?: boolean;
+    configurations?: boolean;
+    deployments?: boolean;
+    chat?: boolean;
+    training?: boolean;
+    awsIntegrations?: boolean;
+    githubIntegrations?: boolean;
+    mdm?: boolean;
+    assets?: boolean;
+    auditLogs?: boolean;
+  };
 }
 
 export const authMiddleware = async (

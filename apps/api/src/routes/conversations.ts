@@ -3,6 +3,7 @@ import { db } from '../index';
 import { conversations, messages, configurations } from '@config-management/database';
 import { eq, and, desc } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 import { AnsibleGenerator } from '@config-management/ansible-engine';
 
@@ -23,7 +24,7 @@ const messageSchema = Joi.object({
   requirements: Joi.array().items(Joi.string()).optional(),
 });
 
-router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const conversationList = await db
       .select({
@@ -49,7 +50,7 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const newConversation = await db
       .insert(conversations)
@@ -68,7 +69,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.get('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/:id/messages', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const conversation = await db
       .select()
@@ -99,7 +100,7 @@ router.get('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any>
   }
 });
 
-router.post('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/messages', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = messageSchema.validate(req.body);
     if (error) {
@@ -200,7 +201,7 @@ router.post('/:id/messages', async (req: AuthenticatedRequest, res): Promise<any
   }
 });
 
-router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.put('/:id', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const updateSchema = Joi.object({
       title: Joi.string().optional(),
@@ -238,7 +239,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // First delete all messages in the conversation
     await db
@@ -269,7 +270,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
 });
 
 // Save generated configuration to configurations table
-router.post('/:id/save-configuration', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/save-configuration', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const saveConfigSchema = Joi.object({
       configurationName: Joi.string().required(),

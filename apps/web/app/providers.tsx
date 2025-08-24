@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { useState } from 'react';
 import { MinimalAuthProvider } from '@/contexts/MinimalAuthContext';
+import { OrganizationFeaturesProvider } from '@/contexts/OrganizationFeaturesContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -18,19 +19,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <MinimalAuthProvider>
-      <QueryClientProvider client={queryClient}>
-        {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-          }}
-        />
-      </QueryClientProvider>
+      <OrganizationFeaturesProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+            }}
+          />
+        </QueryClientProvider>
+      </OrganizationFeaturesProvider>
     </MinimalAuthProvider>
   );
 }

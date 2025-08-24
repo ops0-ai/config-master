@@ -8,6 +8,34 @@ export const organizations = pgTable('organizations', {
   ownerId: uuid('owner_id').notNull(),
   isActive: boolean('is_active').notNull().default(true),
   isPrimary: boolean('is_primary').notNull().default(false), // First org created cannot be disabled
+  // Feature flags for organization-level feature management
+  featuresEnabled: jsonb('features_enabled').$type<{
+    servers?: boolean;
+    serverGroups?: boolean;
+    pemKeys?: boolean;
+    configurations?: boolean;
+    deployments?: boolean;
+    chat?: boolean;
+    training?: boolean;
+    awsIntegrations?: boolean;
+    githubIntegrations?: boolean;
+    mdm?: boolean;
+    assets?: boolean;
+    auditLogs?: boolean;
+  }>().default({
+    servers: true,
+    serverGroups: true,
+    pemKeys: true,
+    configurations: true,
+    deployments: true,
+    chat: true,
+    training: true,
+    awsIntegrations: true,
+    githubIntegrations: true,
+    mdm: true,
+    assets: true,
+    auditLogs: true
+  }),
   metadata: jsonb('metadata').$type<any>().default({}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -737,4 +765,23 @@ export const mdmSessionsRelations = relations(mdmSessions, ({ one }) => ({
   device: one(mdmDevices, { fields: [mdmSessions.deviceId], references: [mdmDevices.id] }),
   user: one(users, { fields: [mdmSessions.userId], references: [users.id] }),
   organization: one(organizations, { fields: [mdmSessions.organizationId], references: [organizations.id] }),
+}));
+
+// System Settings Table - Global platform settings
+export const systemSettings = pgTable('system_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: varchar('key', { length: 255 }).notNull().unique(),
+  value: jsonb('value').$type<any>().notNull(),
+  description: text('description'),
+  category: varchar('category', { length: 100 }).notNull().default('general'), // general, security, features, etc.
+  isReadonly: boolean('is_readonly').notNull().default(false), // Some settings can't be modified via UI
+  createdBy: uuid('created_by').references(() => users.id),
+  updatedBy: uuid('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const systemSettingsRelations = relations(systemSettings, ({ one }) => ({
+  createdByUser: one(users, { fields: [systemSettings.createdBy], references: [users.id] }),
+  updatedByUser: one(users, { fields: [systemSettings.updatedBy], references: [users.id] }),
 }));

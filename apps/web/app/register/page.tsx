@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -17,6 +18,13 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [registrationStatus, setRegistrationStatus] = useState<{
+    registrationEnabled: boolean;
+    supportContact: string;
+    platformName: string;
+    message: string;
+  } | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -48,6 +56,46 @@ export default function RegisterPage() {
 
   const isPasswordValid = Object.values(passwordValidation).every(Boolean);
   const doPasswordsMatch = formData.password === formData.confirmPassword;
+
+  // Check registration status on component mount
+  useEffect(() => {
+    const checkRegistrationStatus = async () => {
+      try {
+        const response = await fetch('/api/auth/registration-status', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setRegistrationStatus(data);
+        } else {
+          // Default to enabled if API fails (backward compatibility)
+          setRegistrationStatus({
+            registrationEnabled: true,
+            supportContact: 'support@pulse.dev',
+            platformName: 'Pulse',
+            message: 'User registration is available'
+          });
+        }
+      } catch (error) {
+        console.error('Error checking registration status:', error);
+        // Default to enabled if check fails
+        setRegistrationStatus({
+          registrationEnabled: true,
+          supportContact: 'support@pulse.dev',
+          platformName: 'Pulse',
+          message: 'User registration is available'
+        });
+      } finally {
+        setLoadingStatus(false);
+      }
+    };
+
+    checkRegistrationStatus();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,21 +134,107 @@ export default function RegisterPage() {
     }
   };
 
+  // Show loading state while checking registration status
+  if (loadingStatus) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-300">Checking registration status...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show disabled registration message
+  if (registrationStatus && !registrationStatus.registrationEnabled) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <Image
+              src="/images/opszero-logo.svg"
+              alt="OpsZero Logo"
+              width={120}
+              height={120}
+              className="mx-auto mb-6"
+              priority
+            />
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+              Registration Unavailable
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {registrationStatus.message}
+            </p>
+          </div>
+
+          <div className="bg-white shadow-2xl rounded-2xl p-8">
+            <div className="text-center space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Need Access?
+                </h3>
+                <p className="mt-1 text-sm text-yellow-700">
+                  New user registration is currently disabled. Please contact our support team for assistance with account creation.
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-blue-800">
+                  Support Contact
+                </h3>
+                <p className="mt-1 text-sm text-blue-700">
+                  Email: <a 
+                    href={`mailto:${registrationStatus.supportContact}`}
+                    className="font-medium underline hover:text-blue-600"
+                  >
+                    {registrationStatus.supportContact}
+                  </a>
+                </p>
+              </div>
+
+              <div className="pt-4">
+                <p className="text-sm text-gray-500 mb-4">
+                  Already have an account?
+                </p>
+                <Link
+                  href="/login"
+                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                >
+                  Sign In
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Header */}
         <div className="text-center">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center">
-              <ServerIcon className="w-8 h-8 text-white" />
-            </div>
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/images/opszero-logo.svg"
+              alt="OpsZero Logo"
+              width={120}
+              height={120}
+              priority
+            />
           </div>
-          <h1 className="mt-6 text-3xl font-bold text-gray-900">
+          <h1 className="mt-6 text-3xl font-bold text-white">
             Create your account
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Start managing your infrastructure configurations
+          <p className="mt-2 text-sm text-gray-300">
+            An ops0 Product
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            Centralized platform to manage servers, devices and cloud configurations
           </p>
         </div>
 

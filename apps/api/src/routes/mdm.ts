@@ -3,6 +3,7 @@ import { db } from '../index';
 import { mdmProfiles, mdmDevices, mdmCommands, organizations } from '@config-management/database';
 import { eq, and, desc } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 import * as crypto from 'crypto';
 
@@ -61,7 +62,7 @@ function generateEnrollmentKey(): string {
 }
 
 // Get Organization's Default Enrollment Key
-router.get('/enrollment-key', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/enrollment-key', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const profile = await db
       .select({
@@ -89,7 +90,7 @@ router.get('/enrollment-key', async (req: AuthenticatedRequest, res): Promise<an
 });
 
 // MDM Profiles Management
-router.get('/profiles', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/profiles', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const profiles = await db
       .select()
@@ -104,7 +105,7 @@ router.get('/profiles', async (req: AuthenticatedRequest, res): Promise<any> => 
   }
 });
 
-router.post('/profiles', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/profiles', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = profileSchema.validate(req.body);
     if (error) {
@@ -131,7 +132,7 @@ router.post('/profiles', async (req: AuthenticatedRequest, res): Promise<any> =>
 });
 
 // Device Management
-router.get('/devices', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/devices', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const devices = await db
       .select()
@@ -147,7 +148,7 @@ router.get('/devices', async (req: AuthenticatedRequest, res): Promise<any> => {
 });
 
 // Delete a device
-router.delete('/devices/:deviceId', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/devices/:deviceId', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // First find the device to ensure it belongs to the user's organization
     const device = await db
@@ -389,7 +390,7 @@ publicRouter.post('/commands/:commandId/result', async (req, res): Promise<any> 
 });
 
 // Get commands for a device (for UI display)
-router.get('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/devices/:deviceId/commands', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const device = await db
       .select()
@@ -421,7 +422,7 @@ router.get('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res)
 });
 
 // Create a new command for a device
-router.post('/devices/:deviceId/commands', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/devices/:deviceId/commands', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = commandSchema.validate(req.body);
     if (error) {
@@ -564,7 +565,7 @@ publicRouter.get('/agent/installer', agentInstallerHandler);
 publicRouter.get('/download/agent-installer', agentInstallerHandler);
 
 // Download MDM agent installer
-router.get('/download/agent-installer', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/download/agent-installer', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const path = require('path');
     const fs = require('fs');
@@ -614,7 +615,7 @@ router.get('/download/agent-installer', async (req: AuthenticatedRequest, res): 
 });
 
 // Download MDM agent Python script
-router.get('/download/agent-script', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/download/agent-script', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const path = require('path');
     const fs = require('fs');
@@ -699,7 +700,7 @@ publicRouter.post('/devices/:deviceId/uninstall', async (req, res): Promise<any>
 });
 
 // Get MDM devices available for asset sync
-router.get('/devices/available-for-sync', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/devices/available-for-sync', featureFlagMiddleware('mdm'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { assets } = await import('@config-management/database');
     

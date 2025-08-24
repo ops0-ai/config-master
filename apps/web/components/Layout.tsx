@@ -19,11 +19,13 @@ import {
   DevicePhoneMobileIcon,
   ShieldCheckIcon,
   ComputerDesktopIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
+import { useOrganizationFeatures, OrganizationFeatures } from '@/contexts/OrganizationFeaturesContext';
 import OrganizationSwitcher from './OrganizationSwitcher';
 import TutorialButton from './TutorialButton';
 import Onboarding from './Onboarding';
@@ -33,16 +35,16 @@ interface LayoutProps {
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Configuration Chat', href: '/chat', icon: ChatBubbleLeftRightIcon },
-  { name: 'Servers', href: '/servers', icon: ServerIcon },
-  { name: 'Server Groups', href: '/server-groups', icon: CpuChipIcon },
-  { name: 'Configurations', href: '/configurations', icon: CpuChipIcon },
-  { name: 'Deployments', href: '/deployments', icon: ChartBarIcon },
-  { name: 'Assets', href: '/assets', icon: ComputerDesktopIcon },
-  { name: 'MDM', href: '/mdm', icon: DevicePhoneMobileIcon },
-  { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon },
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
+  { name: 'Dashboard', href: '/', icon: HomeIcon, feature: null },
+  { name: 'Configuration Chat', href: '/chat', icon: ChatBubbleLeftRightIcon, feature: 'chat' as keyof OrganizationFeatures },
+  { name: 'Servers', href: '/servers', icon: ServerIcon, feature: 'servers' as keyof OrganizationFeatures },
+  { name: 'Server Groups', href: '/server-groups', icon: CpuChipIcon, feature: 'serverGroups' as keyof OrganizationFeatures },
+  { name: 'Configurations', href: '/configurations', icon: CpuChipIcon, feature: 'configurations' as keyof OrganizationFeatures },
+  { name: 'Deployments', href: '/deployments', icon: ChartBarIcon, feature: 'deployments' as keyof OrganizationFeatures },
+  { name: 'Assets', href: '/assets', icon: ComputerDesktopIcon, feature: 'assets' as keyof OrganizationFeatures },
+  { name: 'MDM', href: '/mdm', icon: DevicePhoneMobileIcon, feature: 'mdm' as keyof OrganizationFeatures },
+  { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon, feature: 'training' as keyof OrganizationFeatures },
+  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, feature: null },
 ];
 
 export default function Layout({ children }: LayoutProps) {
@@ -51,6 +53,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const pathname = usePathname();
   const { user } = useMinimalAuth();
+  const { isFeatureEnabled, loading: featuresLoading } = useOrganizationFeatures();
 
   // Check if user needs onboarding - trigger when user changes
   useEffect(() => {
@@ -198,7 +201,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
 
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+        <main className="flex-1 relative overflow-hidden focus:outline-none">
           {children}
         </main>
       </div>
@@ -239,8 +242,31 @@ export default function Layout({ children }: LayoutProps) {
 
         <div className="flex-1 flex flex-col overflow-y-auto bg-gray-50 border-r border-gray-300">
           <nav className="flex-1 px-2 py-4 space-y-1">
-            {navigation.map((item) => {
+            {navigation.filter((item) => {
+              // Show all items to super admins
+              if (user?.isSuperAdmin) return true;
+              // Show items without feature requirements (like Dashboard, Settings)
+              if (!item.feature) return true;
+              // Show items only if feature is enabled
+              return isFeatureEnabled(item.feature);
+            }).map((item) => {
               const isActive = pathname === item.href;
+              const isDisabled = item.feature && !isFeatureEnabled(item.feature) && !user?.isSuperAdmin;
+              
+              if (isDisabled) {
+                // Render disabled navigation item
+                return (
+                  <div
+                    key={item.name}
+                    className="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-400 cursor-not-allowed opacity-50"
+                    title="This feature is not enabled for your organization"
+                  >
+                    <item.icon className="mr-3 flex-shrink-0 h-5 w-5 text-gray-300" />
+                    {item.name}
+                  </div>
+                );
+              }
+              
               return (
                 <Link
                   key={item.name}

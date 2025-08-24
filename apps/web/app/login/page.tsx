@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -71,20 +72,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Header */}
         <div className="text-center">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center">
-              <ServerIcon className="w-8 h-8 text-white" />
-            </div>
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/images/opszero-logo.svg"
+              alt="OpsZero Logo"
+              width={120}
+              height={120}
+              priority
+            />
           </div>
-          <h1 className="mt-6 text-3xl font-bold text-gray-900">
+          <h1 className="mt-4 text-3xl font-bold text-white">
             Welcome to Pulse
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to your configuration management dashboard
+          <p className="mt-2 text-sm text-gray-300">
+            An ops0 Product
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            Centralized platform to manage servers, devices and cloud configurations
           </p>
         </div>
 

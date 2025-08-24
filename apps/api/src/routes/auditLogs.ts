@@ -3,11 +3,12 @@ import { db } from '../index';
 import { auditLogs, users } from '@config-management/database';
 import { eq, desc, and, ilike, gte, lte } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 
 const router = Router();
 
 // Get audit logs with pagination, filtering, and search
-router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', featureFlagMiddleware('auditLogs'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { hasPermission } = await import('../utils/rbacSeeder');
     const canView = await hasPermission(req.user!.id, 'audit-logs', 'view');
@@ -111,7 +112,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Get distinct actions for filtering dropdown
-router.get('/actions', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/actions', featureFlagMiddleware('auditLogs'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { hasPermission } = await import('../utils/rbacSeeder');
     const canView = await hasPermission(req.user!.id, 'audit-logs', 'view');
@@ -134,7 +135,7 @@ router.get('/actions', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Get distinct resources for filtering dropdown
-router.get('/resources', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/resources', featureFlagMiddleware('auditLogs'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { hasPermission } = await import('../utils/rbacSeeder');
     const canView = await hasPermission(req.user!.id, 'audit-logs', 'view');
@@ -157,7 +158,7 @@ router.get('/resources', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Get audit log statistics
-router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/stats', featureFlagMiddleware('auditLogs'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { hasPermission } = await import('../utils/rbacSeeder');
     const canView = await hasPermission(req.user!.id, 'audit-logs', 'view');

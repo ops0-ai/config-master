@@ -59,14 +59,43 @@ else
     print_warning "Database backup failed, but continuing with upgrade..."
 fi
 
-# Run the upgrade SQL
-print_status "Applying database schema upgrades..."
-if docker exec -i configmaster-db psql -U postgres -d config_management < upgrade.sql; then
-    print_success "Database upgrade completed successfully"
+# Run the comprehensive upgrade SQL (includes all schemas and migrations)
+print_status "Applying comprehensive database schema upgrades..."
+if docker exec -i configmaster-db psql -U postgres -d config_management < comprehensive-upgrade.sql; then
+    print_success "Comprehensive database upgrade completed successfully"
 else
-    print_error "Database upgrade failed"
-    exit 1
+    # Fallback to individual migration files if comprehensive fails
+    print_warning "Comprehensive upgrade failed, trying individual migrations..."
+    
+    # Run the original upgrade SQL
+    print_status "Applying base database schema upgrades..."
+    if docker exec -i configmaster-db psql -U postgres -d config_management < upgrade.sql; then
+        print_success "Base database upgrade completed"
+    else
+        print_error "Base database upgrade failed"
+        exit 1
+    fi
+    
+    # Run the feature flags migration
+    print_status "Applying feature flags migration..."
+    if docker exec -i configmaster-db psql -U postgres -d config_management < feature-flags-migration.sql; then
+        print_success "Feature flags migration completed"
+    else
+        print_error "Feature flags migration failed"
+        exit 1
+    fi
+    
+    # Run the RBAC permissions fix
+    print_status "Applying RBAC permissions fix..."
+    if docker exec -i configmaster-db psql -U postgres -d config_management < rbac-permissions-fix.sql; then
+        print_success "RBAC permissions fix completed"
+    else
+        print_error "RBAC permissions fix failed"
+        exit 1
+    fi
 fi
+
+print_status "All database migrations completed successfully"
 
 # Stop containers before rebuilding
 print_status "Stopping current containers..."
@@ -168,6 +197,37 @@ else
     exit 1
 fi
 
+# Verify Administrator roles have all permissions
+print_status "Verifying Administrator roles have complete permissions..."
+TOTAL_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions;" | tr -d ' ')
+ADMIN_PERM_CHECK=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
+    SELECT COUNT(DISTINCT r.id) 
+    FROM roles r 
+    JOIN role_permissions rp ON r.id = rp.role_id 
+    WHERE r.name = 'Administrator' 
+    GROUP BY r.id 
+    HAVING COUNT(rp.permission_id) = $TOTAL_PERMS
+;" | wc -l | tr -d ' ')
+
+ADMIN_ROLES_COUNT=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM roles WHERE name = 'Administrator';" | tr -d ' ')
+
+if [ "$ADMIN_PERM_CHECK" -eq "$ADMIN_ROLES_COUNT" ]; then
+    print_success "All $ADMIN_ROLES_COUNT Administrator roles have complete permissions ($TOTAL_PERMS each)"
+else
+    print_error "Some Administrator roles are missing permissions (Expected: $ADMIN_ROLES_COUNT with $TOTAL_PERMS, Found: $ADMIN_PERM_CHECK)"
+    # Show detailed info for troubleshooting
+    docker exec configmaster-db psql -U postgres -d config_management -c "
+        SELECT o.name as org_name, r.name as role_name, COUNT(rp.permission_id) as perm_count 
+        FROM organizations o
+        JOIN roles r ON o.id = r.organization_id 
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        WHERE r.name = 'Administrator'
+        GROUP BY o.id, o.name, r.id, r.name
+        ORDER BY o.name;
+    "
+    exit 1
+fi
+
 # Verify GitHub integration permissions
 GITHUB_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions WHERE resource = 'github-integrations';" | tr -d ' ')
 if [ "$GITHUB_PERMS" -ge "5" ]; then
@@ -244,12 +304,16 @@ echo ""
 echo "🔐 Security & Permissions:"
 echo "   • Enhanced RBAC with asset permissions"
 echo "   • GitHub integration permissions"
-echo "   • Full admin permissions for new users"
+echo "   • ✅ FIXED: All Administrator roles now have complete permissions (57 total)"
+echo "   • ✅ FIXED: New users get full access to all features including assets"
+echo "   • Organization-level feature management"
+echo "   • Super admin organization control"
 echo "   • Separate repository selection for assets vs configurations"
 echo ""
 echo "🌐 Access your upgraded Pulse at: http://localhost:3000"
 echo "⚙️  Configure GitHub integration: Settings > Integrations"
 echo "📦 Sync assets to GitHub: Assets > Sync to GitHub"
+echo "🏢 Super Admin: Organization Management for feature control"
 echo ""
 echo "⚠️  IMPORTANT: If you don't see the 'Sync to GitHub' button in Assets:"
 echo "   1. Clear your browser cache (Ctrl+Shift+R or Cmd+Shift+R)"

@@ -20,6 +20,7 @@ import {
 import Editor from '@monaco-editor/react';
 import { conversationsApi, deploymentsApi, serversApi, serverGroupsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useOrganizationFeatures } from '@/contexts/OrganizationFeaturesContext';
 
 interface Message {
   id: string;
@@ -78,11 +79,15 @@ export default function ChatInterface() {
   const [saveConfigName, setSaveConfigName] = useState('');
   const [refreshingConfigId, setRefreshingConfigId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isFeatureEnabled } = useOrganizationFeatures();
 
   useEffect(() => {
     loadConversations();
-    loadServers();
-  }, []);
+    // Only load servers if the servers feature is enabled
+    if (isFeatureEnabled('servers') || isFeatureEnabled('serverGroups')) {
+      loadServers();
+    }
+  }, [isFeatureEnabled]);
 
   useEffect(() => {
     scrollToBottom();
@@ -144,14 +149,29 @@ export default function ChatInterface() {
 
   const loadServers = async () => {
     try {
-      const [serversResponse, serverGroupsResponse] = await Promise.all([
-        serversApi.getAll(),
-        serverGroupsApi.getAll()
-      ]);
+      const promises = [];
+      
+      // Only load servers if servers feature is enabled
+      if (isFeatureEnabled('servers')) {
+        promises.push(serversApi.getAll());
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+      }
+      
+      // Only load server groups if serverGroups feature is enabled
+      if (isFeatureEnabled('serverGroups')) {
+        promises.push(serverGroupsApi.getAll());
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+      }
+      
+      const [serversResponse, serverGroupsResponse] = await Promise.all(promises);
       setServers(serversResponse.data);
       setServerGroups(serverGroupsResponse.data);
     } catch (error) {
       console.error('Failed to load servers and server groups:', error);
+      // Don't show error toast as this might be due to feature being disabled
+      // toast.error('Failed to load servers and server groups');
     }
   };
 
@@ -603,13 +623,22 @@ export default function ChatInterface() {
             {message.configurationId ? (
               <button
                 onClick={() => onDeploy(message.configurationId!)}
-                disabled={configStatus?.approvalStatus !== 'approved'}
+                disabled={
+                  configStatus?.approvalStatus !== 'approved' || 
+                  (!isFeatureEnabled('servers') && !isFeatureEnabled('serverGroups'))
+                }
                 className={`text-xs flex items-center ${
-                  configStatus?.approvalStatus === 'approved'
+                  configStatus?.approvalStatus === 'approved' && (isFeatureEnabled('servers') || isFeatureEnabled('serverGroups'))
                     ? 'text-green-600 hover:text-green-500'
                     : 'text-gray-400 cursor-not-allowed'
                 }`}
-                title={configStatus?.approvalStatus !== 'approved' ? 'Configuration must be approved before deployment' : 'Deploy configuration'}
+                title={
+                  configStatus?.approvalStatus !== 'approved' 
+                    ? 'Configuration must be approved before deployment' 
+                    : (!isFeatureEnabled('servers') && !isFeatureEnabled('serverGroups'))
+                    ? 'Deployment features are not enabled for your organization'
+                    : 'Deploy configuration'
+                }
               >
                 <PlayIcon className="h-3 w-3 mr-1" />
                 Deploy
@@ -946,12 +975,32 @@ export default function ChatInterface() {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-900">Deploy Configuration</h3>
-              <p className="text-sm text-gray-600 mt-1">Select a deployment target for this configuration</p>
+              {(!isFeatureEnabled('servers') && !isFeatureEnabled('serverGroups')) ? (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <div className="flex">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        Deployment Features Not Available
+                      </h3>
+                      <p className="mt-1 text-sm text-yellow-700">
+                        Server and Server Group features are not enabled for your organization. 
+                        Please reach out to the support team to enable deployment features.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600 mt-1">Select a deployment target for this configuration</p>
+              )}
             </div>
             
-            {/* Target Type Selection */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Target Type</label>
+            {/* Only show deployment form if server features are available */}
+            {(isFeatureEnabled('servers') || isFeatureEnabled('serverGroups')) && (
+              <>
+                {/* Target Type Selection */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Target Type</label>
               <div className="flex space-x-4">
                 <label className="flex items-center">
                   <input
@@ -1027,25 +1076,39 @@ export default function ChatInterface() {
               )}
             </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeployModal(false);
-                  setTargetType('server');
-                  setSelectedServer('');
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={deployConfiguration}
-                disabled={!selectedServer}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-              >
-                Deploy to {targetType === 'server' ? 'Server' : 'Server Group'}
-              </button>
-            </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowDeployModal(false);
+                      setTargetType('server');
+                      setSelectedServer('');
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={deployConfiguration}
+                    disabled={!selectedServer}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Deploy to {targetType === 'server' ? 'Server' : 'Server Group'}
+                  </button>
+                </div>
+              </>
+            )}
+            
+            {/* Show only cancel button if deployment features are disabled */}
+            {(!isFeatureEnabled('servers') && !isFeatureEnabled('serverGroups')) && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowDeployModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

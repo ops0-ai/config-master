@@ -3,6 +3,7 @@ import { db } from '../index';
 import { deployments, configurations, servers, serverGroups, users } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 import * as cronParser from 'cron-parser';
 import { deploymentScheduler } from '../services/deploymentScheduler';
@@ -31,7 +32,7 @@ const deploymentSchema = Joi.object({
   timezone: Joi.string().default('UTC'),
 });
 
-router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const deploys = await db
       .select({
@@ -107,7 +108,7 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/:id', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const deploy = await db
       .select()
@@ -131,7 +132,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = deploymentSchema.validate(req.body);
     if (error) {
@@ -261,7 +262,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/:id/run', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/run', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user has execute permission for deployments
     const { hasPermission } = await import('../utils/rbacSeeder');
@@ -416,7 +417,7 @@ router.post('/:id/run', async (req: AuthenticatedRequest, res): Promise<any> => 
   }
 });
 
-router.post('/:id/cancel', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/cancel', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user has execute permission for deployments
     const { hasPermission } = await import('../utils/rbacSeeder');
@@ -474,7 +475,7 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res): Promise<any> 
   }
 });
 
-router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const deployment = await db
       .select()
@@ -505,7 +506,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
 });
 
 // Pause recurring deployment
-router.post('/:id/pause', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/pause', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const deployment = await db
       .select()
@@ -535,7 +536,7 @@ router.post('/:id/pause', async (req: AuthenticatedRequest, res): Promise<any> =
 });
 
 // Resume recurring deployment
-router.post('/:id/resume', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/resume', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const deployment = await db
       .select()
@@ -565,7 +566,7 @@ router.post('/:id/resume', async (req: AuthenticatedRequest, res): Promise<any> 
 });
 
 // Approve deployment (must come before /:id route)
-router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/approve', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user is admin or super_admin
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
@@ -607,7 +608,7 @@ router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any>
 });
 
 // Reject deployment (must come before /:id route)
-router.post('/:id/reject', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/reject', featureFlagMiddleware('deployments'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user is admin or super_admin
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {

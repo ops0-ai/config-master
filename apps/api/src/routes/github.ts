@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest, authMiddleware } from '../middleware/auth';
 import { rbacMiddleware } from '../middleware/rbacMiddleware';
 import { auditMiddleware } from '../middleware/audit';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import { githubService } from '../services/githubService';
 import Joi from 'joi';
 import crypto from 'crypto';
@@ -47,7 +48,7 @@ const oauthCallbackSchema = Joi.object({
  * GET /api/github/integrations
  * Get all GitHub integrations for the organization
  */
-router.get('/integrations', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/integrations', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const integrations = await db
       .select({
@@ -81,7 +82,7 @@ router.get('/integrations', authMiddleware, rbacMiddleware(), auditMiddleware, a
  * POST /api/github/auth/token
  * Authenticate with GitHub using Personal Access Token
  */
-router.post('/auth/token', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/auth/token', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { token } = req.body;
     
@@ -132,7 +133,7 @@ router.post('/auth/token', authMiddleware, rbacMiddleware(), auditMiddleware, as
  * POST /api/github/integrations
  * Create a new GitHub integration
  */
-router.post('/integrations', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/integrations', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = githubIntegrationSchema.validate(req.body);
     if (error) {
@@ -177,7 +178,7 @@ router.post('/integrations', authMiddleware, rbacMiddleware(), auditMiddleware, 
  * GET /api/github/session/:key
  * Get OAuth session data
  */
-router.get('/session/:key', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/session/:key', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { key } = req.params;
     
@@ -226,7 +227,7 @@ router.get('/session/:key', authMiddleware, rbacMiddleware(), auditMiddleware, a
  * GET /api/github/integrations/:id/repositories/:owner/:repo/branches
  * Get branches for a repository
  */
-router.get('/integrations/:id/repositories/:owner/:repo/branches', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/integrations/:id/repositories/:owner/:repo/branches', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id, owner, repo } = req.params;
 
@@ -254,7 +255,7 @@ router.get('/integrations/:id/repositories/:owner/:repo/branches', authMiddlewar
  * GET /api/github/integrations/:id/repositories/:owner/:repo/contents
  * Get repository contents (files and directories)
  */
-router.get('/integrations/:id/repositories/:owner/:repo/contents', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/integrations/:id/repositories/:owner/:repo/contents', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id, owner, repo } = req.params;
     const { path = '', branch = 'main' } = req.query;
@@ -285,7 +286,7 @@ router.get('/integrations/:id/repositories/:owner/:repo/contents', authMiddlewar
  * GET /api/github/integrations/:id/repositories/:owner/:repo/file
  * Get file content from repository
  */
-router.get('/integrations/:id/repositories/:owner/:repo/file', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/integrations/:id/repositories/:owner/:repo/file', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id, owner, repo } = req.params;
     const { path, branch = 'main' } = req.query;
@@ -324,7 +325,7 @@ router.get('/integrations/:id/repositories/:owner/:repo/file', authMiddleware, r
  * POST /api/github/integrations/:id/sync-asset-inventory
  * Sync asset inventory to GitHub
  */
-router.post('/integrations/:id/sync-asset-inventory', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/integrations/:id/sync-asset-inventory', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id } = req.params;
     const { relativePath, branch, content, commitMessage, format } = req.body;
@@ -382,7 +383,7 @@ router.post('/integrations/:id/sync-asset-inventory', authMiddleware, rbacMiddle
  * POST /api/github/integrations/:id/sync-configuration
  * Sync a configuration to GitHub
  */
-router.post('/integrations/:id/sync-configuration', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/integrations/:id/sync-configuration', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id } = req.params;
     const { configurationId, relativePath, branch, content, commitMessage } = req.body;
@@ -474,7 +475,7 @@ router.post('/integrations/:id/sync-configuration', authMiddleware, rbacMiddlewa
  * POST /api/github/integrations/:id/refresh
  * Refresh repositories using stored token
  */
-router.post('/integrations/:id/refresh', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/integrations/:id/refresh', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id } = req.params;
 
@@ -525,7 +526,7 @@ router.post('/integrations/:id/refresh', authMiddleware, rbacMiddleware(), audit
  * DELETE /api/github/integrations/:id
  * Delete GitHub integration
  */
-router.delete('/integrations/:id', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/integrations/:id', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id } = req.params;
 
@@ -559,7 +560,7 @@ router.delete('/integrations/:id', authMiddleware, rbacMiddleware(), auditMiddle
  * PUT /api/github/integrations/:id
  * Update GitHub integration settings
  */
-router.put('/integrations/:id', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.put('/integrations/:id', authMiddleware, featureFlagMiddleware('githubIntegrations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { id } = req.params;
     const { name, defaultBranch, basePath, autoFetch, fetchInterval } = req.body;
