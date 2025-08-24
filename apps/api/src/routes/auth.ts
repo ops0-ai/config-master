@@ -309,6 +309,24 @@ router.post('/login', async (req, res): Promise<any> => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check maintenance mode during login
+    const maintenanceMode = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'maintenance_mode'))
+      .limit(1);
+
+    if (maintenanceMode[0] && maintenanceMode[0].value === true) {
+      // During maintenance mode, only super admins and administrators are allowed
+      const isSuperAdmin = (user[0] as any).isSuperAdmin || false;
+      if (!isSuperAdmin && user[0].role !== 'administrator' && user[0].role !== 'super_admin') {
+        return res.status(503).json({ 
+          error: 'System is currently under maintenance. Only administrators can access the platform during maintenance mode.',
+          code: 'MAINTENANCE_MODE'
+        });
+      }
+    }
+
     // Get user's organization (either owned by user or user is a member)
     let org;
     if (user[0].organizationId) {
