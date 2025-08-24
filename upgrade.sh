@@ -242,7 +242,7 @@ else
     "
     
     # Verify the fix worked
-    FIXED_ADMIN_CHECK=\$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
+    FIXED_ADMIN_CHECK=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
         SELECT COUNT(DISTINCT r.id) 
         FROM roles r 
         JOIN role_permissions rp ON r.id = rp.role_id 

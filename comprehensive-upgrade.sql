@@ -50,13 +50,16 @@ BEGIN
 END $$;
 
 -- Insert default system settings (safe for existing installations)
-INSERT INTO system_settings (key, value, description)
+INSERT INTO system_settings (key, value, description, category)
 VALUES 
-    ('user_registration_enabled', 'true'::jsonb, 'Allow new users to register on the platform'),
-    ('default_user_role', '"viewer"'::jsonb, 'Default role assigned to new users'),
-    ('session_timeout', '86400'::jsonb, 'Session timeout in seconds (24 hours)'),
-    ('max_failed_login_attempts', '5'::jsonb, 'Maximum failed login attempts before account lock'),
-    ('password_min_length', '8'::jsonb, 'Minimum password length requirement')
+    ('user_registration_enabled', 'true'::jsonb, 'Allow new users to register on the platform', 'security'),
+    ('default_user_role', '"viewer"'::jsonb, 'Default role assigned to new users', 'security'),
+    ('session_timeout', '86400'::jsonb, 'Session timeout in seconds (24 hours)', 'security'),
+    ('max_failed_login_attempts', '5'::jsonb, 'Maximum failed login attempts before account lock', 'security'),
+    ('password_min_length', '8'::jsonb, 'Minimum password length requirement', 'security'),
+    ('maintenance_mode', 'false'::jsonb, 'Enable maintenance mode to disable user access', 'general'),
+    ('platform_name', '"Pulse"'::jsonb, 'Name of the platform displayed to users', 'general'),
+    ('support_contact', '"support@pulse.dev"'::jsonb, 'Support contact email for users', 'general')
 ON CONFLICT (key) DO NOTHING;
 
 -- ==============================
