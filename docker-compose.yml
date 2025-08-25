@@ -63,6 +63,7 @@ services:
       PORT: 5005
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       WEB_URL: ${WEB_URL:-${FRONTEND_URL:-http://localhost:3000}}
+      API_URL: ${API_URL:-http://localhost:5005}
       ALLOW_SELF_HOSTED_CORS: ${ALLOW_SELF_HOSTED_CORS:-true}
       PEM_KEYS_DIR: /secure/pem-keys
       DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@pulse.dev}

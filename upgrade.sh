@@ -202,8 +202,8 @@ print_status "Cleaning up duplicate permissions..."
 docker exec configmaster-db psql -U postgres -d config_management -c "
     -- Remove duplicate permissions (keep only unique resource:action combinations)
     DELETE FROM permissions p1 
-    WHERE p1.id NOT IN (
-        SELECT MIN(p2.id) 
+    WHERE p1.ctid NOT IN (
+        SELECT MIN(p2.ctid) 
         FROM permissions p2 
         GROUP BY p2.resource, p2.action
     );
@@ -271,8 +271,8 @@ else
     docker exec configmaster-db psql -U postgres -d config_management -c "
         -- First remove any duplicate role_permissions
         DELETE FROM role_permissions rp1 
-        WHERE rp1.id NOT IN (
-            SELECT MIN(rp2.id) 
+        WHERE rp1.ctid NOT IN (
+            SELECT MIN(rp2.ctid) 
             FROM role_permissions rp2 
             GROUP BY rp2.role_id, rp2.permission_id
         );
