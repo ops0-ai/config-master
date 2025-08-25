@@ -9,8 +9,6 @@ import {
   CheckIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   KeyIcon
 } from '@heroicons/react/24/outline';
 import SSOConfiguration from './SSOConfiguration';
@@ -151,8 +149,7 @@ export default function OrganizationManagement() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(8); // Show 8 organizations per page
+  // Removed pagination to show all organizations with scroll
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivateOrgId, setDeactivateOrgId] = useState<string>('');
@@ -385,32 +382,7 @@ export default function OrganizationManagement() {
     (org.description && org.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredOrganizations.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedOrganizations = filteredOrganizations.slice(startIndex, endIndex);
-
-  // Reset to first page when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
-
-  const goToPage = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const goToPrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  // No pagination - show all filtered organizations
 
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -541,11 +513,11 @@ export default function OrganizationManagement() {
                 </div>
               </div>
               
-              {/* Organizations List - Fixed Height Container */}
-              <div className="flex-1 min-h-0">
-                {paginatedOrganizations.length > 0 ? (
-                  <div className="divide-y divide-gray-200 h-full overflow-y-auto">
-                    {paginatedOrganizations.map((org) => (
+              {/* Organizations List - Fixed Height Container with improved scrolling */}
+              <div className="flex-1 min-h-0 overflow-hidden" style={{ maxHeight: '500px' }}>
+                {filteredOrganizations.length > 0 ? (
+                  <div className="divide-y divide-gray-200 h-full overflow-y-auto custom-scrollbar">
+                    {filteredOrganizations.map((org) => (
                       <div
                         key={org.id}
                         className={`px-4 py-4 cursor-pointer hover:bg-gray-50 transition-colors ${
@@ -587,58 +559,11 @@ export default function OrganizationManagement() {
                 )}
               </div>
               
-              {/* Pagination Controls - Fixed at Bottom */}
-              {totalPages > 1 && (
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-gray-500">
-                      Page {currentPage} of {totalPages}
-                    </div>
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={goToPrevPage}
-                        disabled={currentPage === 1}
-                        className="p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ChevronLeftIcon className="h-4 w-4" />
-                      </button>
-                      
-                      {/* Page Numbers */}
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                        const showPage = page === 1 || 
-                                        page === totalPages || 
-                                        (page >= currentPage - 1 && page <= currentPage + 1);
-                        
-                        if (!showPage) {
-                          if (page === currentPage - 2 || page === currentPage + 2) {
-                            return <span key={page} className="px-1 text-xs text-gray-400">...</span>;
-                          }
-                          return null;
-                        }
-                        
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => goToPage(page)}
-                            className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                              page === currentPage
-                                ? 'bg-blue-600 text-white'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      })}
-                      
-                      <button
-                        onClick={goToNextPage}
-                        disabled={currentPage === totalPages}
-                        className="p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ChevronRightIcon className="h-4 w-4" />
-                      </button>
-                    </div>
+              {/* Organization count footer */}
+              {filteredOrganizations.length > 0 && (
+                <div className="flex-shrink-0 px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+                  <div className="text-xs text-gray-500 text-center">
+                    Showing {filteredOrganizations.length} organization{filteredOrganizations.length !== 1 ? 's' : ''}
                   </div>
                 </div>
               )}
