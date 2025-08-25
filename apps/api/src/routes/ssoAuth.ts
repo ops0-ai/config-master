@@ -132,13 +132,13 @@ router.get('/callback', async (req, res): Promise<any> => {
     const { code, state } = req.query;
 
     if (!code || !state) {
-      return res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=missing_params`);
+      return res.redirect(`${process.env.FRONTEND_URL || process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=missing_params`);
     }
 
     // Validate state
     const stateData = stateStore.get(state as string);
     if (!stateData) {
-      return res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=invalid_state`);
+      return res.redirect(`${process.env.FRONTEND_URL || process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=invalid_state`);
     }
 
     stateStore.delete(state as string);
@@ -152,7 +152,7 @@ router.get('/callback', async (req, res): Promise<any> => {
       .limit(1);
 
     if (!provider) {
-      return res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=provider_not_found`);
+      return res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=provider_not_found`);
     }
 
     // Create OIDC client
@@ -162,7 +162,7 @@ router.get('/callback', async (req, res): Promise<any> => {
         issuer = await Issuer.discover(provider.discoveryUrl);
       } catch (discoveryError: any) {
         console.error(`❌ OIDC discovery failed in callback for ${provider.name}:`, discoveryError.message);
-        return res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=sso_failed`);
+        return res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=sso_failed`);
       }
     } else {
       issuer = new Issuer({
@@ -206,7 +206,7 @@ router.get('/callback', async (req, res): Promise<any> => {
     const externalUserId = userinfo.sub as string;
 
     if (!email) {
-      return res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=email_not_found`);
+      return res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=email_not_found`);
     }
 
     // Check if user exists
@@ -267,7 +267,7 @@ router.get('/callback', async (req, res): Promise<any> => {
     } else {
       // New user - auto-provision if enabled
       if (!provider.autoProvisionUsers) {
-        return res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=auto_provision_disabled`);
+        return res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=auto_provision_disabled`);
       }
 
       // Determine organization strategy
@@ -553,11 +553,11 @@ router.get('/callback', async (req, res): Promise<any> => {
 
     // Fuck this HTML approach, let's just use a simple redirect with the token in the URL hash
     console.log(`✅ SSO callback successful - redirecting user ${user.email} with token in URL hash`);
-    res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/#token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userObj))}&org=${encodeURIComponent(JSON.stringify(orgObj))}`);
+    res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/#token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userObj))}&org=${encodeURIComponent(JSON.stringify(orgObj))}`);
   } catch (error) {
     console.error('❌ SSO callback error:', error);
     console.error('❌ SSO callback stack:', error instanceof Error ? error.stack : 'No stack trace');
-    res.redirect(`${process.env.WEB_URL || 'http://localhost:3000'}/login?error=sso_failed`);
+    res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=sso_failed`);
   }
 });
 

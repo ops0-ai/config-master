@@ -197,16 +197,56 @@ else
     exit 1
 fi
 
+# First, clean up any duplicate permissions
+print_status "Cleaning up duplicate permissions..."
+docker exec configmaster-db psql -U postgres -d config_management -c "
+    -- Remove duplicate permissions (keep only unique resource:action combinations)
+    DELETE FROM permissions p1 
+    WHERE p1.id NOT IN (
+        SELECT MIN(p2.id) 
+        FROM permissions p2 
+        GROUP BY p2.resource, p2.action
+    );
+    
+    -- Remove orphaned role_permissions entries
+    DELETE FROM role_permissions 
+    WHERE permission_id NOT IN (SELECT id FROM permissions);
+    
+    -- Add unique constraint to prevent future duplicates (ignore if exists)
+    DO \$\$ 
+    BEGIN
+        ALTER TABLE permissions ADD CONSTRAINT permissions_resource_action_unique UNIQUE (resource, action);
+    EXCEPTION 
+        WHEN duplicate_table THEN NULL;
+    END \$\$;
+    
+    -- Also add unique constraint to role_permissions (ignore if exists)
+    DO \$\$ 
+    BEGIN
+        ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_unique UNIQUE (role_id, permission_id);
+    EXCEPTION 
+        WHEN duplicate_table THEN NULL;
+    END \$\$;
+"
+
+# Verify we have exactly 62 permissions
+print_status "Verifying permission count..."
+TOTAL_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions;" | tr -d ' ')
+if [ "$TOTAL_PERMS" -ne "62" ]; then
+    print_warning "Expected 62 permissions, found $TOTAL_PERMS. Running RBAC seeder to fix..."
+    docker exec configmaster-api npm run seed-rbac 2>/dev/null || true
+    TOTAL_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions;" | tr -d ' ')
+fi
+
 # Verify Administrator roles have all permissions
 print_status "Verifying Administrator roles have complete permissions..."
-TOTAL_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions;" | tr -d ' ')
 ADMIN_PERM_CHECK=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
     SELECT COUNT(DISTINCT r.id) 
     FROM roles r 
     JOIN role_permissions rp ON r.id = rp.role_id 
     WHERE r.name = 'Administrator' 
     GROUP BY r.id 
-    HAVING COUNT(rp.permission_id) = 62
+    HAVING COUNT(rp.permission_id) = $TOTAL_PERMS
 ;" | wc -l | tr -d ' ')
 
 ADMIN_ROLES_COUNT=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM roles WHERE name = 'Administrator';" | tr -d ' ')
@@ -229,7 +269,15 @@ else
     # Fix Administrator role permissions automatically
     print_status "Fixing Administrator role permissions..."
     docker exec configmaster-db psql -U postgres -d config_management -c "
-        -- Ensure all Administrator roles have all permissions
+        -- First remove any duplicate role_permissions
+        DELETE FROM role_permissions rp1 
+        WHERE rp1.id NOT IN (
+            SELECT MIN(rp2.id) 
+            FROM role_permissions rp2 
+            GROUP BY rp2.role_id, rp2.permission_id
+        );
+        
+        -- Then ensure all Administrator roles have all permissions
         INSERT INTO role_permissions (role_id, permission_id)
         SELECT r.id as role_id, p.id as permission_id
         FROM roles r
@@ -238,7 +286,8 @@ else
         AND NOT EXISTS (
             SELECT 1 FROM role_permissions rp 
             WHERE rp.role_id = r.id AND rp.permission_id = p.id
-        );
+        )
+        ON CONFLICT (role_id, permission_id) DO NOTHING;
     "
     
     # Verify the fix worked
