@@ -243,11 +243,11 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex-1 flex flex-col overflow-y-auto bg-gray-50 border-r border-gray-300">
           <nav className="flex-1 px-2 py-4 space-y-1">
             {navigation.filter((item) => {
-              // Show all items to super admins
-              if (user?.isSuperAdmin) return true;
               // Show items without feature requirements (like Dashboard, Settings)
               if (!item.feature) return true;
-              // Show items only if feature is enabled
+              // Show all items to super admins (enabled and disabled)
+              if (user?.isSuperAdmin) return true;
+              // For regular users, only show enabled features
               return isFeatureEnabled(item.feature);
             }).map((item) => {
               const isActive = pathname === item.href;
