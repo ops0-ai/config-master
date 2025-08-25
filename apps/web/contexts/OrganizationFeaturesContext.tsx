@@ -43,8 +43,65 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
       return;
     }
 
-    // Super admins have access to all features
-    if (user.isSuperAdmin) {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // Super admins have access to all features
+      if (user.isSuperAdmin) {
+        setFeatures({
+          servers: true,
+          serverGroups: true,
+          pemKeys: true,
+          configurations: true,
+          deployments: true,
+          chat: true,
+          training: true,
+          awsIntegrations: true,
+          githubIntegrations: true,
+          mdm: true,
+          assets: true,
+          auditLogs: true,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // For regular users, fetch actual features from API
+      const response = await fetch('/api/organizations/current/features', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFeatures(data.features || {});
+      } else {
+        console.error('Failed to fetch organization features:', response.statusText);
+        // Fallback to default enabled features if API fails
+        setFeatures({
+          servers: true,
+          serverGroups: true,
+          pemKeys: true,
+          configurations: true,
+          deployments: true,
+          chat: true,
+          training: true,
+          awsIntegrations: true,
+          githubIntegrations: true,
+          mdm: true,
+          assets: true,
+          auditLogs: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching organization features:', error);
+      // Fallback to default enabled features on error
       setFeatures({
         servers: true,
         serverGroups: true,
@@ -59,27 +116,9 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
         assets: true,
         auditLogs: true,
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // For regular users, just enable all features by default to prevent API calls
-    // This prevents infinite loops during authentication
-    setFeatures({
-      servers: true,
-      serverGroups: true,
-      pemKeys: true,
-      configurations: true,
-      deployments: true,
-      chat: true,
-      training: true,
-      awsIntegrations: true,
-      githubIntegrations: true,
-      mdm: true,
-      assets: true,
-      auditLogs: true,
-    });
-    setLoading(false);
   };
 
   useEffect(() => {
