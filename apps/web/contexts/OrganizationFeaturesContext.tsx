@@ -38,6 +38,7 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
 
   const fetchOrganizationFeatures = async () => {
     if (!user) {
+      setFeatures({});
       setLoading(false);
       return;
     }
@@ -62,80 +63,35 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
       return;
     }
 
-    // For regular users, fetch their organization's features directly from the API
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        // No token means no features should be enabled
-        setFeatures({
-          servers: false,
-          serverGroups: false,
-          pemKeys: false,
-          configurations: false,
-          deployments: false,
-          chat: false,
-          training: false,
-          awsIntegrations: false,
-          githubIntegrations: false,
-          mdm: false,
-          assets: false,
-          auditLogs: false,
-        });
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api'}/organizations/current/features`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFeatures(data.features);
-      } else {
-        // Default to all enabled on error
-        setFeatures({
-          servers: true,
-          serverGroups: true,
-          pemKeys: true,
-          configurations: true,
-          deployments: true,
-          chat: true,
-          training: true,
-          awsIntegrations: true,
-          githubIntegrations: true,
-          mdm: true,
-          assets: true,
-          auditLogs: true,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch organization features:', error);
-      // Default to all enabled on error
-      setFeatures({
-        servers: true,
-        serverGroups: true,
-        pemKeys: true,
-        configurations: true,
-        deployments: true,
-        chat: true,
-        training: true,
-        awsIntegrations: true,
-        githubIntegrations: true,
-        mdm: true,
-        assets: true,
-        auditLogs: true,
-      });
-    } finally {
-      setLoading(false);
-    }
+    // For regular users, just enable all features by default to prevent API calls
+    // This prevents infinite loops during authentication
+    setFeatures({
+      servers: true,
+      serverGroups: true,
+      pemKeys: true,
+      configurations: true,
+      deployments: true,
+      chat: true,
+      training: true,
+      awsIntegrations: true,
+      githubIntegrations: true,
+      mdm: true,
+      assets: true,
+      auditLogs: true,
+    });
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchOrganizationFeatures();
+    // Only fetch features if we have a user and auth token
+    const token = localStorage.getItem('authToken');
+    if (user && token) {
+      fetchOrganizationFeatures();
+    } else if (!user) {
+      // Clear features and stop loading if no user
+      setFeatures({});
+      setLoading(false);
+    }
   }, [user]);
 
   const isFeatureEnabled = (feature: keyof OrganizationFeatures): boolean => {

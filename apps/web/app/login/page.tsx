@@ -1,29 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
   EyeIcon,
   EyeSlashIcon,
-  ServerIcon
+  ServerIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
-import { authApi } from '@/lib/api';
+import { authApi, api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useMinimalAuth } from '@/contexts/MinimalAuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useMinimalAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ssoProviders, setSsoProviders] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  // Check for disabled organization message on component mount
+  // Check for disabled organization message and SSO errors on component mount
   useEffect(() => {
     const disabledMessage = localStorage.getItem('disabledOrgMessage');
     if (disabledMessage) {
@@ -33,7 +36,33 @@ export default function LoginPage() {
       });
       localStorage.removeItem('disabledOrgMessage');
     }
-  }, []);
+
+    // Check for SSO error
+    const error = searchParams.get('error');
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        sso_failed: 'SSO login failed. Please try again.',
+        missing_params: 'Invalid SSO response. Please try again.',
+        email_not_found: 'No email address found in SSO response.',
+        auto_provision_disabled: 'New user registration via SSO is disabled.',
+        invalid_state: 'Invalid SSO state. Please try again.',
+        provider_not_found: 'SSO provider not found.',
+      };
+      toast.error(errorMessages[error] || 'SSO login failed');
+    }
+
+    // Fetch available SSO providers
+    fetchSSOProviders();
+  }, [searchParams]);
+
+  const fetchSSOProviders = async () => {
+    try {
+      const response = await api.get('/sso/login-providers');
+      setSsoProviders(response.data);
+    } catch (error) {
+      console.error('Failed to fetch SSO providers:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +127,33 @@ export default function LoginPage() {
 
         {/* Login Form */}
         <div className="bg-white py-8 px-6 shadow-xl rounded-xl">
+          {/* SSO Login Options */}
+          {ssoProviders.length > 0 && (
+            <div className="mb-6">
+              <div className="space-y-3">
+                {ssoProviders.map((provider) => (
+                  <a
+                    key={provider.id}
+                    href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api'}/sso/login/${provider.id}`}
+                    className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                  >
+                    <KeyIcon className="h-5 w-5 mr-2 text-gray-500" />
+                    Continue with {provider.name}
+                  </a>
+                ))}
+              </div>
+              
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">

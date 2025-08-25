@@ -28,7 +28,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const publicRoutes = ['/login', '/register', '/forgot-password'];
+const publicRoutes = ['/login', '/register', '/forgot-password', '/sso-callback'];
 
 export function MinimalAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -67,8 +67,45 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
       console.log('MinimalAuth: Retrieved from localStorage', {
         hasToken: !!token,
         hasUserData: !!userData,
-        hasOrgData: !!orgData
+        hasOrgData: !!orgData,
+        pathname,
+        currentURL: typeof window !== 'undefined' ? window.location.href : 'server'
       });
+
+      // Check if we have SSO callback parameters in URL hash (regardless of pathname)
+      if (typeof window !== 'undefined' && window.location.hash.includes('token=')) {
+        console.log('MinimalAuth: Detected SSO callback parameters in URL hash');
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const urlToken = hashParams.get('token');
+        const urlUser = hashParams.get('user');
+        const urlOrg = hashParams.get('org');
+        
+        if (urlToken && urlUser && urlOrg) {
+          console.log('MinimalAuth: Processing SSO callback directly from URL hash');
+          try {
+            const userObj = JSON.parse(decodeURIComponent(urlUser));
+            const orgObj = JSON.parse(decodeURIComponent(urlOrg));
+            
+            // Store in localStorage
+            localStorage.setItem('authToken', urlToken);
+            localStorage.setItem('user', JSON.stringify(userObj));
+            localStorage.setItem('organization', JSON.stringify(orgObj));
+            
+            // Set state
+            setUser(userObj);
+            setOrganizationState(orgObj);
+            
+            console.log('MinimalAuth: SSO callback processed successfully, clearing hash and staying on page');
+            // Clear hash without redirecting
+            window.history.replaceState(null, '', window.location.pathname);
+            
+            setLoading(false);
+            return;
+          } catch (parseError) {
+            console.error('MinimalAuth: Error parsing SSO callback parameters', parseError);
+          }
+        }
+      }
 
       if (token && userData && orgData) {
         const parsedUser = JSON.parse(userData);
@@ -77,9 +114,20 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
         setUser(parsedUser);
         setOrganizationState(parsedOrg);
       } else {
-        console.log('MinimalAuth: No auth data found, user not logged in');
-        setUser(null);
-        setOrganizationState(null);
+        console.log('MinimalAuth: No complete auth data found');
+        
+        // If we're on sso-callback, don't clear data yet - let the callback process first
+        if (pathname === '/sso-callback') {
+          console.log('MinimalAuth: On SSO callback page, preserving partial data');
+          // Keep any existing user/org data, just clear user state for now
+          setUser(null);
+          setOrganizationState(null);
+        } else {
+          console.log('MinimalAuth: Incomplete auth data, but not clearing to avoid loops');
+          // Don't clear data aggressively - just set state to null
+          setUser(null);
+          setOrganizationState(null);
+        }
       }
     } catch (error) {
       console.error('MinimalAuth: Error checking auth', error);
@@ -103,6 +151,31 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
 
       console.log('MinimalAuth: Redirect logic', { isAuthenticated, isPublicRoute, pathname });
 
+      // If we're on sso-callback, wait a moment before applying redirect logic
+      // to give the callback page time to process the URL parameters
+      if (pathname === '/sso-callback') {
+        console.log('MinimalAuth: On SSO callback page, delaying redirect logic');
+        setTimeout(() => {
+          // Re-check auth state after delay
+          const token = localStorage.getItem('authToken');
+          const userData = localStorage.getItem('user');
+          const orgData = localStorage.getItem('organization');
+          
+          console.log('MinimalAuth: Delayed check on SSO callback', {
+            hasToken: !!token,
+            hasUserData: !!userData,
+            hasOrgData: !!orgData
+          });
+          
+          // If still no token after delay, redirect to login
+          if (!token) {
+            console.log('MinimalAuth: No token found after SSO callback delay, redirecting to login');
+            router.push('/login?error=sso_timeout');
+          }
+        }, 2000); // Give 2 seconds for SSO callback to process
+        return;
+      }
+
       if (!isAuthenticated && !isPublicRoute) {
         router.push('/login');
       } else if (isAuthenticated && isPublicRoute) {
@@ -112,7 +185,19 @@ export function MinimalAuthProvider({ children }: { children: React.ReactNode })
   }, [loading, user, pathname, router, mounted]);
 
   const login = (token: string, userData: User, orgData: Organization) => {
-    console.log('MinimalAuth: Login called', { userData, orgData });
+    console.log('MinimalAuth: Login called', { 
+      userData, 
+      orgData, 
+      token: token ? `${token.substring(0, 20)}...` : 'NULL/UNDEFINED',
+      tokenType: typeof token,
+      tokenLength: token?.length
+    });
+    
+    if (!token) {
+      console.error('MinimalAuth: Token is null/undefined, cannot login');
+      return;
+    }
+    
     localStorage.setItem('authToken', token);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('organization', JSON.stringify(orgData));

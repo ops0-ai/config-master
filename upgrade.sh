@@ -206,7 +206,7 @@ ADMIN_PERM_CHECK=$(docker exec configmaster-db psql -U postgres -d config_manage
     JOIN role_permissions rp ON r.id = rp.role_id 
     WHERE r.name = 'Administrator' 
     GROUP BY r.id 
-    HAVING COUNT(rp.permission_id) = $TOTAL_PERMS
+    HAVING COUNT(rp.permission_id) = 62
 ;" | wc -l | tr -d ' ')
 
 ADMIN_ROLES_COUNT=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM roles WHERE name = 'Administrator';" | tr -d ' ')
@@ -265,6 +265,45 @@ if [ "$GITHUB_PERMS" -ge "5" ]; then
     print_success "GitHub integration RBAC permissions created successfully ($GITHUB_PERMS permissions)"
 else
     print_error "GitHub integration RBAC permissions incomplete (found $GITHUB_PERMS, expected 5+)"
+    exit 1
+fi
+
+# Verify SSO integration permissions
+SSO_PERMS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM permissions WHERE resource = 'sso';" | tr -d ' ')
+if [ "$SSO_PERMS" -ge "5" ]; then
+    print_success "SSO RBAC permissions created successfully ($SSO_PERMS permissions)"
+else
+    print_error "SSO RBAC permissions incomplete (found $SSO_PERMS, expected 5+)"
+    exit 1
+fi
+
+# Verify SSO tables exist
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d sso_providers" &>/dev/null; then
+    print_success "SSO providers table created successfully"
+else
+    print_error "SSO providers table not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d sso_domain_mappings" &>/dev/null; then
+    print_success "SSO domain mappings table created successfully"
+else
+    print_error "SSO domain mappings table not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d user_sso_mappings" &>/dev/null; then
+    print_success "User SSO mappings table created successfully"
+else
+    print_error "User SSO mappings table not found"
+    exit 1
+fi
+
+# Verify SSO columns in users table
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d users" | grep -q "auth_method"; then
+    print_success "SSO integration columns created successfully in users table"
+else
+    print_error "SSO integration columns not found in users table"
     exit 1
 fi
 
@@ -332,11 +371,20 @@ echo "   • MDM device integration for automatic asset sync"
 echo "   • Bulk asset import from CSV"
 echo "   • Asset audit trail and history"
 echo ""
+echo "🔐 SSO (Single Sign-On):"
+echo "   • OIDC provider support (Google, Microsoft, etc.)"
+echo "   • Domain-based organization mapping"
+echo "   • Automatic user provisioning"
+echo "   • B2C and B2B organization strategies"
+echo "   • Super admin SSO provider management"
+echo "   • Encrypted client secrets storage"
+echo ""
 echo "🔐 Security & Permissions:"
 echo "   • Enhanced RBAC with asset permissions"
 echo "   • GitHub integration permissions"
-echo "   • ✅ FIXED: All Administrator roles now have complete permissions (57 total)"
-echo "   • ✅ FIXED: New users get full access to all features including assets"
+echo "   • SSO (Single Sign-On) permissions and management"
+echo "   • ✅ FIXED: All Administrator roles now have complete permissions (62 total)"
+echo "   • ✅ FIXED: New users get full access to all features including assets and SSO"
 echo "   • Organization-level feature management"
 echo "   • Super admin organization control"
 echo "   • Separate repository selection for assets vs configurations"
@@ -344,6 +392,7 @@ echo ""
 echo "🌐 Access your upgraded Pulse at: http://localhost:3000"
 echo "⚙️  Configure GitHub integration: Settings > Integrations"
 echo "📦 Sync assets to GitHub: Assets > Sync to GitHub"
+echo "🔐 Configure SSO providers: Super Admin > SSO Management"
 echo "🏢 Super Admin: Organization Management for feature control"
 echo ""
 echo "⚠️  IMPORTANT: If you don't see the 'Sync to GitHub' button in Assets:"

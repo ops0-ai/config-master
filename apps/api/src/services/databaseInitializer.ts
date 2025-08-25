@@ -27,6 +27,9 @@ export async function initializeDatabase(): Promise<void> {
     // Always ensure critical columns exist after migrations
     await ensureCriticalColumns(client);
     
+    // Always ensure SSO tables exist
+    await ensureSSOTables(client);
+    
     console.log('✅ Database schema initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
@@ -209,7 +212,10 @@ async function ensureAllTablesExist(client: postgres.Sql): Promise<void> {
     'asset_history',
     'asset_maintenance',
     'asset_categories',
-    'asset_locations'
+    'asset_locations',
+    'sso_providers',
+    'sso_domain_mappings', 
+    'user_sso_mappings'
   ];
   
   for (const tableName of requiredTables) {
@@ -224,11 +230,81 @@ async function ensureAllTablesExist(client: postgres.Sql): Promise<void> {
     if (!result[0].exists) {
       console.log(`⚠️ Table '${tableName}' is missing, running full migration...`);
       await applyAllMigrations(client);
+      
+      // If SSO tables are still missing after migrations, create them manually
+      if (tableName.startsWith('sso_')) {
+        await ensureSSOTables(client);
+      }
       break; // No need to check further, we've applied all migrations
     }
   }
   
   console.log('✅ All required tables exist');
+}
+
+async function ensureSSOTables(client: postgres.Sql): Promise<void> {
+  console.log('🔧 Creating SSO tables...');
+  
+  try {
+    // Create SSO providers table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS sso_providers (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name varchar(255) NOT NULL,
+        provider_type varchar(50) NOT NULL DEFAULT 'oidc',
+        client_id varchar(500) NOT NULL,
+        client_secret text NOT NULL,
+        discovery_url text,
+        issuer_url text,
+        authorization_url text,
+        token_url text,
+        userinfo_url text,
+        jwks_uri text,
+        scopes text[] DEFAULT ARRAY['openid', 'profile', 'email'],
+        claims_mapping jsonb DEFAULT '{"email": "email", "name": "name", "given_name": "given_name", "family_name": "family_name"}',
+        auto_provision_users boolean NOT NULL DEFAULT true,
+        default_role varchar(100) DEFAULT 'viewer',
+        first_user_role varchar(100) DEFAULT 'administrator',
+        role_mapping jsonb DEFAULT '{}',
+        is_active boolean NOT NULL DEFAULT true,
+        created_by uuid,
+        created_at timestamp DEFAULT NOW() NOT NULL,
+        updated_at timestamp DEFAULT NOW() NOT NULL
+      );
+    `);
+    
+    // Create SSO domain mappings table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS sso_domain_mappings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        sso_provider_id uuid REFERENCES sso_providers(id),
+        domain varchar(255) NOT NULL,
+        organization_id uuid NOT NULL,
+        is_default boolean NOT NULL DEFAULT false,
+        created_at timestamp DEFAULT NOW() NOT NULL,
+        updated_at timestamp DEFAULT NOW() NOT NULL
+      );
+    `);
+    
+    // Create user SSO mappings table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS user_sso_mappings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid REFERENCES users(id),
+        sso_provider_id uuid REFERENCES sso_providers(id),
+        external_user_id varchar(500) NOT NULL,
+        external_email varchar(255) NOT NULL,
+        external_metadata jsonb DEFAULT '{}',
+        last_login_at timestamp,
+        created_at timestamp DEFAULT NOW() NOT NULL,
+        updated_at timestamp DEFAULT NOW() NOT NULL
+      );
+    `);
+    
+    console.log('✅ SSO tables created successfully');
+  } catch (error) {
+    console.error('❌ Error creating SSO tables:', error);
+  }
 }
 
 async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
@@ -267,6 +343,26 @@ async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
       table: 'users',
       column: 'has_completed_onboarding',
       sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding boolean DEFAULT false;`
+    },
+    {
+      table: 'users',
+      column: 'auth_method',
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_method varchar DEFAULT 'password';`
+    },
+    {
+      table: 'users',
+      column: 'sso_provider_id',
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS sso_provider_id uuid;`
+    },
+    {
+      table: 'users',
+      column: 'external_user_id',
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS external_user_id varchar;`
+    },
+    {
+      table: 'users',
+      column: 'last_sso_login_at',
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_sso_login_at timestamp;`
     }
   ];
 

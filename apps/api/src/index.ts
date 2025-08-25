@@ -30,6 +30,8 @@ import { assetsRoutes } from './routes/assets';
 import { assetAssignmentsRoutes } from './routes/asset-assignments';
 import { adminRoutes } from './routes/admin';
 import systemSettingsRoutes from './routes/systemSettings';
+import ssoRoutes from './routes/sso';
+import ssoAuthRoutes from './routes/ssoAuth';
 import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
@@ -121,6 +123,8 @@ app.use('/api/assets', authMiddleware, autoFeatureFlagMiddleware(), assetsRoutes
 app.use('/api/asset-assignments', authMiddleware, autoFeatureFlagMiddleware(), assetAssignmentsRoutes);
 app.use('/api/admin', adminRoutes); // Super admin routes
 app.use('/api/system-settings', systemSettingsRoutes); // System settings management
+app.use('/api/sso', ssoRoutes); // SSO provider management (super admin)
+app.use('/api/sso', ssoAuthRoutes); // SSO authentication flow (public)
 app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
 app.use('/api/mdm', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, mdmRoutes);
 

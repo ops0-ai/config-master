@@ -24,6 +24,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "openid-client": "^6.6.4",
     "zod": "^4.0.17"
   }
 }

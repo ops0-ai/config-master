@@ -226,7 +226,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Image
-                src="/logo.png"
+                src="/images/logo-side-new.svg"
                 alt="Pulse Logo"
                 width={32}
                 height={32}

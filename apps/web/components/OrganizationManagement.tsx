@@ -10,8 +10,10 @@ import {
   XMarkIcon,
   MagnifyingGlassIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
+import SSOConfiguration from './SSOConfiguration';
 
 interface Organization {
   id: string;
@@ -166,7 +168,7 @@ export default function OrganizationManagement() {
   const [systemSettings, setSystemSettings] = useState<any>({});
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'features' | 'platform' | 'statistics'>('features');
+  const [activeTab, setActiveTab] = useState<'features' | 'platform' | 'statistics' | 'sso'>('features');
   const [orgStats, setOrgStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -708,17 +710,30 @@ export default function OrganizationManagement() {
                       Organization Statistics
                     </button>
                     {isSuperAdmin && (
-                      <button
-                        onClick={() => setActiveTab('platform')}
-                        className={`py-2 px-6 text-sm font-medium border-b-2 transition-colors ${
-                          activeTab === 'platform'
-                            ? 'border-blue-500 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <ShieldCheckIcon className="inline-block h-4 w-4 mr-2" />
-                        Platform Settings
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setActiveTab('platform')}
+                          className={`py-2 px-6 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === 'platform'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <ShieldCheckIcon className="inline-block h-4 w-4 mr-2" />
+                          Platform Settings
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('sso')}
+                          className={`py-2 px-6 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === 'sso'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <KeyIcon className="inline-block h-4 w-4 mr-2" />
+                          SSO Configuration
+                        </button>
+                      </>
                     )}
                   </nav>
                 </div>
@@ -1060,6 +1075,17 @@ export default function OrganizationManagement() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'sso' && isSuperAdmin && (
+                    <div>
+                      <h4 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                        <KeyIcon className="h-5 w-5 text-blue-600 mr-2" />
+                        SSO Configuration
+                        <span className="ml-2 text-xs text-gray-500">(Super Admin Only)</span>
+                      </h4>
+                      <SSOConfiguration />
                     </div>
                   )}
                 </div>

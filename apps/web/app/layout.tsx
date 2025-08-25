@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: 'Pulse - Enterprise Configuration Management',
   description: 'AI-powered configuration management platform with conversational Ansible automation',
   keywords: 'configuration management, ansible, devops, automation, infrastructure',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

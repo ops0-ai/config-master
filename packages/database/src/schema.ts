@@ -61,6 +61,10 @@ export const users = pgTable('users', {
   organizationId: uuid('organization_id').references(() => organizations.id),
   isActive: boolean('is_active').notNull().default(true),
   hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
+  authMethod: varchar('auth_method', { length: 50 }).notNull().default('password'), // password, sso, both
+  ssoProviderId: uuid('sso_provider_id'),
+  externalUserId: varchar('external_user_id', { length: 500 }),
+  lastSsoLoginAt: timestamp('last_sso_login_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -785,3 +789,57 @@ export const systemSettingsRelations = relations(systemSettings, ({ one }) => ({
   createdByUser: one(users, { fields: [systemSettings.createdBy], references: [users.id] }),
   updatedByUser: one(users, { fields: [systemSettings.updatedBy], references: [users.id] }),
 }));
+
+// SSO Provider Table - Global SSO configuration (placed at end to avoid circular deps)
+export const ssoProviders = pgTable('sso_providers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  providerType: varchar('provider_type', { length: 50 }).notNull().default('oidc'),
+  clientId: varchar('client_id', { length: 500 }).notNull(),
+  clientSecret: text('client_secret').notNull(), // encrypted
+  discoveryUrl: text('discovery_url'),
+  issuerUrl: text('issuer_url').notNull(),
+  authorizationUrl: text('authorization_url').notNull(),
+  tokenUrl: text('token_url').notNull(),
+  userinfoUrl: text('userinfo_url').notNull(),
+  jwksUri: text('jwks_uri'),
+  scopes: text('scopes').array().default(['openid', 'profile', 'email']),
+  claimsMapping: jsonb('claims_mapping').$type<Record<string, string>>().default({
+    email: 'email',
+    name: 'name',
+    given_name: 'given_name',
+    family_name: 'family_name'
+  }),
+  autoProvisionUsers: boolean('auto_provision_users').notNull().default(true),
+  defaultRole: varchar('default_role', { length: 100 }).default('viewer'), // Role for subsequent users in org
+  firstUserRole: varchar('first_user_role', { length: 100 }).default('administrator'), // Role for first user in new org
+  roleMapping: jsonb('role_mapping').$type<Record<string, string>>().default({}), // Map SSO groups/roles to app roles
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// SSO Domain Mappings - Map email domains to organizations
+export const ssoDomainMappings = pgTable('sso_domain_mappings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ssoProviderId: uuid('sso_provider_id').notNull(),
+  domain: varchar('domain', { length: 255 }).notNull(),
+  organizationId: uuid('organization_id').notNull(),
+  isDefault: boolean('is_default').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// User SSO Mappings - Link SSO accounts to internal users
+export const userSsoMappings = pgTable('user_sso_mappings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  ssoProviderId: uuid('sso_provider_id').notNull(),
+  externalUserId: varchar('external_user_id', { length: 500 }).notNull(),
+  externalEmail: varchar('external_email', { length: 255 }).notNull(),
+  externalMetadata: jsonb('external_metadata').$type<Record<string, any>>().default({}),
+  lastLoginAt: timestamp('last_login_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

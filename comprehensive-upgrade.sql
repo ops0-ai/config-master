@@ -59,7 +59,8 @@ VALUES
     ('password_min_length', '8'::jsonb, 'Minimum password length requirement', 'security'),
     ('maintenance_mode', 'false'::jsonb, 'Enable maintenance mode to disable user access', 'general'),
     ('platform_name', '"Pulse"'::jsonb, 'Name of the platform displayed to users', 'general'),
-    ('support_contact', '"support@pulse.dev"'::jsonb, 'Support contact email for users', 'general')
+    ('support_contact', '"support@pulse.dev"'::jsonb, 'Support contact email for users', 'general'),
+    ('sso_enabled', 'true'::jsonb, 'Enable SSO authentication for users', 'security')
 ON CONFLICT (key) DO NOTHING;
 
 -- ==============================
@@ -321,11 +322,122 @@ CREATE TABLE IF NOT EXISTS "asset_assignments" (
 );
 
 -- ==============================
+-- SSO TABLES
+-- ==============================
+
+-- Create SSO providers table (global configuration by super admin)
+CREATE TABLE IF NOT EXISTS "sso_providers" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "name" varchar(255) NOT NULL,
+    "provider_type" varchar(50) NOT NULL DEFAULT 'oidc', -- oidc, saml (future)
+    "client_id" varchar(500) NOT NULL,
+    "client_secret" text NOT NULL, -- encrypted
+    "discovery_url" text, -- For OIDC auto-discovery
+    "issuer_url" text NOT NULL,
+    "authorization_url" text NOT NULL,
+    "token_url" text NOT NULL,
+    "userinfo_url" text NOT NULL,
+    "jwks_uri" text,
+    "scopes" text[] DEFAULT ARRAY['openid', 'profile', 'email'],
+    "claims_mapping" jsonb DEFAULT '{"email": "email", "name": "name", "given_name": "given_name", "family_name": "family_name"}',
+    "auto_provision_users" boolean DEFAULT true NOT NULL,
+    "default_role" varchar(100) DEFAULT 'viewer',
+    "first_user_role" varchar(100) DEFAULT 'administrator',
+    "role_mapping" jsonb DEFAULT '{}',
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_by" uuid NOT NULL,
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create SSO domain mappings (for auto org assignment)
+CREATE TABLE IF NOT EXISTS "sso_domain_mappings" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "sso_provider_id" uuid NOT NULL,
+    "domain" varchar(255) NOT NULL,
+    "organization_id" uuid NOT NULL,
+    "is_default" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    UNIQUE("sso_provider_id", "domain")
+);
+
+-- Create user SSO mappings (link SSO accounts to users)
+CREATE TABLE IF NOT EXISTS "user_sso_mappings" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "user_id" uuid NOT NULL,
+    "sso_provider_id" uuid NOT NULL,
+    "external_user_id" varchar(500) NOT NULL,
+    "external_email" varchar(255) NOT NULL,
+    "external_metadata" jsonb DEFAULT '{}',
+    "last_login_at" timestamp,
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    UNIQUE("user_id", "sso_provider_id"),
+    UNIQUE("sso_provider_id", "external_user_id")
+);
+
+-- Add SSO columns to users table if they don't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='auth_method') THEN
+        ALTER TABLE "users" ADD COLUMN "auth_method" varchar(50) DEFAULT 'password' NOT NULL;
+        RAISE NOTICE 'Added auth_method column to users table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='sso_provider_id') THEN
+        ALTER TABLE "users" ADD COLUMN "sso_provider_id" uuid;
+        RAISE NOTICE 'Added sso_provider_id column to users table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='external_user_id') THEN
+        ALTER TABLE "users" ADD COLUMN "external_user_id" varchar(500);
+        RAISE NOTICE 'Added external_user_id column to users table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_sso_login_at') THEN
+        ALTER TABLE "users" ADD COLUMN "last_sso_login_at" timestamp;
+        RAISE NOTICE 'Added last_sso_login_at column to users table';
+    END IF;
+END $$;
+
+-- ==============================
 -- FOREIGN KEY CONSTRAINTS
 -- ==============================
 
 DO $$ 
 BEGIN
+    -- SSO constraints
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sso_providers_created_by_users_id_fk') THEN
+        ALTER TABLE "sso_providers" ADD CONSTRAINT "sso_providers_created_by_users_id_fk" 
+        FOREIGN KEY ("created_by") REFERENCES "users"("id");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sso_domain_mappings_sso_provider_id_fk') THEN
+        ALTER TABLE "sso_domain_mappings" ADD CONSTRAINT "sso_domain_mappings_sso_provider_id_fk" 
+        FOREIGN KEY ("sso_provider_id") REFERENCES "sso_providers"("id") ON DELETE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sso_domain_mappings_organization_id_fk') THEN
+        ALTER TABLE "sso_domain_mappings" ADD CONSTRAINT "sso_domain_mappings_organization_id_fk" 
+        FOREIGN KEY ("organization_id") REFERENCES "organizations"("id");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_sso_mappings_user_id_fk') THEN
+        ALTER TABLE "user_sso_mappings" ADD CONSTRAINT "user_sso_mappings_user_id_fk" 
+        FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_sso_mappings_sso_provider_id_fk') THEN
+        ALTER TABLE "user_sso_mappings" ADD CONSTRAINT "user_sso_mappings_sso_provider_id_fk" 
+        FOREIGN KEY ("sso_provider_id") REFERENCES "sso_providers"("id") ON DELETE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_sso_provider_id_fk') THEN
+        ALTER TABLE "users" ADD CONSTRAINT "users_sso_provider_id_fk" 
+        FOREIGN KEY ("sso_provider_id") REFERENCES "sso_providers"("id") ON DELETE SET NULL;
+    END IF;
+    
     -- System settings constraints
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'system_settings_created_by_users_id_fk') THEN
         ALTER TABLE "system_settings" ADD CONSTRAINT "system_settings_created_by_users_id_fk" 
@@ -426,6 +538,13 @@ BEGIN
     INSERT INTO permissions (resource, action, description) VALUES ('github-integrations', 'validate', 'Validate GitHub tokens') ON CONFLICT DO NOTHING;
     INSERT INTO permissions (resource, action, description) VALUES ('github-integrations', 'sync', 'Sync configurations to GitHub') ON CONFLICT DO NOTHING;
     
+    -- SSO permissions (super admin only)
+    INSERT INTO permissions (resource, action, description) VALUES ('sso', 'read', 'View SSO providers') ON CONFLICT DO NOTHING;
+    INSERT INTO permissions (resource, action, description) VALUES ('sso', 'write', 'Create and modify SSO providers') ON CONFLICT DO NOTHING;
+    INSERT INTO permissions (resource, action, description) VALUES ('sso', 'delete', 'Delete SSO providers') ON CONFLICT DO NOTHING;
+    INSERT INTO permissions (resource, action, description) VALUES ('sso', 'test', 'Test SSO provider connections') ON CONFLICT DO NOTHING;
+    INSERT INTO permissions (resource, action, description) VALUES ('sso', 'configure', 'Configure SSO domain mappings') ON CONFLICT DO NOTHING;
+    
     RAISE NOTICE 'Inserted missing RBAC permissions';
 EXCEPTION
     WHEN OTHERS THEN
@@ -489,8 +608,9 @@ BEGIN
     RAISE NOTICE '   - Organization feature flags added';
     RAISE NOTICE '   - GitHub integration tables created';
     RAISE NOTICE '   - Asset management tables created';
-    RAISE NOTICE '   - All RBAC permissions added';
+    RAISE NOTICE '   - SSO authentication tables created';
+    RAISE NOTICE '   - All RBAC permissions added (including SSO)';
     RAISE NOTICE '   - All foreign key constraints added';
     RAISE NOTICE '   - ✅ FIXED: All Administrator roles now have complete permissions';
-    RAISE NOTICE '🚀 Your Pulse installation is now fully upgraded!';
+    RAISE NOTICE '🚀 Your Pulse installation is now fully upgraded with SSO support!';
 END $$;
