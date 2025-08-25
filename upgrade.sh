@@ -200,15 +200,24 @@ fi
 # First, clean up any duplicate permissions
 print_status "Cleaning up duplicate permissions..."
 docker exec configmaster-db psql -U postgres -d config_management -c "
-    -- Remove duplicate permissions (keep only unique resource:action combinations)
-    DELETE FROM permissions p1 
-    WHERE p1.ctid NOT IN (
-        SELECT MIN(p2.ctid) 
-        FROM permissions p2 
-        GROUP BY p2.resource, p2.action
+    -- First, create a temp table with the permissions we want to keep (one per resource:action)
+    CREATE TEMP TABLE permissions_to_keep AS
+    SELECT MIN(p.ctid) as ctid, p.resource, p.action
+    FROM permissions p
+    GROUP BY p.resource, p.action;
+    
+    -- Delete role_permissions entries that reference duplicate permissions
+    DELETE FROM role_permissions 
+    WHERE permission_id IN (
+        SELECT id FROM permissions p
+        WHERE p.ctid NOT IN (SELECT ctid FROM permissions_to_keep)
     );
     
-    -- Remove orphaned role_permissions entries
+    -- Now we can safely delete the duplicate permissions
+    DELETE FROM permissions p1 
+    WHERE p1.ctid NOT IN (SELECT ctid FROM permissions_to_keep);
+    
+    -- Clean up any remaining orphaned role_permissions entries
     DELETE FROM role_permissions 
     WHERE permission_id NOT IN (SELECT id FROM permissions);
     
