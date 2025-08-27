@@ -71,6 +71,13 @@
       "when": 1755889239990,
       "tag": "0009_happy_preak",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1756227669101,
+      "tag": "0010_red_blizzard",
+      "breakpoints": true
     }
   ]
 }

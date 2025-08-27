@@ -304,6 +304,9 @@ router.post('/login', async (req, res): Promise<any> => {
     }
 
     // Verify password
+    if (!user[0].passwordHash) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
     const isValidPassword = await bcrypt.compare(value.password, user[0].passwordHash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -443,6 +446,9 @@ router.post('/change-password', async (req: any, res): Promise<any> => {
     }
 
     // Verify current password
+    if (!user.passwordHash) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
     const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValidPassword) {
       return res.status(400).json({ error: 'Current password is incorrect' });

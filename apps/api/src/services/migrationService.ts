@@ -46,6 +46,14 @@ export class MigrationService {
       {
         name: 'users.has_completed_onboarding',
         sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding boolean DEFAULT false;`
+      },
+      {
+        name: 'users.is_sso',
+        sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_sso boolean DEFAULT false;`
+      },
+      {
+        name: 'users.password_hash_nullable',
+        sql: `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`
       }
     ];
 

@@ -12,7 +12,7 @@ import {
   rolePermissions
 } from '@config-management/database';
 import { eq, and, sql } from 'drizzle-orm';
-import { Issuer, generators, Client } from 'openid-client';
+import { Issuer, generators, Client, custom } from 'openid-client';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -104,6 +104,11 @@ router.get('/login/:providerId', async (req, res): Promise<any> => {
       response_types: ['code'],
     });
 
+    // For Microsoft multi-tenant, set clock tolerance
+    if (provider.issuerUrl && provider.issuerUrl.includes('organizations')) {
+      (client as any)[custom.clock_tolerance] = 30; // Add clock tolerance for Microsoft
+    }
+
     // Generate state and nonce
     const state = generators.state();
     const nonce = generators.nonce();
@@ -181,11 +186,34 @@ router.get('/callback', async (req, res): Promise<any> => {
       response_types: ['code'],
     });
 
+    // For Microsoft multi-tenant, set clock tolerance and handle issuer validation differently
+    if (provider.issuerUrl && provider.issuerUrl.includes('organizations')) {
+      (client as any)[custom.clock_tolerance] = 30; // Add clock tolerance for Microsoft
+    }
+
     // Exchange code for tokens
+    let callbackChecks: any = { state: state as string, nonce: nonce };
+    
+    // For Microsoft multi-tenant, we need to handle issuer validation manually
+    if (provider.issuerUrl && provider.issuerUrl.includes('organizations')) {
+      console.log('🔧 Using custom issuer validation for Microsoft multi-tenant');
+      // We'll validate the issuer manually after getting the token
+      callbackChecks.iss = (iss: string) => {
+        console.log(`🔍 Validating issuer: ${iss}`);
+        const microsoftTenantPattern = /^https:\/\/login\.microsoftonline\.com\/[a-f0-9\-]+\/v2\.0$/;
+        const organizationsPattern = /^https:\/\/login\.microsoftonline\.com\/organizations\/v2\.0$/;
+        const commonPattern = /^https:\/\/login\.microsoftonline\.com\/common\/v2\.0$/;
+        
+        const isValid = microsoftTenantPattern.test(iss) || organizationsPattern.test(iss) || commonPattern.test(iss);
+        console.log(`✅ Issuer validation result: ${isValid} for ${iss}`);
+        return isValid;
+      };
+    }
+    
     const tokenSet = await client.callback(
       `${process.env.API_URL || 'http://localhost:5005'}/api/sso/callback`,
       { code: code as string, state: state as string },
-      { state: state as string, nonce: nonce } // Provide state and nonce for validation
+      callbackChecks
     );
 
     // Get user info
@@ -199,21 +227,22 @@ router.get('/callback', async (req, res): Promise<any> => {
       family_name: 'family_name'
     };
 
-    const email = userinfo[claimsMapping.email] as string;
+    const rawEmail = userinfo[claimsMapping.email] as string;
+    const email = rawEmail?.toLowerCase(); // Normalize email to lowercase
     const userName = (userinfo[claimsMapping.name] || 
                 `${userinfo[claimsMapping.given_name] || ''} ${userinfo[claimsMapping.family_name] || ''}`.trim() ||
-                email.split('@')[0]) as string;
+                email?.split('@')[0]) as string;
     const externalUserId = userinfo.sub as string;
 
     if (!email) {
       return res.redirect(`${process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000'}/login?error=email_not_found`);
     }
 
-    // Check if user exists
+    // Check if user exists (case-insensitive email comparison)
     let [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(sql`LOWER(${users.email}) = LOWER(${email})`)
       .limit(1);
 
     let organizationId: string;

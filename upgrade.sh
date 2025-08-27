@@ -63,6 +63,14 @@ fi
 print_status "Applying comprehensive database schema upgrades..."
 if docker exec -i configmaster-db psql -U postgres -d config_management < comprehensive-upgrade.sql; then
     print_success "Comprehensive database upgrade completed successfully"
+    
+    # Always apply the email case-insensitive fix after comprehensive upgrade
+    print_status "Applying email case-insensitive fix (Microsoft SSO compatibility)..."
+    if docker exec -i configmaster-db psql -U postgres -d config_management < email-case-insensitive-fix.sql; then
+        print_success "Email case-insensitive fix completed"
+    else
+        print_warning "Email case-insensitive fix failed, but continuing..."
+    fi
 else
     # Fallback to individual migration files if comprehensive fails
     print_warning "Comprehensive upgrade failed, trying individual migrations..."
@@ -91,6 +99,15 @@ else
         print_success "RBAC permissions fix completed"
     else
         print_error "RBAC permissions fix failed"
+        exit 1
+    fi
+    
+    # Run the email case-insensitive fix
+    print_status "Applying email case-insensitive fix (Microsoft SSO compatibility)..."
+    if docker exec -i configmaster-db psql -U postgres -d config_management < email-case-insensitive-fix.sql; then
+        print_success "Email case-insensitive fix completed"
+    else
+        print_error "Email case-insensitive fix failed"
         exit 1
     fi
 fi
@@ -365,6 +382,48 @@ else
     exit 1
 fi
 
+# Verify email case-insensitive fixes
+print_status "Verifying email case-insensitive fixes..."
+EMAIL_DUPLICATES=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
+    SELECT COUNT(*) 
+    FROM (
+        SELECT LOWER(email), organization_id, COUNT(*) as cnt
+        FROM users 
+        GROUP BY LOWER(email), organization_id
+        HAVING COUNT(*) > 1
+    ) duplicates;
+" | tr -d ' ')
+
+NON_NORMALIZED_EMAILS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
+    SELECT COUNT(*) FROM users WHERE email != LOWER(email);
+" | tr -d ' ')
+
+EMAIL_TRIGGER_EXISTS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
+    SELECT COUNT(*) FROM information_schema.triggers 
+    WHERE trigger_name = 'normalize_user_email_trigger';
+" | tr -d ' ')
+
+if [ "$EMAIL_DUPLICATES" -eq "0" ]; then
+    print_success "✅ No duplicate emails found (case-insensitive check passed)"
+else
+    print_error "❌ Found $EMAIL_DUPLICATES duplicate emails (case-insensitive)"
+    exit 1
+fi
+
+if [ "$NON_NORMALIZED_EMAILS" -eq "0" ]; then
+    print_success "✅ All emails are properly normalized to lowercase"
+else
+    print_error "❌ Found $NON_NORMALIZED_EMAILS emails that are not lowercase"
+    exit 1
+fi
+
+if [ "$EMAIL_TRIGGER_EXISTS" -gt "0" ]; then
+    print_success "✅ Email normalization trigger is active"
+else
+    print_error "❌ Email normalization trigger is not active"
+    exit 1
+fi
+
 # Verify API endpoints
 print_status "Verifying API endpoints..."
 API_HEALTH=$(curl -s http://localhost:5005/health 2>/dev/null || echo "failed")
@@ -443,6 +502,8 @@ echo "   • GitHub integration permissions"
 echo "   • SSO (Single Sign-On) permissions and management"
 echo "   • ✅ FIXED: All Administrator roles now have complete permissions (62 total)"
 echo "   • ✅ FIXED: New users get full access to all features including assets and SSO"
+echo "   • ✅ FIXED: Microsoft SSO email case sensitivity issue resolved"
+echo "   • ✅ FIXED: Automatic email normalization (prevents duplicate users)"
 echo "   • Organization-level feature management"
 echo "   • Super admin organization control"
 echo "   • Separate repository selection for assets vs configurations"

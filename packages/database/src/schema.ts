@@ -55,12 +55,13 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).unique().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'),
   role: varchar('role', { length: 50 }).notNull().default('user'),
   isSuperAdmin: boolean('is_super_admin').notNull().default(false), // Global super admin
   organizationId: uuid('organization_id').references(() => organizations.id),
   isActive: boolean('is_active').notNull().default(true),
   hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
+  isSSO: boolean('is_sso').notNull().default(false), // True if user was created as SSO user
   authMethod: varchar('auth_method', { length: 50 }).notNull().default('password'), // password, sso, both
   ssoProviderId: uuid('sso_provider_id'),
   externalUserId: varchar('external_user_id', { length: 500 }),

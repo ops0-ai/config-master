@@ -17,11 +17,11 @@ router.get('/:id/stats', authMiddleware, async (req: AuthenticatedRequest, res):
     
     console.log(`🔍 Fetching stats for organization: ${id}`);
     
-    // Query users directly from users table (primary relationship)
+    // Query users directly from users table (primary relationship) - only active users
     const usersResult = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(users)
-      .where(eq(users.organizationId, id));
+      .where(and(eq(users.organizationId, id), eq(users.isActive, true)));
       
     const configurationsResult = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -562,7 +562,7 @@ router.get('/admin/all', authMiddleware, requireSuperAdmin, async (req: Authenti
     // Manually add counts for each organization
     const orgsWithStats = await Promise.all(
       basicOrgs.map(async (org) => {
-        const [userCount] = await db.execute(sql`SELECT COUNT(*)::int as count FROM users WHERE organization_id = ${org.id}`);
+        const [userCount] = await db.execute(sql`SELECT COUNT(*)::int as count FROM users WHERE organization_id = ${org.id} AND is_active = true`);
         const [serverCount] = await db.execute(sql`SELECT COUNT(*)::int as count FROM servers WHERE organization_id = ${org.id}`);
         const [configCount] = await db.execute(sql`SELECT COUNT(*)::int as count FROM configurations WHERE organization_id = ${org.id}`);
         const [deploymentCount] = await db.execute(sql`SELECT COUNT(*)::int as count FROM deployments WHERE organization_id = ${org.id}`);
