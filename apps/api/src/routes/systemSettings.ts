@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { db } from '../index';
 import { systemSettings, users } from '@config-management/database';
 import { eq } from 'drizzle-orm';
@@ -135,6 +135,44 @@ router.get('/public/info', async (req, res): Promise<any> => {
   } catch (error) {
     console.error('Error fetching public system settings:', error);
     res.status(500).json({ error: 'Failed to fetch public settings' });
+  }
+});
+
+// Test webhook endpoint
+router.post('/test-webhook', authMiddleware, requireSuperAdmin, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { webhookUrl } = req.body;
+    
+    if (!webhookUrl) {
+      return res.status(400).json({ error: 'Webhook URL is required' });
+    }
+
+    // Import webhook service
+    const { userSignupWebhookService } = await import('../services/userSignupWebhook');
+    
+    // Create test webhook data
+    const testWebhookData = {
+      userId: 'test-user-id',
+      userName: 'Test User',
+      userEmail: 'test@acmecorp.com',
+      organizationId: 'test-org-id',
+      organizationName: 'Test Organization',
+      company: 'Acmecorp',
+      domain: 'acmecorp.com',
+      isFirstTimeSignup: true,
+      signupDate: new Date().toISOString()
+    };
+
+    // Send test webhook
+    await userSignupWebhookService.sendUserSignupWebhook(webhookUrl, testWebhookData);
+    
+    res.json({ success: true, message: 'Test webhook sent successfully' });
+  } catch (error: any) {
+    console.error('Test webhook error:', error);
+    res.status(500).json({ 
+      error: 'Failed to send test webhook',
+      details: error.message 
+    });
   }
 });
 

@@ -224,6 +224,36 @@ router.post('/register', async (req, res): Promise<any> => {
       // Don't fail registration if MDM profile creation fails
     }
 
+    // Send webhook notification for new user signup
+    try {
+      const { userSignupWebhookService } = await import('../services/userSignupWebhook');
+      
+      // Extract company info from email
+      const email = newUser[0].email;
+      const domain = email.split('@')[1]?.toLowerCase();
+      const commonProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com', 'mail.com', 'ymail.com', 'live.com', 'msn.com', 'rediffmail.com', 'zoho.com'];
+      
+      let company = null;
+      if (domain && !commonProviders.includes(domain)) {
+        company = domain.split('.')[0].split(/[-_]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+      }
+      
+      await userSignupWebhookService.notifyUserSignup({
+        userId: newUser[0].id,
+        userName: newUser[0].name,
+        userEmail: newUser[0].email,
+        organizationId: newOrg[0].id,
+        organizationName: newOrg[0].name,
+        company,
+        domain,
+        isFirstTimeSignup: true,
+        signupDate: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Warning: Failed to send user signup webhook:', error);
+      // Don't fail registration if webhook fails
+    }
+
     // Generate JWT
     const newUserRecord = newUser[0] as any;
     const token = jwt.sign(

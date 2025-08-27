@@ -1089,6 +1089,105 @@ export default function OrganizationManagement() {
                           </div>
                         </div>
 
+                        {/* Webhook Notifications */}
+                        <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center space-x-3">
+                              <EnvelopeIcon className="h-5 w-5 text-blue-600" />
+                              <div className="flex-1">
+                                <h6 className="text-sm font-medium text-gray-900">Webhook Notifications</h6>
+                                <p className="text-xs text-gray-500">
+                                  Get notified when new organizations are created
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Webhook URL
+                              </label>
+                              <div className="flex space-x-2">
+                                <input
+                                  type="url"
+                                  placeholder="https://your-webhook-url.com/signup"
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                  value={systemSettings.user_signup_webhook_url || ''}
+                                  onChange={(e) => updateSystemSetting('user_signup_webhook_url', e.target.value)}
+                                />
+                                <button
+                                  onClick={async () => {
+                                    if (!systemSettings.user_signup_webhook_url) {
+                                      setError('Please enter a webhook URL first');
+                                      return;
+                                    }
+                                    
+                                    try {
+                                      setSaving(true);
+                                      const token = localStorage.getItem('authToken');
+                                      
+                                      const response = await fetch('/api/system-settings/test-webhook', {
+                                        method: 'POST',
+                                        headers: {
+                                          'Authorization': `Bearer ${token}`,
+                                          'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({ 
+                                          webhookUrl: systemSettings.user_signup_webhook_url 
+                                        }),
+                                      });
+                                      
+                                      if (response.ok) {
+                                        setSuccessMessage('Test webhook sent successfully!');
+                                      } else {
+                                        const errorData = await response.json();
+                                        setError(errorData.error || 'Failed to send test webhook');
+                                      }
+                                    } catch (err: any) {
+                                      setError('Failed to send test webhook');
+                                    } finally {
+                                      setSaving(false);
+                                      setTimeout(() => {
+                                        setError(null);
+                                        setSuccessMessage(null);
+                                      }, 3000);
+                                    }
+                                  }}
+                                  disabled={saving || !systemSettings.user_signup_webhook_url}
+                                  className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  {saving ? 'Testing...' : 'Test'}
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h6 className="text-sm font-medium text-gray-900">New Organization Signup Notifications</h6>
+                                <p className="text-xs text-gray-500">
+                                  Notify when users create new organizations (first-time signups only)
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => updateSystemSetting('webhook_new_org_notifications', !systemSettings.webhook_new_org_notifications)}
+                                disabled={saving || loadingSettings}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                  systemSettings.webhook_new_org_notifications
+                                    ? 'bg-blue-600'
+                                    : 'bg-gray-200'
+                                } ${saving || loadingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    systemSettings.webhook_new_org_notifications
+                                      ? 'translate-x-5'
+                                      : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Support Contact */}
                         <div className="border border-gray-200 bg-gray-50 rounded-lg p-4">
                           <div className="flex items-center space-x-3">

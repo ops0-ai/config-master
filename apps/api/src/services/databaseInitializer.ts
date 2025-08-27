@@ -30,6 +30,9 @@ export async function initializeDatabase(): Promise<void> {
     // Always ensure SSO tables exist
     await ensureSSOTables(client);
     
+    // Always ensure webhook system settings exist
+    await ensureWebhookSystemSettings(client);
+    
     console.log('✅ Database schema initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
@@ -404,6 +407,42 @@ async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
     console.log('✅ Organization feature flags updated');
   } catch (error) {
     console.log(`⚠️ Failed to update organization features: ${error}`);
+  }
+}
+
+async function ensureWebhookSystemSettings(client: postgres.Sql): Promise<void> {
+  console.log('🔔 Ensuring webhook system settings exist...');
+  
+  try {
+    // Ensure system_settings table exists
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        key varchar(255) UNIQUE NOT NULL,
+        value jsonb NOT NULL,
+        description text,
+        category varchar(100) NOT NULL DEFAULT 'general',
+        is_readonly boolean NOT NULL DEFAULT false,
+        created_by uuid,
+        updated_by uuid,
+        created_at timestamp DEFAULT NOW() NOT NULL,
+        updated_at timestamp DEFAULT NOW() NOT NULL
+      );
+    `);
+    
+    // Insert webhook-related system settings
+    await client.unsafe(`
+      INSERT INTO system_settings (key, value, description, category, is_readonly) 
+      VALUES 
+        ('user_signup_webhook_url', '""'::jsonb, 'Webhook URL for user signup notifications', 'platform', false),
+        ('webhook_new_org_notifications', 'false'::jsonb, 'Enable webhook notifications for new organization signups', 'platform', false)
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    
+    console.log('✅ Webhook system settings ensured successfully');
+  } catch (error) {
+    console.error('❌ Error ensuring webhook system settings:', error);
+    // Don't throw error, just log it - webhook functionality is not critical for platform operation
   }
 }
 
