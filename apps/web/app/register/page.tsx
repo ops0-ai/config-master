@@ -401,11 +401,11 @@ export default function RegisterPage() {
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
                 I agree to the{' '}
-                <Link href="/terms" className="text-primary-600 hover:text-primary-500">
+                <Link href="https://privacy.ops0.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-500">
                   Terms of Service
                 </Link>
                 {' '}and{' '}
-                <Link href="/privacy" className="text-primary-600 hover:text-primary-500">
+                <Link href="https://privacy.ops0.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-500">
                   Privacy Policy
                 </Link>
               </label>
