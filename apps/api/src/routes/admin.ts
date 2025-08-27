@@ -203,8 +203,19 @@ const superAdminMiddleware = async (req: AuthenticatedRequest, res: any, next: a
  */
 router.get('/organizations', authMiddleware, superAdminMiddleware, auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
-    // Get organizations with user counts
-    const orgsWithCounts = await db
+    const { filter = 'all' } = req.query;
+    
+    // Build the where condition based on filter
+    let whereCondition;
+    if (filter === 'active') {
+      whereCondition = eq(organizations.isActive, true);
+    } else if (filter === 'inactive') {
+      whereCondition = eq(organizations.isActive, false);
+    }
+    // For 'all', no where condition is applied
+
+    // Build query with conditional where clause
+    let query = db
       .select({
         id: organizations.id,
         name: organizations.name,
@@ -218,7 +229,13 @@ router.get('/organizations', authMiddleware, superAdminMiddleware, auditMiddlewa
         userCount: sql`count(${users.id})`
       })
       .from(organizations)
-      .leftJoin(users, eq(users.organizationId, organizations.id))
+      .leftJoin(users, and(eq(users.organizationId, organizations.id), eq(users.isActive, true)));
+    
+    if (whereCondition) {
+      query = query.where(whereCondition);
+    }
+    
+    const orgsWithCounts = await query
       .groupBy(
         organizations.id,
         organizations.name,
@@ -230,7 +247,10 @@ router.get('/organizations', authMiddleware, superAdminMiddleware, auditMiddlewa
         organizations.createdAt,
         organizations.updatedAt
       )
-      .orderBy(desc(organizations.createdAt));
+      .orderBy(
+        desc(organizations.isPrimary), // Primary org first
+        organizations.name // Then alphabetical by name
+      );
 
     // Format the response
     const formattedOrgs = orgsWithCounts.map(org => ({

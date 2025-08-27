@@ -47,6 +47,18 @@ router.get('/:id/stats', authMiddleware, async (req: AuthenticatedRequest, res):
       .select({ count: sql<number>`count(*)::int` })
       .from(assets)
       .where(eq(assets.organizationId, id));
+      
+    // Get the first user who signed up (oldest user in the organization)
+    const firstUserResult = await db
+      .select({
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt
+      })
+      .from(users)
+      .where(eq(users.organizationId, id))
+      .orderBy(users.createdAt)
+      .limit(1);
 
     const stats = {
       users: usersResult[0]?.count || 0,
@@ -54,7 +66,12 @@ router.get('/:id/stats', authMiddleware, async (req: AuthenticatedRequest, res):
       deployments: deploymentsResult[0]?.count || 0,
       servers: serversResult[0]?.count || 0,
       conversations: conversationsResult[0]?.count || 0,
-      assets: assetsResult[0]?.count || 0
+      assets: assetsResult[0]?.count || 0,
+      firstUser: firstUserResult[0] ? {
+        name: firstUserResult[0].name,
+        email: firstUserResult[0].email,
+        signedUpAt: firstUserResult[0].createdAt
+      } : null
     };
     
     console.log(`📊 Organization ${id} stats:`, stats);
@@ -774,8 +791,8 @@ router.patch('/admin/:orgId', authMiddleware, requireSuperAdmin, async (req: Aut
   }
 });
 
-// Delete/Disable organization (Super Admin only)
-router.delete('/admin/:orgId', authMiddleware, requireSuperAdmin, async (req: AuthenticatedRequest, res): Promise<any> => {
+// Deactivate organization (Super Admin only)
+router.put('/admin/:orgId/deactivate', authMiddleware, requireSuperAdmin, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const orgId = req.params.orgId;
 
@@ -790,13 +807,13 @@ router.delete('/admin/:orgId', authMiddleware, requireSuperAdmin, async (req: Au
       return res.status(404).json({ error: 'Organization not found' });
     }
 
-    // Prevent deleting primary organization
+    // Prevent deactivating primary organization
     if (existingOrg[0].isPrimary) {
-      return res.status(400).json({ error: 'Cannot delete primary organization' });
+      return res.status(400).json({ error: 'Cannot deactivate primary organization' });
     }
 
-    // Just disable the organization instead of deleting
-    const disabledOrg = await db
+    // Deactivate the organization
+    const deactivatedOrg = await db
       .update(organizations)
       .set({
         isActive: false,
@@ -805,7 +822,7 @@ router.delete('/admin/:orgId', authMiddleware, requireSuperAdmin, async (req: Au
       .where(eq(organizations.id, orgId))
       .returning();
 
-    // Also disable all users in the organization
+    // Also deactivate all users in the organization
     await db
       .update(users)
       .set({
@@ -814,15 +831,18 @@ router.delete('/admin/:orgId', authMiddleware, requireSuperAdmin, async (req: Au
       })
       .where(eq(users.organizationId, orgId));
 
+    console.log(`🔒 Organization ${existingOrg[0].name} deactivated by ${req.user!.email}`);
+
     res.json({ 
-      message: 'Organization disabled successfully',
-      organization: disabledOrg[0] 
+      message: 'Organization deactivated successfully',
+      organization: deactivatedOrg[0] 
     });
   } catch (error) {
-    console.error('Error disabling organization:', error);
+    console.error('Error deactivating organization:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // Export the RBAC function for use in admin user creation

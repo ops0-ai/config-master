@@ -538,7 +538,7 @@ export const githubApi = {
 // Admin API for super admin operations
 export const adminApi = {
   // Get all organizations
-  getOrganizations: () => api.get('/admin/organizations'),
+  getOrganizations: (filter: string = 'all') => api.get('/admin/organizations', { params: { filter } }),
   
   // Create new organization
   createOrganization: (data: {
@@ -553,9 +553,11 @@ export const adminApi = {
   updateOrganizationFeatures: (orgId: string, featuresEnabled: any) =>
     api.put(`/admin/organizations/${orgId}/features`, { featuresEnabled }),
   
-  // Update organization status
+  // Update organization status (deactivate)
   updateOrganizationStatus: (orgId: string, isActive: boolean) =>
-    api.put(`/admin/organizations/${orgId}/status`, { isActive }),
+    isActive 
+      ? api.put(`/admin/organizations/${orgId}/status`, { isActive })
+      : api.put(`/organizations/admin/${orgId}/deactivate`),
   
   // Get organization users
   getOrganizationUsers: (orgId: string) =>

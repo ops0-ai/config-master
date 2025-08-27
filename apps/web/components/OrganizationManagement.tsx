@@ -9,7 +9,9 @@ import {
   CheckIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
-  KeyIcon
+  KeyIcon,
+  UserIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import SSOConfiguration from './SSOConfiguration';
 
@@ -141,6 +143,44 @@ const FEATURES: FeatureConfig[] = [
   }
 ];
 
+// Common email providers that we should not extract company names from
+const COMMON_EMAIL_PROVIDERS = [
+  'gmail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'icloud.com',
+  'aol.com',
+  'protonmail.com',
+  'mail.com',
+  'ymail.com',
+  'live.com',
+  'msn.com',
+  'rediffmail.com',
+  'zoho.com'
+];
+
+// Function to extract company name from email domain
+const extractCompanyFromEmail = (email: string): string | null => {
+  if (!email || !email.includes('@')) return null;
+  
+  const domain = email.split('@')[1].toLowerCase();
+  
+  // Skip common email providers
+  if (COMMON_EMAIL_PROVIDERS.includes(domain)) {
+    return null;
+  }
+  
+  // Extract company name (remove .com, .org, etc. and capitalize)
+  const companyName = domain
+    .split('.')[0] // Take the part before the first dot
+    .split(/[-_]/) // Split on hyphens and underscores
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1)) // Capitalize each part
+    .join(' '); // Join with spaces
+  
+  return companyName;
+};
+
 export default function OrganizationManagement() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
@@ -149,6 +189,7 @@ export default function OrganizationManagement() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   // Removed pagination to show all organizations with scroll
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
@@ -174,6 +215,10 @@ export default function OrganizationManagement() {
     checkSuperAdminStatus();
     fetchSystemSettings();
   }, []);
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, [statusFilter]);
 
   useEffect(() => {
     if (selectedOrg && activeTab === 'statistics') {
@@ -272,7 +317,7 @@ export default function OrganizationManagement() {
       setLoading(true);
       const { adminApi } = await import('../lib/api');
       
-      const response = await adminApi.getOrganizations();
+      const response = await adminApi.getOrganizations(statusFilter);
       const data = response.data;
       
       setOrganizations(data.organizations || []);
@@ -369,6 +414,7 @@ export default function OrganizationManagement() {
       setSaving(false);
     }
   };
+
 
   const groupedFeatures = {
     core: FEATURES.filter(f => f.category === 'core'),
@@ -499,17 +545,33 @@ export default function OrganizationManagement() {
                 </div>
                 
                 {/* Search Input */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                <div className="space-y-3">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search organizations..."
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Search organizations..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                  
+                  {/* Status Filter */}
+                  <div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                      <option value="all">All Organizations</option>
+                      <option value="active">Active Only</option>
+                      <option value="inactive">Inactive Only</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               
@@ -822,79 +884,120 @@ export default function OrganizationManagement() {
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         </div>
                       ) : orgStats ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-gray-600">Total Users</p>
+                                  <p className="text-2xl font-bold text-gray-900">{orgStats.users || 0}</p>
+                                </div>
                               </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                                <p className="text-2xl font-bold text-gray-900">{orgStats.users || 0}</p>
+                            </div>
+                            
+                            <div className="bg-green-50 rounded-lg p-6 border border-green-200">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <CogIcon className="h-8 w-8 text-green-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-gray-600">Configurations</p>
+                                  <p className="text-2xl font-bold text-gray-900">{orgStats.configurations || 0}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <CogIcon className="h-8 w-8 text-purple-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-gray-600">Deployments</p>
+                                  <p className="text-2xl font-bold text-gray-900">{orgStats.deployments || 0}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <CogIcon className="h-8 w-8 text-yellow-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-gray-600">Servers</p>
+                                  <p className="text-2xl font-bold text-gray-900">{orgStats.servers || 0}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-indigo-50 rounded-lg p-6 border border-indigo-200">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <CogIcon className="h-8 w-8 text-indigo-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-gray-600">Conversations</p>
+                                  <p className="text-2xl font-bold text-gray-900">{orgStats.conversations || 0}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-red-50 rounded-lg p-6 border border-red-200">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <ShieldCheckIcon className="h-8 w-8 text-red-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-gray-600">Assets</p>
+                                  <p className="text-2xl font-bold text-gray-900">{orgStats.assets || 0}</p>
+                                </div>
                               </div>
                             </div>
                           </div>
                           
-                          <div className="bg-green-50 rounded-lg p-6 border border-green-200">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <CogIcon className="h-8 w-8 text-green-600" />
-                              </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Configurations</p>
-                                <p className="text-2xl font-bold text-gray-900">{orgStats.configurations || 0}</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <CogIcon className="h-8 w-8 text-purple-600" />
-                              </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Deployments</p>
-                                <p className="text-2xl font-bold text-gray-900">{orgStats.deployments || 0}</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <CogIcon className="h-8 w-8 text-yellow-600" />
-                              </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Servers</p>
-                                <p className="text-2xl font-bold text-gray-900">{orgStats.servers || 0}</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="bg-indigo-50 rounded-lg p-6 border border-indigo-200">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <CogIcon className="h-8 w-8 text-indigo-600" />
-                              </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Conversations</p>
-                                <p className="text-2xl font-bold text-gray-900">{orgStats.conversations || 0}</p>
+                          {/* First User Information */}
+                          {orgStats.firstUser && (
+                            <div className="mt-8">
+                              <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                                <UserIcon className="h-5 w-5 text-blue-600 mr-2" />
+                                First User (Founder)
+                              </h5>
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0">
+                                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <span className="text-lg font-medium text-blue-600">
+                                        {orgStats.firstUser.name.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="ml-4 flex-1">
+                                    <div className="text-lg font-semibold text-gray-900">
+                                      {orgStats.firstUser.name}
+                                    </div>
+                                    <div className="text-sm text-gray-600 flex items-center mt-1">
+                                      <EnvelopeIcon className="h-4 w-4 mr-1" />
+                                      {orgStats.firstUser.email}
+                                    </div>
+                                    {(() => {
+                                      const companyName = extractCompanyFromEmail(orgStats.firstUser.email);
+                                      return companyName ? (
+                                        <div className="text-sm text-blue-600 font-medium mt-2 flex items-center">
+                                          <BuildingOfficeIcon className="h-4 w-4 mr-1" />
+                                          {companyName}
+                                        </div>
+                                      ) : null;
+                                    })()}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          
-                          <div className="bg-red-50 rounded-lg p-6 border border-red-200">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <ShieldCheckIcon className="h-8 w-8 text-red-600" />
-                              </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Assets</p>
-                                <p className="text-2xl font-bold text-gray-900">{orgStats.assets || 0}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                          )}
+                        </>
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           No statistics available
@@ -1211,6 +1314,7 @@ export default function OrganizationManagement() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
