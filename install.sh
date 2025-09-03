@@ -75,6 +75,30 @@ if [ $WAIT_TIME -ge $MAX_WAIT ]; then
     exit 1
 fi
 
+# Apply comprehensive schema during installation to ensure all tables exist
+echo "🗄️ Ensuring complete database schema (including AI assistant tables)..."
+WAIT_FOR_SCHEMA=0
+MAX_SCHEMA_WAIT=60
+while [ $WAIT_FOR_SCHEMA -lt $MAX_SCHEMA_WAIT ]; do
+    if $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT 1;" >/dev/null 2>&1; then
+        echo "✅ Database is accessible, applying comprehensive schema..."
+        if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < comprehensive-upgrade.sql; then
+            echo "✅ Comprehensive database schema applied successfully"
+            break
+        else
+            echo "⚠️ Schema application failed, but continuing (API migrations will handle this)"
+            break
+        fi
+    fi
+    echo -n "."
+    sleep 3
+    WAIT_FOR_SCHEMA=$((WAIT_FOR_SCHEMA + 3))
+done
+
+if [ $WAIT_FOR_SCHEMA -ge $MAX_SCHEMA_WAIT ]; then
+    echo "⚠️ Could not apply comprehensive schema, relying on API migrations"
+fi
+
 # Check if services are healthy
 echo "🔍 Verifying service health..."
 
@@ -123,9 +147,51 @@ fi
 
 echo "🔍 Verifying installation completeness..."
 
-# All verification is now handled by the migration service
-# The API startup process ensures everything is properly configured
-echo "✅ Installation verification complete - all checks handled by migration service"
+# Verify AI assistant tables exist (critical for new installations)
+echo "🤖 Verifying AI assistant tables..."
+AI_TABLES_OK=true
+
+if ! $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d ai_assistant_sessions" >/dev/null 2>&1; then
+    echo "❌ AI assistant sessions table missing"
+    AI_TABLES_OK=false
+fi
+
+if ! $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d ai_assistant_messages" >/dev/null 2>&1; then
+    echo "❌ AI assistant messages table missing"
+    AI_TABLES_OK=false
+fi
+
+if ! $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d ai_suggestions" >/dev/null 2>&1; then
+    echo "❌ AI suggestions table missing"
+    AI_TABLES_OK=false
+fi
+
+if [ "$AI_TABLES_OK" = true ]; then
+    echo "✅ AI assistant tables verified successfully"
+else
+    echo "⚠️ AI assistant tables missing - attempting to create them..."
+    if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < packages/database/migrations/0003_add_ai_assistant_tables.sql; then
+        echo "✅ AI assistant tables created successfully"
+    else
+        echo "⚠️ Failed to create AI assistant tables - they will be created on first use"
+    fi
+fi
+
+# Verify core features are available
+echo "🔍 Verifying core features..."
+if $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d assets" >/dev/null 2>&1; then
+    echo "✅ Asset management tables verified"
+else
+    echo "⚠️ Asset management tables not found"
+fi
+
+if $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d github_integrations" >/dev/null 2>&1; then
+    echo "✅ GitHub integration tables verified"
+else
+    echo "⚠️ GitHub integration tables not found"
+fi
+
+echo "✅ Installation verification complete"
 
 echo ""
 echo "🎉 Installation Complete!"
@@ -135,25 +201,36 @@ echo "   Web Interface: http://localhost:3000"
 echo "   API Server: http://localhost:5005"
 echo ""
 echo "📋 Features Available:"
-echo "   ✅ Complete Asset Management"
+echo ""
+echo "🤖 AI Assistant Features:"
+echo "   ✅ Smart configuration analysis and optimization recommendations"  
+echo "   ✅ Automated asset creation and management assistance"
+echo "   ✅ Configuration approval/rejection workflow automation"
+echo "   ✅ Deployment creation and monitoring with AI insights"
+echo "   ✅ Context-aware assistance across all platform pages"
+echo "   ✅ Expandable modal interface for extended AI conversations"
+echo "   ✅ Intelligent suggestions based on your infrastructure"
+echo ""
+echo "📦 Core Platform Features:"
+echo "   ✅ Complete Asset Management with AI-powered insights"
 echo "   ✅ MDM-to-Asset Sync (green 'Sync from MDM' button)"
 echo "   ✅ Asset-to-GitHub Sync (purple 'Sync to GitHub' button)" 
 echo "   ✅ GitHub Configuration Integration"
 echo "   ✅ Configuration Import/Export to GitHub"
-echo "   ✅ Asset Assignment & Reassignment"
-echo "   ✅ Role-based Access Control (57 permissions total)"
+echo "   ✅ Asset Assignment & Reassignment with AI recommendations"
+echo "   ✅ Role-based Access Control (62 permissions total)"
 echo "   ✅ Administrator roles with complete access to all features"
 echo "   ✅ Organization-level Feature Management"
 echo "   ✅ Super Admin Organization Control"
-echo "   ✅ Configuration Management"
-echo "   ✅ Server Management"
-echo "   ✅ Deployment Pipeline"
+echo "   ✅ Configuration Management with AI analysis"
+echo "   ✅ Server Management with intelligent monitoring"
+echo "   ✅ Deployment Pipeline with AI-powered optimization"
 echo "   ✅ User Signup Webhook Notifications"
 echo "   ✅ Real-time Webhook Notifications with Company Detection"
 echo ""
 echo "🔗 Quick Start:"
 echo "   1. Open http://localhost:3000 in your browser"
-echo "   2. Register a new account (automatically gets Administrator role with all 57 permissions)"
+echo "   2. Register a new account (automatically gets Administrator role with all 62 permissions)"
 echo "   3. Set up GitHub integration: Settings > Integrations"
 echo "   4. Configure webhook notifications: Organization Management > Platform Settings"
 echo "   5. Navigate to Assets to use MDM and GitHub sync features"

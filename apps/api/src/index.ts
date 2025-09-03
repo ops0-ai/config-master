@@ -25,6 +25,7 @@ import { settingsRoutes, initializeSettings } from './routes/settings';
 import { githubRoutes } from './routes/github';
 import { dashboardRoutes } from './routes/dashboard';
 import organizationRoutes from './routes/organizations';
+import aiAssistantRoutes from './routes/ai-assistant';
 import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
 import { assetsRoutes } from './routes/assets';
 import { assetAssignmentsRoutes } from './routes/asset-assignments';
@@ -119,6 +120,7 @@ app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/github', authMiddleware, autoFeatureFlagMiddleware(), githubRoutes);
 app.use('/api/dashboard', authMiddleware, dashboardRoutes);
 app.use('/api/organizations', authMiddleware, organizationRoutes);
+app.use('/api/ai-assistant', authMiddleware, rbacMiddleware(), auditMiddleware, aiAssistantRoutes);
 app.use('/api/assets', authMiddleware, autoFeatureFlagMiddleware(), assetsRoutes);
 app.use('/api/asset-assignments', authMiddleware, autoFeatureFlagMiddleware(), assetAssignmentsRoutes);
 app.use('/api/admin', adminRoutes); // Super admin routes

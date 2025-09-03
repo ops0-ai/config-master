@@ -5,7 +5,7 @@ import { AuthenticatedRequest } from './auth';
 
 // Feature flag mapping to resources
 const FEATURE_RESOURCE_MAP: Record<string, string[]> = {
-  servers: ['servers', 'server-groups'],
+  servers: ['servers'],
   serverGroups: ['server-groups'],
   pemKeys: ['pem-keys'],
   configurations: ['configurations'],

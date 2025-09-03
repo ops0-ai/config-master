@@ -16,6 +16,7 @@ export interface OrganizationFeatures {
   mdm?: boolean;
   assets?: boolean;
   auditLogs?: boolean;
+  pulseAssist?: boolean;
 }
 
 interface OrganizationFeaturesContextType {
@@ -65,6 +66,7 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
           mdm: true,
           assets: true,
           auditLogs: true,
+          pulseAssist: true,
         });
         setLoading(false);
         return;
@@ -97,6 +99,7 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
           mdm: true,
           assets: true,
           auditLogs: true,
+          pulseAssist: true,
         });
       }
     } catch (error) {

@@ -92,15 +92,31 @@ export default function ServersPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [serversRes, groupsRes, keysRes] = await Promise.all([
+      
+      // Always load servers and PEM keys
+      const promises = [
         serversApi.getAll(),
-        serverGroupsApi.getAll(),
         pemKeysApi.getAll(),
-      ]);
+      ];
+      
+      // Only load server groups if the serverGroups feature is enabled
+      const serverGroupsEnabled = isFeatureEnabled('serverGroups');
+      if (serverGroupsEnabled) {
+        promises.push(serverGroupsApi.getAll());
+      }
+      
+      const responses = await Promise.all(promises);
+      const [serversRes, keysRes, groupsRes] = responses;
 
       setServers(serversRes.data);
-      setServerGroups(groupsRes.data);
       setPemKeys(keysRes.data);
+      
+      // Only set server groups if we fetched them
+      if (serverGroupsEnabled && groupsRes) {
+        setServerGroups(groupsRes.data);
+      } else {
+        setServerGroups([]); // Empty array if serverGroups feature is disabled
+      }
     } catch (error) {
       toast.error('Failed to load servers data');
       console.error('Load error:', error);
