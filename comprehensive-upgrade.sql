@@ -634,6 +634,23 @@ ON CONFLICT DO NOTHING;
 -- AI ASSISTANT TABLES
 -- ==============================
 
+-- Configuration Drifts table (required for AI Assistant)
+CREATE TABLE IF NOT EXISTS "configuration_drifts" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "configuration_id" uuid NOT NULL,
+    "server_id" uuid,
+    "server_group_id" uuid,
+    "expected_content" text NOT NULL,
+    "actual_content" text,
+    "drift_type" varchar(50) NOT NULL,
+    "differences" jsonb DEFAULT '[]'::jsonb,
+    "severity" varchar(20) DEFAULT 'medium' NOT NULL,
+    "detected_at" timestamp DEFAULT now() NOT NULL,
+    "resolved_at" timestamp,
+    "resolution_type" varchar(50),
+    "organization_id" uuid NOT NULL
+);
+
 -- AI Assistant Sessions
 CREATE TABLE IF NOT EXISTS "ai_assistant_sessions" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -750,6 +767,27 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'ai_suggestions_user_id_fkey') THEN
         ALTER TABLE ai_suggestions ADD CONSTRAINT ai_suggestions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
         RAISE NOTICE 'Added foreign key ai_suggestions_user_id_fkey';
+    END IF;
+    
+    -- Configuration Drifts foreign keys
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'configuration_drifts_configuration_id_fkey') THEN
+        ALTER TABLE configuration_drifts ADD CONSTRAINT configuration_drifts_configuration_id_fkey FOREIGN KEY (configuration_id) REFERENCES configurations(id);
+        RAISE NOTICE 'Added foreign key configuration_drifts_configuration_id_fkey';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'configuration_drifts_server_id_fkey') THEN
+        ALTER TABLE configuration_drifts ADD CONSTRAINT configuration_drifts_server_id_fkey FOREIGN KEY (server_id) REFERENCES servers(id);
+        RAISE NOTICE 'Added foreign key configuration_drifts_server_id_fkey';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'configuration_drifts_server_group_id_fkey') THEN
+        ALTER TABLE configuration_drifts ADD CONSTRAINT configuration_drifts_server_group_id_fkey FOREIGN KEY (server_group_id) REFERENCES server_groups(id);
+        RAISE NOTICE 'Added foreign key configuration_drifts_server_group_id_fkey';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'configuration_drifts_organization_id_fkey') THEN
+        ALTER TABLE configuration_drifts ADD CONSTRAINT configuration_drifts_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id);
+        RAISE NOTICE 'Added foreign key configuration_drifts_organization_id_fkey';
     END IF;
 END $$;
 
