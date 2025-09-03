@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api';
 
@@ -23,11 +24,24 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken');
       window.location.href = '/login';
-    } else if (error.response?.status === 403 && error.response?.data?.code === 'ORGANIZATION_DISABLED') {
-      // Organization has been disabled, logout and redirect with message
-      localStorage.removeItem('authToken');
-      localStorage.setItem('disabledOrgMessage', 'Your organization has been disabled. Please contact your global administrator for assistance.');
-      window.location.href = '/login';
+    } else if (error.response?.status === 403) {
+      if (error.response?.data?.code === 'ORGANIZATION_DISABLED') {
+        // Organization has been disabled, logout and redirect with message
+        localStorage.removeItem('authToken');
+        localStorage.setItem('disabledOrgMessage', 'Your organization has been disabled. Please contact your global administrator for assistance.');
+        window.location.href = '/login';
+      } else if (error.response?.data?.code === 'FEATURE_DISABLED') {
+        // Feature is disabled, show user-friendly toast message
+        const errorMessage = error.response?.data?.error || 
+          'This feature is not enabled for your organization. Please reach out to the support team for assistance.';
+        toast.error(errorMessage, {
+          duration: 8000, // Show for 8 seconds
+          style: {
+            maxWidth: '500px',
+          },
+        });
+        console.warn(`Feature disabled: ${error.response?.data?.feature}`);
+      }
     }
     return Promise.reject(error);
   }
@@ -229,6 +243,8 @@ export const dashboardApi = {
 // Organization API
 export const organizationApi = {
   getCurrent: () => api.get('/organizations/current'),
+  
+  getCurrentFeatures: () => api.get('/organizations/current/features'),
   
   update: (data: { name: string; description?: string | null }) => 
     api.put('/organizations/current', data),
@@ -517,4 +533,36 @@ export const githubApi = {
   // Refresh repositories using stored token
   refreshRepositories: (integrationId: string) => 
     api.post(`/github/integrations/${integrationId}/refresh`),
+};
+
+// Admin API for super admin operations
+export const adminApi = {
+  // Get all organizations
+  getOrganizations: (filter: string = 'all') => api.get('/admin/organizations', { params: { filter } }),
+  
+  // Create new organization
+  createOrganization: (data: {
+    name: string;
+    description?: string;
+    adminEmail: string;
+    adminName: string;
+    adminPassword: string;
+  }) => api.post('/admin/organizations', data),
+  
+  // Update organization features
+  updateOrganizationFeatures: (orgId: string, featuresEnabled: any) =>
+    api.put(`/admin/organizations/${orgId}/features`, { featuresEnabled }),
+  
+  // Update organization status (deactivate)
+  updateOrganizationStatus: (orgId: string, isActive: boolean) =>
+    isActive 
+      ? api.put(`/admin/organizations/${orgId}/status`, { isActive })
+      : api.put(`/organizations/admin/${orgId}/deactivate`),
+  
+  // Get organization users
+  getOrganizationUsers: (orgId: string) =>
+    api.get(`/admin/organizations/${orgId}/users`),
+  
+  // Get platform statistics
+  getStats: () => api.get('/admin/stats'),
 };

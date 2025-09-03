@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../index';
-import { users, organizations, mdmProfiles, roles, permissions, rolePermissions, userRoles } from '@config-management/database';
+import { users, organizations, mdmProfiles, roles, permissions, rolePermissions, userRoles, systemSettings } from '@config-management/database';
 import { eq, sql } from 'drizzle-orm';
 import Joi from 'joi';
 import * as crypto from 'crypto';
@@ -65,25 +65,12 @@ async function createRBACForNewUser(organization: any, user: any) {
       })
       .returning();
     
-    // Assign all permissions to Administrator role (54 permissions)
-    const adminPermissions = [
-      'dashboard:read', 'settings:read', 'settings:write', 
-      'users:read', 'users:write', 'users:delete',
-      'roles:read', 'roles:write', 'roles:delete',
-      'servers:read', 'servers:write', 'servers:execute', 'servers:delete',
-      'server-groups:read', 'server-groups:write', 'server-groups:execute', 'server-groups:delete',
-      'pem-keys:read', 'pem-keys:write', 'pem-keys:execute', 'pem-keys:delete',
-      'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:approve', 'configurations:delete',
-      'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
-      'training:read', 'chat:read', 'chat:write', 'chat:delete',
-      'audit-logs:view', 'audit-logs:export',
-      'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 'aws-integrations:sync', 'aws-integrations:import',
-      'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
-      'github-integrations:read', 'github-integrations:write', 'github-integrations:delete', 'github-integrations:validate', 'github-integrations:sync',
-      'asset:read', 'asset:create', 'asset:update', 'asset:delete', 'asset:assign', 'asset:import', 'asset:export'
-    ];
+    // Assign ALL permissions to Administrator role - get dynamically from database
+    const allPermissionKeys = allPermissions.map(p => `${p.resource}:${p.action}`);
+    console.log(`  📋 Found ${allPermissions.length} total permissions in system`);
     
-    for (const permissionKey of adminPermissions) {
+    let assignedPermissions = 0;
+    for (const permissionKey of allPermissionKeys) {
       const permissionId = permissionMap.get(permissionKey);
       if (permissionId) {
         await db
@@ -93,6 +80,7 @@ async function createRBACForNewUser(organization: any, user: any) {
             permissionId: permissionId,
           })
           .onConflictDoNothing();
+        assignedPermissions++;
       }
     }
     
@@ -107,7 +95,7 @@ async function createRBACForNewUser(organization: any, user: any) {
       })
       .onConflictDoNothing();
     
-    console.log(`✅ RBAC setup complete: User ${user.email} is now Administrator with full permissions`);
+    console.log(`✅ RBAC setup complete: User ${user.email} is now Administrator with ${assignedPermissions} permissions`);
   } catch (error) {
     console.error('Error creating RBAC for new user:', error);
     throw error;
@@ -128,6 +116,31 @@ const loginSchema = Joi.object({
 
 router.post('/register', async (req, res): Promise<any> => {
   try {
+    // Check if user registration is enabled
+    const registrationSetting = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'user_registration_enabled'))
+      .limit(1);
+
+    const registrationEnabled = registrationSetting[0]?.value === true || registrationSetting[0]?.value === 'true';
+    
+    if (!registrationEnabled) {
+      const supportContact = await db
+        .select()
+        .from(systemSettings)
+        .where(eq(systemSettings.key, 'support_contact'))
+        .limit(1);
+      
+      const supportEmail = supportContact[0]?.value || 'support@pulse.dev';
+      
+      return res.status(403).json({ 
+        error: 'User registration is currently disabled', 
+        message: `New user registration is not available at this time. Please contact ${supportEmail} for assistance.`,
+        supportContact: supportEmail
+      });
+    }
+
     const { error, value } = registerSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
@@ -211,6 +224,36 @@ router.post('/register', async (req, res): Promise<any> => {
       // Don't fail registration if MDM profile creation fails
     }
 
+    // Send webhook notification for new user signup
+    try {
+      const { userSignupWebhookService } = await import('../services/userSignupWebhook');
+      
+      // Extract company info from email
+      const email = newUser[0].email;
+      const domain = email.split('@')[1]?.toLowerCase();
+      const commonProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com', 'mail.com', 'ymail.com', 'live.com', 'msn.com', 'rediffmail.com', 'zoho.com'];
+      
+      let company = null;
+      if (domain && !commonProviders.includes(domain)) {
+        company = domain.split('.')[0].split(/[-_]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+      }
+      
+      await userSignupWebhookService.notifyUserSignup({
+        userId: newUser[0].id,
+        userName: newUser[0].name,
+        userEmail: newUser[0].email,
+        organizationId: newOrg[0].id,
+        organizationName: newOrg[0].name,
+        company,
+        domain,
+        isFirstTimeSignup: true,
+        signupDate: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Warning: Failed to send user signup webhook:', error);
+      // Don't fail registration if webhook fails
+    }
+
     // Generate JWT
     const newUserRecord = newUser[0] as any;
     const token = jwt.sign(
@@ -291,9 +334,30 @@ router.post('/login', async (req, res): Promise<any> => {
     }
 
     // Verify password
+    if (!user[0].passwordHash) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
     const isValidPassword = await bcrypt.compare(value.password, user[0].passwordHash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check maintenance mode during login
+    const maintenanceMode = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'maintenance_mode'))
+      .limit(1);
+
+    if (maintenanceMode[0] && maintenanceMode[0].value === true) {
+      // During maintenance mode, only super admins and administrators are allowed
+      const isSuperAdmin = (user[0] as any).isSuperAdmin || false;
+      if (!isSuperAdmin && user[0].role !== 'administrator' && user[0].role !== 'super_admin') {
+        return res.status(503).json({ 
+          error: 'System is currently under maintenance. Only administrators can access the platform during maintenance mode.',
+          code: 'MAINTENANCE_MODE'
+        });
+      }
     }
 
     // Get user's organization (either owned by user or user is a member)
@@ -412,6 +476,9 @@ router.post('/change-password', async (req: any, res): Promise<any> => {
     }
 
     // Verify current password
+    if (!user.passwordHash) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
     const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValidPassword) {
       return res.status(400).json({ error: 'Current password is incorrect' });
@@ -434,6 +501,51 @@ router.post('/change-password', async (req: any, res): Promise<any> => {
   } catch (error) {
     console.error('Error changing password:', error);
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Public endpoint to check if registration is enabled
+router.get('/registration-status', async (req, res): Promise<any> => {
+  try {
+    const registrationSetting = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'user_registration_enabled'))
+      .limit(1);
+
+    const supportContactSetting = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'support_contact'))
+      .limit(1);
+
+    const platformNameSetting = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'platform_name'))
+      .limit(1);
+
+    const registrationEnabled = registrationSetting[0]?.value === true || registrationSetting[0]?.value === 'true';
+    const supportContact = supportContactSetting[0]?.value || 'support@pulse.dev';
+    const platformName = platformNameSetting[0]?.value || 'Pulse';
+
+    res.json({
+      registrationEnabled,
+      supportContact,
+      platformName,
+      message: registrationEnabled 
+        ? 'User registration is available' 
+        : `User registration is disabled. Contact ${supportContact} for assistance.`
+    });
+  } catch (error) {
+    console.error('Error checking registration status:', error);
+    // Default to enabled if we can't check (backward compatibility)
+    res.json({
+      registrationEnabled: true,
+      supportContact: 'support@pulse.dev',
+      platformName: 'Pulse',
+      message: 'User registration is available'
+    });
   }
 });
 

@@ -16,6 +16,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { serversApi, serverGroupsApi, pemKeysApi } from '@/lib/api';
+import { useOrganizationFeatures } from '@/contexts/OrganizationFeaturesContext';
 import toast from 'react-hot-toast';
 
 interface Server {
@@ -58,6 +59,10 @@ export default function ServersPage() {
   const [serverGroups, setServerGroups] = useState<ServerGroup[]>([]);
   const [pemKeys, setPemKeys] = useState<PemKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isFeatureEnabled } = useOrganizationFeatures();
+  
+  // Check if servers feature is enabled
+  const serversEnabled = isFeatureEnabled('servers');
   const [showModal, setShowModal] = useState(false);
   const [showWindowsInstructions, setShowWindowsInstructions] = useState(false);
   const [editingServer, setEditingServer] = useState<Server | null>(null);
@@ -274,6 +279,23 @@ export default function ServersPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Feature Disabled Warning */}
+      {!serversEnabled && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                <strong>Servers feature is not enabled for your organization.</strong> 
+                Please reach out to the support team for assistance to enable this feature.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Fixed Header */}
       <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto">
@@ -294,8 +316,10 @@ export default function ServersPage() {
                 Windows Setup Guide
               </button>
               <button
-                onClick={() => setShowModal(true)}
-                className="btn btn-primary btn-md"
+                onClick={() => serversEnabled ? setShowModal(true) : toast.error('This feature is not enabled for your organization. Please reach out to the support team for assistance.')}
+                className={`btn btn-md ${serversEnabled ? 'btn-primary' : 'btn-disabled cursor-not-allowed opacity-50'}`}
+                disabled={!serversEnabled}
+                title={serversEnabled ? undefined : 'This feature is not enabled for your organization'}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Add Server
@@ -442,24 +466,26 @@ export default function ServersPage() {
                 
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => testConnection(server.id)}
-                    disabled={testingConnection === server.id}
-                    className="btn btn-ghost btn-sm"
-                    title="Test Connection"
+                    onClick={() => serversEnabled ? testConnection(server.id) : toast.error('This feature is not enabled for your organization. Please reach out to the support team for assistance.')}
+                    disabled={testingConnection === server.id || !serversEnabled}
+                    className={`btn btn-ghost btn-sm ${!serversEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={serversEnabled ? "Test Connection" : "This feature is not enabled for your organization"}
                   >
                     <WifiIcon className={`h-4 w-4 ${testingConnection === server.id ? 'animate-pulse' : ''}`} />
                   </button>
                   <button
-                    onClick={() => handleEdit(server)}
-                    className="btn btn-ghost btn-sm"
-                    title="Edit Server"
+                    onClick={() => serversEnabled ? handleEdit(server) : toast.error('This feature is not enabled for your organization. Please reach out to the support team for assistance.')}
+                    className={`btn btn-ghost btn-sm ${!serversEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!serversEnabled}
+                    title={serversEnabled ? "Edit Server" : "This feature is not enabled for your organization"}
                   >
                     <PencilIcon className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(server.id)}
-                    className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                    title="Delete Server"
+                    onClick={() => serversEnabled ? handleDelete(server.id) : toast.error('This feature is not enabled for your organization. Please reach out to the support team for assistance.')}
+                    className={`btn btn-ghost btn-sm text-red-600 hover:text-red-700 ${!serversEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!serversEnabled}
+                    title={serversEnabled ? "Delete Server" : "This feature is not enabled for your organization"}
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>

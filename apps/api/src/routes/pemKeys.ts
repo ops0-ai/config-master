@@ -3,6 +3,7 @@ import { db } from '../index';
 import { pemKeys, servers, serverGroups } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 import crypto from 'crypto';
 import { SecureKeyManager } from '../utils/keyManagement';
@@ -15,7 +16,7 @@ const pemKeySchema = Joi.object({
   privateKey: Joi.string().required(),
 });
 
-router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const pemKeyList = await db
       .select({
@@ -36,7 +37,7 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/:id', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const pemKey = await db
       .select({
@@ -67,7 +68,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = pemKeySchema.validate(req.body);
     if (error) {
@@ -108,7 +109,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.put('/:id', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const updateSchema = Joi.object({
       name: Joi.string().optional(),
@@ -159,7 +160,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
 });
 
 // Endpoint to fix/migrate existing PEM keys
-router.post('/migrate/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/migrate/:id', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const pemKeyId = req.params.id;
     
@@ -239,7 +240,7 @@ router.post('/migrate/:id', async (req: AuthenticatedRequest, res): Promise<any>
 });
 
 // Endpoint to test PEM key functionality
-router.post('/test/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/test/:id', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const pemKeyId = req.params.id;
     const keyManager = SecureKeyManager.getInstance();
@@ -263,7 +264,7 @@ router.post('/test/:id', async (req: AuthenticatedRequest, res): Promise<any> =>
   }
 });
 
-router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('pemKeys'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const existingPemKey = await db
       .select()

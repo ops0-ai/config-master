@@ -117,6 +117,16 @@ export async function ensureAdminUser() {
       isActive: true,
     });
     
+    // Create RBAC system for the admin organization
+    try {
+      // Import the RBAC function from organizations route
+      const { createRBACForOrganization } = await import('./routes/organizations');
+      await createRBACForOrganization({ id: orgId, name: 'Pulse Admin Organization' }, adminUserId);
+      console.log('✅ RBAC system created for admin organization');
+    } catch (error) {
+      console.error('Warning: Failed to create RBAC system for admin organization:', error);
+    }
+    
     // Create default MDM profile for the organization
     try {
       const enrollmentKey = await createDefaultMDMProfile(db, orgId, adminUserId);

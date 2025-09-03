@@ -11,6 +11,7 @@ import {
   XMarkIcon,
   EnvelopeIcon,
   CalendarIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 
 interface Role {
@@ -25,6 +26,7 @@ interface User {
   email: string;
   isActive: boolean;
   createdAt: string;
+  isSSO?: boolean;
   roles?: Role[];
 }
 
@@ -45,9 +47,12 @@ export default function UsersManagement() {
     password: '',
     confirmPassword: '',
     isActive: true,
+    isSSO: false,
   });
 
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<string>('');
 
   useEffect(() => {
     fetchUsers();
@@ -95,24 +100,32 @@ export default function UsersManagement() {
   };
 
   const handleCreateUser = async () => {
-    if (formData.password !== formData.confirmPassword) {
+    // Only validate password match for non-SSO users
+    if (!formData.isSSO && formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
     try {
+      const requestBody: any = {
+        name: formData.name,
+        email: formData.email,
+        isActive: formData.isActive,
+        isSSO: formData.isSSO,
+      };
+
+      // Only include password for non-SSO users
+      if (!formData.isSSO) {
+        requestBody.password = formData.password;
+      }
+
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          isActive: formData.isActive,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
@@ -169,8 +182,8 @@ export default function UsersManagement() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDeactivateUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to deactivate this user? They will no longer be able to log in.')) return;
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -184,10 +197,85 @@ export default function UsersManagement() {
         await fetchUsers();
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to delete user');
+        setError(errorData.error || 'Failed to deactivate user');
       }
     } catch (err) {
-      setError('Error deleting user');
+      setError('Error deactivating user');
+    }
+  };
+
+  const handleReactivateUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to reactivate this user? They will be able to log in again.')) return;
+
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({ isActive: true }),
+      });
+
+      if (response.ok) {
+        await fetchUsers();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to reactivate user');
+      }
+    } catch (err) {
+      setError('Error reactivating user');
+    }
+  };
+
+  const handleSelectUser = (userId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(prev => [...prev, userId]);
+    } else {
+      setSelectedUsers(prev => prev.filter(id => id !== userId));
+    }
+  };
+
+  const handleSelectAllUsers = (checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(users.map(user => user.id));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  const handleBulkAction = async () => {
+    if (selectedUsers.length === 0 || !bulkAction) return;
+
+    const actionText = bulkAction === 'activate' ? 'activate' : 
+                      bulkAction === 'deactivate' ? 'deactivate' : 'change roles for';
+    
+    if (!confirm(`Are you sure you want to ${actionText} ${selectedUsers.length} selected user(s)?`)) return;
+
+    try {
+      if (bulkAction === 'activate' || bulkAction === 'deactivate') {
+        const isActive = bulkAction === 'activate';
+        
+        // Process users in parallel
+        await Promise.all(
+          selectedUsers.map(userId =>
+            fetch(`/api/users/${userId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              },
+              body: JSON.stringify({ isActive }),
+            })
+          )
+        );
+      }
+      
+      await fetchUsers();
+      setSelectedUsers([]);
+      setBulkAction('');
+    } catch (err) {
+      setError(`Error performing bulk ${bulkAction}`);
     }
   };
 
@@ -240,6 +328,7 @@ export default function UsersManagement() {
       password: '',
       confirmPassword: '',
       isActive: true,
+      isSSO: false,
     });
     setSelectedRoles([]);
   };
@@ -257,6 +346,7 @@ export default function UsersManagement() {
       password: '',
       confirmPassword: '',
       isActive: user.isActive,
+      isSSO: user.isSSO || false,
     });
     setIsEditModalOpen(true);
   };
@@ -296,6 +386,42 @@ export default function UsersManagement() {
         </button>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedUsers.length > 0 && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-blue-700 font-medium">
+              {selectedUsers.length} user(s) selected
+            </span>
+            <div className="flex items-center space-x-3">
+              <select
+                value={bulkAction}
+                onChange={(e) => setBulkAction(e.target.value)}
+                className="form-select text-sm"
+              >
+                <option value="">Select action...</option>
+                <option value="activate">Activate Users</option>
+                <option value="deactivate">Deactivate Users</option>
+                <option value="change-roles">Change Roles</option>
+              </select>
+              <button
+                onClick={handleBulkAction}
+                disabled={!bulkAction}
+                className="btn btn-primary btn-sm"
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => setSelectedUsers([])}
+                className="btn btn-secondary btn-sm"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Alert */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
@@ -319,6 +445,14 @@ export default function UsersManagement() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.length === users.length && users.length > 0}
+                      onChange={(e) => handleSelectAllUsers(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     User
                   </th>
@@ -338,7 +472,15 @@ export default function UsersManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr key={user.id} className={`hover:bg-gray-50 ${!user.isActive ? 'opacity-60 bg-gray-50' : ''}`}>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={(e) => handleSelectUser(user.id, e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -349,7 +491,10 @@ export default function UsersManagement() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className={`text-sm font-medium ${user.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {user.name}
+                            {!user.isActive && <span className="ml-2 text-xs text-red-500 font-normal">(Deactivated)</span>}
+                          </div>
                           <div className="text-sm text-gray-500 flex items-center">
                             <EnvelopeIcon className="h-4 w-4 mr-1" />
                             {user.email}
@@ -412,11 +557,26 @@ export default function UsersManagement() {
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete User"
+                          onClick={() => handleReactivateUser(user.id)}
+                          disabled={user.isActive}
+                          className={`${user.isActive 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'text-green-600 hover:text-green-900'
+                          }`}
+                          title={user.isActive ? "User is already active" : "Activate User"}
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <ShieldCheckIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeactivateUser(user.id)}
+                          disabled={!user.isActive}
+                          className={`${!user.isActive 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'text-red-600 hover:text-red-900'
+                          }`}
+                          title={!user.isActive ? "User is already inactive" : "Deactivate User"}
+                        >
+                          <NoSymbolIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -471,7 +631,27 @@ export default function UsersManagement() {
                 />
               </div>
 
-              <div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="ssoUser"
+                  checked={formData.isSSO}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    isSSO: e.target.checked,
+                    password: e.target.checked ? '' : prev.password,
+                    confirmPassword: e.target.checked ? '' : prev.confirmPassword,
+                  }))}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="ssoUser" className="ml-2 block text-sm text-gray-900">
+                  SSO User (will login via Single Sign-On)
+                </label>
+              </div>
+
+              {!formData.isSSO && (
+                <>
+                  <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Password *
                 </label>
@@ -498,6 +678,8 @@ export default function UsersManagement() {
                   required
                 />
               </div>
+                </>
+              )}
 
               <div className="flex items-center">
                 <input
@@ -523,7 +705,7 @@ export default function UsersManagement() {
               <button
                 onClick={handleCreateUser}
                 className="btn btn-primary btn-md"
-                disabled={!formData.name.trim() || !formData.email.trim() || !formData.password}
+                disabled={!formData.name.trim() || !formData.email.trim() || (!formData.isSSO && !formData.password)}
               >
                 Create User
               </button>

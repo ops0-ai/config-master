@@ -28,11 +28,16 @@ import organizationRoutes from './routes/organizations';
 import { mdmRoutes, mdmPublicRoutes } from './routes/mdm';
 import { assetsRoutes } from './routes/assets';
 import { assetAssignmentsRoutes } from './routes/asset-assignments';
+import { adminRoutes } from './routes/admin';
+import systemSettingsRoutes from './routes/systemSettings';
+import ssoRoutes from './routes/sso';
+import ssoAuthRoutes from './routes/ssoAuth';
 import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
 import { rbacMiddleware } from './middleware/rbacMiddleware';
 import { auditMiddleware } from './middleware/audit';
+import { autoFeatureFlagMiddleware } from './middleware/featureFlags';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocketHandlers } from './socket/handlers';
 import { startDriftDetectionService } from './services/driftDetection';
@@ -98,26 +103,30 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/servers', authMiddleware, rbacMiddleware(), auditMiddleware, serverRoutes);
-app.use('/api/pem-keys', authMiddleware, rbacMiddleware(), auditMiddleware, pemKeyRoutes);
-app.use('/api/server-groups', authMiddleware, rbacMiddleware(), auditMiddleware, serverGroupRoutes);
-app.use('/api/configurations', authMiddleware, rbacMiddleware(), auditMiddleware, configurationRoutes);
-app.use('/api/deployments', authMiddleware, rbacMiddleware(), auditMiddleware, deploymentRoutes);
-app.use('/api/conversations', authMiddleware, rbacMiddleware(), auditMiddleware, conversationRoutes);
-app.use('/api/ansible', authMiddleware, rbacMiddleware(), auditMiddleware, ansibleRoutes);
+app.use('/api/servers', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, serverRoutes);
+app.use('/api/pem-keys', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, pemKeyRoutes);
+app.use('/api/server-groups', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, serverGroupRoutes);
+app.use('/api/configurations', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, configurationRoutes);
+app.use('/api/deployments', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, deploymentRoutes);
+app.use('/api/conversations', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, conversationRoutes);
+app.use('/api/ansible', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, ansibleRoutes);
 app.use('/api/audit', authMiddleware, auditMiddleware, auditRoutes);
-app.use('/api/audit-logs', authMiddleware, rbacMiddleware(), auditMiddleware, auditLogRoutes);
+app.use('/api/audit-logs', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, auditLogRoutes);
 app.use('/api/roles', authMiddleware, rbacMiddleware(), auditMiddleware, roleRoutes);
 app.use('/api/users', authMiddleware, rbacMiddleware(), auditMiddleware, userRoutes);
-app.use('/api/aws', authMiddleware, rbacMiddleware(), auditMiddleware, awsRoutes);
+app.use('/api/aws', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, awsRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
-app.use('/api/github', githubRoutes);
+app.use('/api/github', authMiddleware, autoFeatureFlagMiddleware(), githubRoutes);
 app.use('/api/dashboard', authMiddleware, dashboardRoutes);
 app.use('/api/organizations', authMiddleware, organizationRoutes);
-app.use('/api/assets', authMiddleware, assetsRoutes);
-app.use('/api/asset-assignments', authMiddleware, assetAssignmentsRoutes);
+app.use('/api/assets', authMiddleware, autoFeatureFlagMiddleware(), assetsRoutes);
+app.use('/api/asset-assignments', authMiddleware, autoFeatureFlagMiddleware(), assetAssignmentsRoutes);
+app.use('/api/admin', adminRoutes); // Super admin routes
+app.use('/api/system-settings', systemSettingsRoutes); // System settings management
+app.use('/api/sso', ssoRoutes); // SSO provider management (super admin)
+app.use('/api/sso', ssoAuthRoutes); // SSO authentication flow (public)
 app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
-app.use('/api/mdm', authMiddleware, rbacMiddleware(), auditMiddleware, mdmRoutes);
+app.use('/api/mdm', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, mdmRoutes);
 
 app.use(errorHandler);
 
@@ -134,21 +143,37 @@ import { initializeDatabase } from './services/databaseInitializer';
 // Setup platform components with migrations first
 async function initializePlatform() {
   try {
-    // Initialize database schema first - this is critical!
+    console.log('🚀 Initializing Pulse platform...');
+    
+    // Initialize database schema FIRST
     await initializeDatabase();
+    
+    // Run column migrations before RBAC
+    const { MigrationService } = await import('./services/migrationService');
+    const migrationService = new MigrationService();
+    await migrationService.runInitialMigrations();
+    
+    // Seed RBAC data AFTER migrations
+    await seedRBACData();
     
     // Then setup all other components
     await Promise.all([
-      seedRBACData(),
-      initializeSettings(), // Load API keys from database on startup
-      populateUserOrganizations(), // Populate user organizations for multi-tenancy
-      ensureAdminUser(), // Auto-create admin user on startup
-      ensureDefaultMDMProfiles(), // Auto-create default MDM profiles for all organizations
+      initializeSettings(),
+      populateUserOrganizations(),
+      ensureAdminUser(),
+      ensureDefaultMDMProfiles(),
     ]);
     
-    console.log('🔧 Platform ready with RBAC and MDM');
+    // Verify installation
+    const isValid = await migrationService.verifyInstallation();
+    if (!isValid) {
+      throw new Error('Installation verification failed');
+    }
+    
+    console.log('✅ Pulse platform initialized successfully');
   } catch (error) {
-    console.warn('⚠️  Platform setup warning:', error);
+    console.error('❌ Platform initialization failed:', error);
+    process.exit(1);
   }
 }
 

@@ -8,6 +8,34 @@ export const organizations = pgTable('organizations', {
   ownerId: uuid('owner_id').notNull(),
   isActive: boolean('is_active').notNull().default(true),
   isPrimary: boolean('is_primary').notNull().default(false), // First org created cannot be disabled
+  // Feature flags for organization-level feature management
+  featuresEnabled: jsonb('features_enabled').$type<{
+    servers?: boolean;
+    serverGroups?: boolean;
+    pemKeys?: boolean;
+    configurations?: boolean;
+    deployments?: boolean;
+    chat?: boolean;
+    training?: boolean;
+    awsIntegrations?: boolean;
+    githubIntegrations?: boolean;
+    mdm?: boolean;
+    assets?: boolean;
+    auditLogs?: boolean;
+  }>().default({
+    servers: true,
+    serverGroups: true,
+    pemKeys: true,
+    configurations: true,
+    deployments: true,
+    chat: true,
+    training: true,
+    awsIntegrations: true,
+    githubIntegrations: true,
+    mdm: true,
+    assets: true,
+    auditLogs: true
+  }),
   metadata: jsonb('metadata').$type<any>().default({}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -27,12 +55,17 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).unique().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'),
   role: varchar('role', { length: 50 }).notNull().default('user'),
   isSuperAdmin: boolean('is_super_admin').notNull().default(false), // Global super admin
   organizationId: uuid('organization_id').references(() => organizations.id),
   isActive: boolean('is_active').notNull().default(true),
   hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
+  isSSO: boolean('is_sso').notNull().default(false), // True if user was created as SSO user
+  authMethod: varchar('auth_method', { length: 50 }).notNull().default('password'), // password, sso, both
+  ssoProviderId: uuid('sso_provider_id'),
+  externalUserId: varchar('external_user_id', { length: 500 }),
+  lastSsoLoginAt: timestamp('last_sso_login_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -738,3 +771,76 @@ export const mdmSessionsRelations = relations(mdmSessions, ({ one }) => ({
   user: one(users, { fields: [mdmSessions.userId], references: [users.id] }),
   organization: one(organizations, { fields: [mdmSessions.organizationId], references: [organizations.id] }),
 }));
+
+// System Settings Table - Global platform settings
+export const systemSettings = pgTable('system_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: varchar('key', { length: 255 }).notNull().unique(),
+  value: jsonb('value').$type<any>().notNull(),
+  description: text('description'),
+  category: varchar('category', { length: 100 }).notNull().default('general'), // general, security, features, etc.
+  isReadonly: boolean('is_readonly').notNull().default(false), // Some settings can't be modified via UI
+  createdBy: uuid('created_by').references(() => users.id),
+  updatedBy: uuid('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const systemSettingsRelations = relations(systemSettings, ({ one }) => ({
+  createdByUser: one(users, { fields: [systemSettings.createdBy], references: [users.id] }),
+  updatedByUser: one(users, { fields: [systemSettings.updatedBy], references: [users.id] }),
+}));
+
+// SSO Provider Table - Global SSO configuration (placed at end to avoid circular deps)
+export const ssoProviders = pgTable('sso_providers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  providerType: varchar('provider_type', { length: 50 }).notNull().default('oidc'),
+  clientId: varchar('client_id', { length: 500 }).notNull(),
+  clientSecret: text('client_secret').notNull(), // encrypted
+  discoveryUrl: text('discovery_url'),
+  issuerUrl: text('issuer_url').notNull(),
+  authorizationUrl: text('authorization_url').notNull(),
+  tokenUrl: text('token_url').notNull(),
+  userinfoUrl: text('userinfo_url').notNull(),
+  jwksUri: text('jwks_uri'),
+  scopes: text('scopes').array().default(['openid', 'profile', 'email']),
+  claimsMapping: jsonb('claims_mapping').$type<Record<string, string>>().default({
+    email: 'email',
+    name: 'name',
+    given_name: 'given_name',
+    family_name: 'family_name'
+  }),
+  autoProvisionUsers: boolean('auto_provision_users').notNull().default(true),
+  defaultRole: varchar('default_role', { length: 100 }).default('viewer'), // Role for subsequent users in org
+  firstUserRole: varchar('first_user_role', { length: 100 }).default('administrator'), // Role for first user in new org
+  roleMapping: jsonb('role_mapping').$type<Record<string, string>>().default({}), // Map SSO groups/roles to app roles
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// SSO Domain Mappings - Map email domains to organizations
+export const ssoDomainMappings = pgTable('sso_domain_mappings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ssoProviderId: uuid('sso_provider_id').notNull(),
+  domain: varchar('domain', { length: 255 }).notNull(),
+  organizationId: uuid('organization_id').notNull(),
+  isDefault: boolean('is_default').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// User SSO Mappings - Link SSO accounts to internal users
+export const userSsoMappings = pgTable('user_sso_mappings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  ssoProviderId: uuid('sso_provider_id').notNull(),
+  externalUserId: varchar('external_user_id', { length: 500 }).notNull(),
+  externalEmail: varchar('external_email', { length: 255 }).notNull(),
+  externalMetadata: jsonb('external_metadata').$type<Record<string, any>>().default({}),
+  lastLoginAt: timestamp('last_login_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

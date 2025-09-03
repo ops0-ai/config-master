@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../index';
 import { users, userRoles, roles, permissions, rolePermissions } from '@config-management/database';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { AuthenticatedRequest } from '../middleware/auth';
@@ -12,8 +12,18 @@ const router = Router();
 const createUserSchema = z.object({
   name: z.string().min(1).max(255),
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.union([z.string().min(6), z.undefined()]).optional(),
   isActive: z.boolean().optional().default(true),
+  isSSO: z.boolean().optional().default(false),
+}).refine((data) => {
+  // If not SSO user, password is required
+  if (!data.isSSO && !data.password) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Password is required for non-SSO users",
+  path: ["password"],
 });
 
 const updateUserSchema = z.object({
@@ -34,16 +44,12 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
         name: users.name,
         email: users.email,
         isActive: users.isActive,
+        isSSO: users.isSSO,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       })
       .from(users)
-      .where(
-        and(
-          eq(users.organizationId, organizationId),
-          eq(users.isActive, true)
-        )
-      )
+      .where(eq(users.organizationId, organizationId))
       .orderBy(users.name);
 
     // Get roles for each user
@@ -91,6 +97,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res) => {
         name: users.name,
         email: users.email,
         isActive: users.isActive,
+        isSSO: users.isSSO,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       })
@@ -162,16 +169,16 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: 'Invalid user data', details: validation.error.issues });
     }
 
-    const { name, email, password, isActive } = validation.data;
+    const { name, email, password, isActive, isSSO } = validation.data;
     const organizationId = req.user!.organizationId;
 
-    // Check if user email already exists in the organization
+    // Check if user email already exists in the organization (case-insensitive)
     const existingUser = await db
       .select()
       .from(users)
       .where(
         and(
-          eq(users.email, email),
+          sql`LOWER(${users.email}) = LOWER(${email})`,
           eq(users.organizationId, organizationId)
         )
       )
@@ -181,24 +188,30 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Prepare user data (normalize email to lowercase)
+    const userData: any = {
+      name,
+      email: email.toLowerCase(),
+      organizationId,
+      isActive,
+      isSSO: isSSO || false,
+    };
+
+    // Only hash password for non-SSO users
+    if (!isSSO && password) {
+      userData.passwordHash = await bcrypt.hash(password, 10);
+    }
 
     // Create user
     const [newUser] = await db
       .insert(users)
-      .values({
-        name,
-        email,
-        passwordHash: hashedPassword,
-        organizationId,
-        isActive,
-      })
+      .values(userData)
       .returning({
         id: users.id,
         name: users.name,
         email: users.email,
         isActive: users.isActive,
+        isSSO: users.isSSO,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       });
@@ -292,9 +305,9 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
     const organizationId = req.user!.organizationId;
     const currentUserId = req.user!.id;
 
-    // Prevent user from deleting themselves
+    // Prevent user from deactivating themselves
     if (userId === currentUserId) {
-      return res.status(400).json({ error: 'Cannot delete your own account' });
+      return res.status(400).json({ error: 'Cannot deactivate your own account' });
     }
 
     // Check if user exists and belongs to organization
@@ -313,22 +326,20 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Deactivate user roles first
-    await db
-      .update(userRoles)
-      .set({ isActive: false })
-      .where(eq(userRoles.userId, userId));
-
-    // Soft delete user (deactivate)
+    // Soft delete - deactivate user instead of hard delete
+    // This preserves audit trails and data integrity
     await db
       .update(users)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ 
+        isActive: false,
+        updatedAt: new Date() 
+      })
       .where(eq(users.id, userId));
 
-    res.json({ message: 'User deleted successfully' });
+    res.json({ message: 'User deactivated successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
+    console.error('Error deactivating user:', error);
+    res.status(500).json({ error: 'Failed to deactivate user' });
   }
 });
 

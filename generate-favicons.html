@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Favicon Generator</title>
+</head>
+<body>
+    <h2>Favicon Generation Helper</h2>
+    <p>This page helps generate properly sized favicons from your logo.</p>
+    
+    <h3>Instructions:</h3>
+    <ol>
+        <li>Open this file in a browser</li>
+        <li>Upload your logo image</li>
+        <li>Right-click each canvas and save as the specified filename</li>
+    </ol>
+    
+    <input type="file" id="logoInput" accept="image/*">
+    <br><br>
+    
+    <div id="canvases"></div>
+    
+    <script>
+        const sizes = [
+            { size: 16, name: 'favicon-16x16.png' },
+            { size: 32, name: 'favicon-32x32.png' },
+            { size: 180, name: 'apple-touch-icon.png' }
+        ];
+        
+        document.getElementById('logoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const container = document.getElementById('canvases');
+                    container.innerHTML = '';
+                    
+                    sizes.forEach(({size, name}) => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Calculate dimensions to maintain aspect ratio
+                        const aspectRatio = img.width / img.height;
+                        let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+                        
+                        if (aspectRatio > 1) {
+                            // Wider than tall
+                            drawWidth = size;
+                            drawHeight = size / aspectRatio;
+                            offsetY = (size - drawHeight) / 2;
+                        } else {
+                            // Taller than wide or square
+                            drawHeight = size;
+                            drawWidth = size * aspectRatio;
+                            offsetX = (size - drawWidth) / 2;
+                        }
+                        
+                        // Clear canvas with transparent background
+                        ctx.clearRect(0, 0, size, size);
+                        
+                        // Draw the image centered and scaled
+                        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                        
+                        const div = document.createElement('div');
+                        div.style.margin = '20px 0';
+                        div.innerHTML = `
+                            <h4>${name} (${size}x${size}px)</h4>
+                            <p>Right-click and save as: <strong>${name}</strong></p>
+                        `;
+                        div.appendChild(canvas);
+                        container.appendChild(div);
+                    });
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+</html>

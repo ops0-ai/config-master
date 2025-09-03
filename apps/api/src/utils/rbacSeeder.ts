@@ -95,6 +95,13 @@ const systemPermissions = [
   { resource: 'asset', action: 'assign', description: 'Assign assets to users and manage assignments' },
   { resource: 'asset', action: 'import', description: 'Import assets from CSV files' },
   { resource: 'asset', action: 'export', description: 'Export assets to CSV files' },
+  
+  // SSO permissions
+  { resource: 'sso', action: 'read', description: 'View SSO providers' },
+  { resource: 'sso', action: 'write', description: 'Create and modify SSO providers' },
+  { resource: 'sso', action: 'delete', description: 'Delete SSO providers' },
+  { resource: 'sso', action: 'test', description: 'Test SSO provider connections' },
+  { resource: 'sso', action: 'configure', description: 'Configure SSO domain mappings' },
 ];
 
 // Define system roles with their permissions
@@ -118,7 +125,8 @@ const systemRoles = {
       'github-integrations:read', 'github-integrations:write', 'github-integrations:delete',
       'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
       'github-integrations:validate', 'github-integrations:sync',
-      'asset:read', 'asset:create', 'asset:update', 'asset:delete', 'asset:assign', 'asset:import', 'asset:export'
+      'asset:read', 'asset:create', 'asset:update', 'asset:delete', 'asset:assign', 'asset:import', 'asset:export',
+      'sso:read', 'sso:write', 'sso:delete', 'sso:test', 'sso:configure'
     ]
   },
   operator: {

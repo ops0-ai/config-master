@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../index';
-import { users, organizations } from '@config-management/database';
+import { users, organizations, systemSettings } from '@config-management/database';
 import { eq } from 'drizzle-orm';
 
 export interface AuthenticatedRequest extends Request {
@@ -12,6 +12,20 @@ export interface AuthenticatedRequest extends Request {
     role: string;
     organizationId: string;
     isSuperAdmin: boolean;
+  };
+  organizationFeatures?: {
+    servers?: boolean;
+    serverGroups?: boolean;
+    pemKeys?: boolean;
+    configurations?: boolean;
+    deployments?: boolean;
+    chat?: boolean;
+    training?: boolean;
+    awsIntegrations?: boolean;
+    githubIntegrations?: boolean;
+    mdm?: boolean;
+    assets?: boolean;
+    auditLogs?: boolean;
   };
 }
 
@@ -36,6 +50,23 @@ export const authMiddleware = async (
 
     if (!user[0] || !user[0].isActive) {
       return res.status(401).json({ error: 'Invalid token or inactive user.' });
+    }
+
+    // Check maintenance mode (only allow super admins and administrators during maintenance)
+    const maintenanceMode = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'maintenance_mode'))
+      .limit(1);
+
+    if (maintenanceMode[0] && maintenanceMode[0].value === true) {
+      // During maintenance mode, only super admins and administrators are allowed
+      if (!user[0].isSuperAdmin && user[0].role !== 'administrator' && user[0].role !== 'super_admin') {
+        return res.status(503).json({ 
+          error: 'System is currently under maintenance. Please try again later.',
+          code: 'MAINTENANCE_MODE'
+        });
+      }
     }
 
     // Check if user's organization is active (skip for super admins)

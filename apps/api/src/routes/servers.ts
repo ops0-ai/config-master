@@ -3,6 +3,7 @@ import { db } from '../index';
 import { servers, serverGroups, pemKeys } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 import { testServerConnection } from '../services/serverConnection';
 import { encryptPassword, decryptPassword } from '../services/encryption';
@@ -50,7 +51,7 @@ const serverUpdateSchema = Joi.object({
   metadata: Joi.object().optional(),
 });
 
-router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/', featureFlagMiddleware('servers'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const serverList = await db
       .select({
@@ -92,7 +93,7 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/:id', featureFlagMiddleware('servers'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const server = await db
       .select()
@@ -116,7 +117,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/', featureFlagMiddleware('servers'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = serverSchema.validate(req.body);
     if (error) {
@@ -229,7 +230,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.put('/:id', featureFlagMiddleware('servers'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = serverUpdateSchema.validate(req.body);
     if (error) {
@@ -295,7 +296,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('servers'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const existingServer = await db
       .select()
@@ -321,7 +322,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/:id/test-connection', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/test-connection', featureFlagMiddleware('servers'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user has execute permission for servers
     const { hasPermission } = await import('../utils/rbacSeeder');

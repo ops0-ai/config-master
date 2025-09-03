@@ -3,6 +3,7 @@ import { db } from '../index';
 import { awsIntegrations, awsInstances, servers } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import { AWSService } from '../services/awsService';
 import Joi from 'joi';
 import crypto from 'crypto';
@@ -36,7 +37,7 @@ const testConnectionSchema = Joi.object({
 });
 
 // Get all AWS integrations for the organization
-router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.get('/', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const integrations = await db
       .select()
@@ -52,7 +53,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<any> =
 });
 
 // Get available AWS regions
-router.get('/regions', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.get('/regions', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const regions = await awsService.getAvailableRegions();
     res.json(regions);
@@ -63,7 +64,7 @@ router.get('/regions', async (req: AuthenticatedRequest, res: Response): Promise
 });
 
 // Get IAM policy requirements
-router.get('/iam-policy', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.get('/iam-policy', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const policy = AWSService.generateIAMPolicy();
     const externalId = generateExternalId(req.user!.organizationId);
@@ -81,7 +82,7 @@ router.get('/iam-policy', async (req: AuthenticatedRequest, res: Response): Prom
 });
 
 // Test AWS connection
-router.post('/test-connection', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.post('/test-connection', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const { error, value } = testConnectionSchema.validate(req.body);
     if (error) {
@@ -114,7 +115,7 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res: Response)
 });
 
 // Create new AWS integration
-router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.post('/', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const { error, value } = createIntegrationSchema.validate(req.body);
     if (error) {
@@ -177,7 +178,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<any> 
 });
 
 // Get AWS integration by ID
-router.get('/:id', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.get('/:id', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const integration = await db
       .select()
@@ -202,7 +203,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response): Promise<any
 });
 
 // Update AWS integration
-router.put('/:id', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.put('/:id', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const updateSchema = Joi.object({
       name: Joi.string().min(1).max(255).optional(),
@@ -241,7 +242,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response): Promise<any
 });
 
 // Delete AWS integration
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const integration = await db
       .select()
@@ -271,7 +272,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<
 });
 
 // Sync AWS instances
-router.post('/:id/sync', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.post('/:id/sync', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const integration = await db
       .select()
@@ -334,7 +335,7 @@ router.post('/:id/sync', async (req: AuthenticatedRequest, res: Response): Promi
 });
 
 // Get AWS instances for an integration
-router.get('/:id/instances', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.get('/:id/instances', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const { region, state } = req.query;
     
@@ -378,7 +379,7 @@ router.get('/:id/instances', async (req: AuthenticatedRequest, res: Response): P
 });
 
 // Import AWS instance as server
-router.post('/:id/instances/:instanceId/import', async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+router.post('/:id/instances/:instanceId/import', featureFlagMiddleware('awsIntegrations'), async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const { name, groupId, pemKeyId, username } = req.body;
     

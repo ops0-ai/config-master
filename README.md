@@ -129,6 +129,12 @@ config-management/
    - Add GitHub integration with your repository details
    - Start importing configurations and syncing assets
 
+7. **Super Admin Access** (Platform Management)
+   - The first registered user automatically becomes a super admin
+   - Access Organization Management via the Global Admin section in navigation
+   - Control feature access per organization with granular toggles
+   - Activate/deactivate organizations as needed
+
 ## 📖 Usage Guide
 
 ### 1. Server Management
@@ -165,9 +171,16 @@ config-management/
 
 ### 6. Enterprise Management
 - **Organization Setup**: Multi-tenant architecture with isolated data
+- **Organization Feature Management**: Super admins can enable/disable features per organization
 - **User Management**: Role-based access with admin, operator, and viewer roles  
 - **Audit Logs**: Complete activity tracking for security and compliance
 - **API Access**: RESTful API for integration with existing tools
+
+### 7. Organization Feature Control (Super Admin)
+- **Feature Toggles**: Enable/disable features per organization (servers, configurations, assets, MDM, etc.)
+- **Organization Status**: Activate/deactivate organizations to control access
+- **Granular Control**: Control access to core features, integrations, and advanced capabilities
+- **Real-time Enforcement**: Feature flags enforced immediately across the platform
 
 ## 🔧 Configuration Examples
 

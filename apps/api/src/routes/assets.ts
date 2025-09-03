@@ -8,6 +8,7 @@ import {
 } from '@config-management/database';
 import { eq, and, like, desc, sql, or } from 'drizzle-orm';
 import { AuthenticatedRequest, rbacMiddleware } from '../middleware/rbacMiddleware';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 
 const router = Router();
 
@@ -40,7 +41,7 @@ async function logAssetHistory(
 }
 
 // Get all assets with pagination and filtering
-router.get('/', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+router.get('/', featureFlagMiddleware('assets'), rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
   try {
     const organizationId = req.user!.organizationId!;
     const page = parseInt(req.query.page as string) || 1;
@@ -179,7 +180,7 @@ router.get('/', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest
 });
 
 // Get single asset
-router.get('/:id', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
+router.get('/:id', featureFlagMiddleware('assets'), rbacMiddleware(['asset:read']), async (req: AuthenticatedRequest, res) => {
   try {
     const organizationId = req.user!.organizationId!;
     const assetId = req.params.id;
@@ -258,7 +259,7 @@ router.get('/:id', rbacMiddleware(['asset:read']), async (req: AuthenticatedRequ
 });
 
 // Create new asset
-router.post('/', rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
+router.post('/', featureFlagMiddleware('assets'), rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
   try {
     const organizationId = req.user!.organizationId!;
     const userId = req.user!.id;
@@ -359,7 +360,7 @@ router.post('/', rbacMiddleware(['asset:create']), async (req: AuthenticatedRequ
 });
 
 // Update asset
-router.put('/:id', rbacMiddleware(['asset:update']), async (req: AuthenticatedRequest, res) => {
+router.put('/:id', featureFlagMiddleware('assets'), rbacMiddleware(['asset:update']), async (req: AuthenticatedRequest, res) => {
   try {
     const organizationId = req.user!.organizationId!;
     const userId = req.user!.id;
@@ -437,7 +438,7 @@ router.put('/:id', rbacMiddleware(['asset:update']), async (req: AuthenticatedRe
 });
 
 // Delete asset (soft delete)
-router.delete('/:id', rbacMiddleware(['asset:delete']), async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', featureFlagMiddleware('assets'), rbacMiddleware(['asset:delete']), async (req: AuthenticatedRequest, res) => {
   try {
     const organizationId = req.user!.organizationId!;
     const userId = req.user!.id;
@@ -484,7 +485,7 @@ router.delete('/:id', rbacMiddleware(['asset:delete']), async (req: Authenticate
 });
 
 // Asset assignment endpoint
-router.post('/assignments', rbacMiddleware(['asset:assign']), async (req: AuthenticatedRequest, res) => {
+router.post('/assignments', featureFlagMiddleware('assets'), rbacMiddleware(['asset:assign']), async (req: AuthenticatedRequest, res) => {
   try {
     const organizationId = req.user!.organizationId!;
     const assignedBy = req.user!.id;
@@ -577,7 +578,7 @@ router.post('/assignments', rbacMiddleware(['asset:assign']), async (req: Authen
 });
 
 // Sync assets from MDM devices
-router.post('/sync-from-mdm', rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
+router.post('/sync-from-mdm', featureFlagMiddleware('assets'), rbacMiddleware(['asset:create']), async (req: AuthenticatedRequest, res) => {
   try {
     const { mdmDevices } = await import('@config-management/database');
     const organizationId = req.user!.organizationId!;

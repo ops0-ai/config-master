@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest, authMiddleware } from '../middleware/auth';
 import { rbacMiddleware } from '../middleware/rbacMiddleware';
 import { auditMiddleware } from '../middleware/audit';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 
 const router = Router();
@@ -30,7 +31,7 @@ const configurationUpdateSchema = Joi.object({
   source: Joi.string().valid('manual', 'template', 'conversation').optional(),
 });
 
-router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const configs = await db
       .select()
@@ -51,7 +52,7 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
 });
 
 // Approve configuration (must come before /:id route)
-router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/approve', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user is admin or super_admin
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
@@ -98,7 +99,7 @@ router.post('/:id/approve', async (req: AuthenticatedRequest, res): Promise<any>
 });
 
 // Reject configuration (must come before /:id route)
-router.post('/:id/reject', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/reject', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user is admin or super_admin
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
@@ -150,7 +151,7 @@ router.post('/:id/reject', async (req: AuthenticatedRequest, res): Promise<any> 
 });
 
 // Reset approval status (must come before /:id route)
-router.post('/:id/reset-approval', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/:id/reset-approval', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     // Check if user is admin or super_admin
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
@@ -196,7 +197,7 @@ router.post('/:id/reset-approval', async (req: AuthenticatedRequest, res): Promi
   }
 });
 
-router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/:id', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const config = await db
       .select()
@@ -226,7 +227,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = configurationSchema.validate(req.body);
     if (error) {
@@ -258,7 +259,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.put('/:id', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = configurationUpdateSchema.validate(req.body);
     if (error) {
@@ -318,7 +319,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('configurations'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const existingConfig = await db
       .select()
@@ -348,7 +349,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
  * GET /api/configurations/:id/github-mappings
  * Get GitHub mappings for a configuration
  */
-router.get('/:id/github-mappings', authMiddleware, rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/:id/github-mappings', authMiddleware, featureFlagMiddleware('configurations'), rbacMiddleware(), auditMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { configurationGithubMappings, githubIntegrations } = await import('@config-management/database');
     

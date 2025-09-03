@@ -3,6 +3,7 @@ import { db } from '../index';
 import { serverGroups, servers } from '@config-management/database';
 import { eq, and } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { featureFlagMiddleware } from '../middleware/featureFlags';
 import Joi from 'joi';
 
 const router = Router();
@@ -19,7 +20,7 @@ const serverGroupUpdateSchema = Joi.object({
   defaultPemKeyId: Joi.string().uuid().allow('', null).optional(),
 });
 
-router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get('/', featureFlagMiddleware('serverGroups'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const groups = await db
       .select()
@@ -33,7 +34,7 @@ router.get('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.post('/', featureFlagMiddleware('serverGroups'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = serverGroupSchema.validate(req.body);
     if (error) {
@@ -60,7 +61,7 @@ router.post('/', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.put('/:id', featureFlagMiddleware('serverGroups'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const { error, value } = serverGroupUpdateSchema.validate(req.body);
     if (error) {
@@ -105,7 +106,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
   }
 });
 
-router.delete('/:id', async (req: AuthenticatedRequest, res): Promise<any> => {
+router.delete('/:id', featureFlagMiddleware('serverGroups'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const existingGroup = await db
       .select()
