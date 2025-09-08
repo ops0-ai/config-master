@@ -87,6 +87,7 @@ export default function HivePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [newAgentName, setNewAgentName] = useState('');
   const [newAgentHostname, setNewAgentHostname] = useState('');
+  const [detectedPulseUrl, setDetectedPulseUrl] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<HiveAgent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -191,7 +192,7 @@ export default function HivePage() {
       if (response.ok) {
         const data = await response.json();
         setApiKey(data.apiKey);
-        generateInstallCommand(data.apiKey);
+        generateInstallCommand(data.apiKey, detectedPulseUrl);
         setShowInstallModal(true);
         setNewAgentName('');
         setNewAgentHostname('');
@@ -207,11 +208,32 @@ export default function HivePage() {
     }
   };
 
-  const generateInstallCommand = (apiKey: string) => {
-    // Use API URL instead of frontend URL for install script
-    const apiUrl = window.location.origin.replace(':3000', ':5005');
-    const command = `curl -sSL ${apiUrl}/api/hive/install | bash -s -- --api-key=${apiKey}`;
+  const generateInstallCommand = (apiKey: string, customUrl?: string) => {
+    // Use custom URL if provided, otherwise fall back to detected URL
+    const apiUrl = customUrl || detectedPulseUrl || window.location.origin.replace(':3000', ':5005');
+    const command = `curl -sSL ${apiUrl}/api/hive/install | bash -s -- --api-key=${apiKey} --pulse-url=${apiUrl}`;
     setInstallCommand(command);
+  };
+
+  const detectPulseUrl = () => {
+    // Detect current URL and convert to API URL
+    const currentOrigin = window.location.origin;
+    let apiUrl = currentOrigin;
+    
+    // If on port 3000 (dev), change to 5005
+    if (currentOrigin.includes(':3000')) {
+      apiUrl = currentOrigin.replace(':3000', ':5005');
+    }
+    // If no port specified and HTTPS, assume production
+    else if (currentOrigin.startsWith('https://') && !currentOrigin.includes(':')) {
+      apiUrl = currentOrigin; // Keep same URL for production HTTPS
+    }
+    // If HTTP and no port, assume port 5005
+    else if (currentOrigin.startsWith('http://') && !currentOrigin.includes(':')) {
+      apiUrl = currentOrigin + ':5005';
+    }
+    
+    setDetectedPulseUrl(apiUrl);
   };
 
   const refresh = async () => {
@@ -975,7 +997,10 @@ Please help me resolve this issue on ${issueAgent.hostname}.`;
                 <span>Refresh</span>
               </button>
               <button
-                onClick={() => setShowInstallModal(true)}
+                onClick={() => {
+                  detectPulseUrl();
+                  setShowInstallModal(true);
+                }}
                 className="px-4 py-2 bg-white text-indigo-600 rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center space-x-2"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -1137,7 +1162,10 @@ Please help me resolve this issue on ${issueAgent.hostname}.`;
                   <p className="text-lg font-medium text-gray-900">No agents deployed</p>
                   <p className="mt-2 text-sm text-gray-500">Deploy your first agent to start monitoring</p>
                   <button
-                    onClick={() => setShowInstallModal(true)}
+                    onClick={() => {
+                      detectPulseUrl();
+                      setShowInstallModal(true);
+                    }}
                     className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                   >
                     Deploy First Agent
@@ -1421,6 +1449,21 @@ Please help me resolve this issue on ${issueAgent.hostname}.`;
                         placeholder="e.g., prod-server-01.company.com"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pulse URL (Auto-detected)
+                      </label>
+                      <input
+                        type="text"
+                        value={detectedPulseUrl}
+                        onChange={(e) => setDetectedPulseUrl(e.target.value)}
+                        placeholder="https://your-pulse-server.com"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        This is the URL where agents will connect to send telemetry data. Modify if needed.
+                      </p>
                     </div>
                     <div className="flex justify-end space-x-3 pt-4">
                       <button

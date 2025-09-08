@@ -1479,12 +1479,36 @@ while [[ $# -gt 0 ]]; do
       API_KEY="$2"
       shift 2
       ;;
+    --pulse-url=*)
+      CUSTOM_PULSE_URL="\${1#*=}"
+      shift
+      ;;
+    --pulse-url)
+      CUSTOM_PULSE_URL="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option $1"
       exit 1
       ;;
   esac
 done
+
+# Use custom Pulse URL if provided, otherwise use detected values
+if [[ -n "$CUSTOM_PULSE_URL" ]]; then
+  # Parse the custom URL to extract protocol and host
+  if [[ "$CUSTOM_PULSE_URL" =~ ^https:// ]]; then
+    PROTOCOL="https"
+    PULSE_URL="\${CUSTOM_PULSE_URL#https://}"
+  elif [[ "$CUSTOM_PULSE_URL" =~ ^http:// ]]; then
+    PROTOCOL="http"
+    PULSE_URL="\${CUSTOM_PULSE_URL#http://}"
+  else
+    # Assume https if no protocol specified
+    PROTOCOL="https"
+    PULSE_URL="$CUSTOM_PULSE_URL"
+  fi
+fi
 
 if [[ -z "$API_KEY" ]]; then
   echo "Error: API key is required. Use --api-key=YOUR_KEY"
@@ -2199,12 +2223,36 @@ while [[ $# -gt 0 ]]; do
       API_KEY="$2"
       shift 2
       ;;
+    --pulse-url=*)
+      CUSTOM_PULSE_URL="\${1#*=}"
+      shift
+      ;;
+    --pulse-url)
+      CUSTOM_PULSE_URL="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option $1"
       exit 1
       ;;
   esac
 done
+
+# Use custom Pulse URL if provided, otherwise use detected values
+if [[ -n "$CUSTOM_PULSE_URL" ]]; then
+  # Parse the custom URL to extract protocol and host
+  if [[ "$CUSTOM_PULSE_URL" =~ ^https:// ]]; then
+    PROTOCOL="https"
+    PULSE_URL="\${CUSTOM_PULSE_URL#https://}"
+  elif [[ "$CUSTOM_PULSE_URL" =~ ^http:// ]]; then
+    PROTOCOL="http"
+    PULSE_URL="\${CUSTOM_PULSE_URL#http://}"
+  else
+    # Assume https if no protocol specified
+    PROTOCOL="https"
+    PULSE_URL="$CUSTOM_PULSE_URL"
+  fi
+fi
 
 if [[ -z "$API_KEY" ]]; then
   echo "Error: API key is required. Use --api-key=YOUR_KEY"
