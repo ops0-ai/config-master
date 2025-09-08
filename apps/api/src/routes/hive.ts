@@ -1135,7 +1135,9 @@ router.post('/agents/:id/config', authMiddleware, requirePermission('hive', 'con
       
       // Generate proper YAML configuration
       const generateYamlConfig = (config: any): string => {
-        const serverUrl = config.server?.url || `${protocol}://${host}`;
+        // Use detected protocol (HTTP or HTTPS) with detected host
+        const detectedUrl = `${protocol}://${host}`;
+        const serverUrl = config.server?.url || detectedUrl;
         return `# Pulse Hive Agent Configuration
 # Deployed via Pulse Platform
 server:
