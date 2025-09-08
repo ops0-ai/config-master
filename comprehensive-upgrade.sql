@@ -5,6 +5,81 @@
 BEGIN;
 
 -- ==============================
+-- FOREIGN KEY REPAIR (FIX ORPHANED DATA)
+-- ==============================
+-- This must run BEFORE any foreign key constraints are added
+-- Fixes organizations that reference non-existent users
+
+DO $$ 
+DECLARE
+    orphaned_count INTEGER;
+    admin_user_id UUID;
+    admin_email TEXT := 'admin@pulse.dev';
+BEGIN
+    RAISE NOTICE '🔧 Checking for orphaned organizations...';
+    
+    -- Count orphaned organizations (if the table exists)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'organizations') 
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+        
+        SELECT COUNT(*) INTO orphaned_count 
+        FROM organizations o 
+        WHERE o.owner_id IS NOT NULL 
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = o.owner_id);
+        
+        RAISE NOTICE 'Found % orphaned organizations', orphaned_count;
+        
+        IF orphaned_count > 0 THEN
+            -- Temporarily drop the foreign key constraint if it exists
+            IF EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                       WHERE constraint_name = 'organizations_owner_id_users_id_fk') THEN
+                ALTER TABLE organizations DROP CONSTRAINT organizations_owner_id_users_id_fk;
+                RAISE NOTICE '✅ Temporarily dropped organizations_owner_id_users_id_fk constraint';
+            END IF;
+            
+            -- Try to find existing admin user
+            SELECT id INTO admin_user_id 
+            FROM users 
+            WHERE email = admin_email OR role = 'super_admin' 
+            LIMIT 1;
+            
+            IF admin_user_id IS NULL THEN
+                -- Create a default admin user if none exists
+                admin_user_id := gen_random_uuid();
+                
+                INSERT INTO users (id, email, password_hash, name, role, is_active, created_at)
+                VALUES (
+                    admin_user_id,
+                    admin_email,
+                    '$2b$10$rQNTkqP2GWI4PJ4bFt8/lOhFgAGjZqjcmrztKTfr5vW2zJJPQ5vXa', -- 'admin123'
+                    'Pulse Admin (Auto-Created)',
+                    'super_admin',
+                    true,
+                    NOW()
+                )
+                ON CONFLICT (email) DO NOTHING;
+                
+                RAISE NOTICE '✅ Created admin user for orphaned organizations';
+            ELSE
+                RAISE NOTICE '✅ Using existing admin user for orphaned organizations';
+            END IF;
+            
+            -- Fix orphaned organizations by assigning them to the admin user
+            UPDATE organizations 
+            SET owner_id = admin_user_id 
+            WHERE owner_id IS NOT NULL 
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = organizations.owner_id);
+            
+            RAISE NOTICE '✅ Fixed % orphaned organizations', orphaned_count;
+        ELSE
+            RAISE NOTICE '✅ No orphaned organizations found';
+        END IF;
+    ELSE
+        RAISE NOTICE '⚠️ Organizations or users table not found, skipping orphan repair';
+    END IF;
+END $$;
+
+-- ==============================
 -- SYSTEM SETTINGS TABLE
 -- ==============================
 CREATE TABLE IF NOT EXISTS "system_settings" (
