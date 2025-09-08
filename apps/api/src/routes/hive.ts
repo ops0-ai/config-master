@@ -1514,15 +1514,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Use custom Pulse URL if provided, otherwise use detected values
+# Store original values for download
+DOWNLOAD_URL="$PULSE_URL"
+DOWNLOAD_PROTOCOL="$PROTOCOL"
+
+# Use custom Pulse URL if provided for config only
 if [[ -n "$CUSTOM_PULSE_URL" ]]; then
   # Parse the custom URL to extract protocol and host
   if [[ "$CUSTOM_PULSE_URL" =~ ^https:// ]]; then
     PROTOCOL="https"
-    PULSE_URL="\${CUSTOM_PULSE_URL#https://}"
+    PULSE_URL=\${CUSTOM_PULSE_URL#https://}
   elif [[ "$CUSTOM_PULSE_URL" =~ ^http:// ]]; then
     PROTOCOL="http"
-    PULSE_URL="\${CUSTOM_PULSE_URL#http://}"
+    PULSE_URL=\${CUSTOM_PULSE_URL#http://}
   else
     # Assume https if no protocol specified
     PROTOCOL="https"
@@ -1557,8 +1561,8 @@ esac
 # Create installation directory
 mkdir -p $INSTALL_DIR
 
-# Download Hive Agent binary
-BINARY_URL="$PROTOCOL://$PULSE_URL/api/hive/download/hive-agent-$OS-$ARCH"
+# Download Hive Agent binary (use original server URL for downloads)
+BINARY_URL="$DOWNLOAD_PROTOCOL://$DOWNLOAD_URL/api/hive/download/hive-agent-$OS-$ARCH"
 echo "Downloading Hive Agent..."
 
 # Download and check if we got a binary or error message
@@ -1596,7 +1600,7 @@ sudo mkdir -p "/etc/pulse-hive"
 sudo tee "/etc/pulse-hive/config.yaml" << EOF
 # Pulse Hive Agent Configuration
 server:
-  url: "https://$PULSE_URL"
+  url: "$PROTOCOL://$PULSE_URL"
   api_key: "$API_KEY"
   heartbeat_interval: 30s
   reconnect_interval: 10s
@@ -1641,7 +1645,7 @@ outputs:
   - name: "pulse_platform"
     type: "http"
     enabled: true
-    url: "https://$PULSE_URL/api/hive/telemetry"
+    url: "$PROTOCOL://$PULSE_URL/api/hive/telemetry"
     auth:
       type: "bearer"
       token: "$API_KEY"
@@ -2264,15 +2268,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Use custom Pulse URL if provided, otherwise use detected values
+# Store original values for download
+DOWNLOAD_URL="$PULSE_URL"
+DOWNLOAD_PROTOCOL="$PROTOCOL"
+
+# Use custom Pulse URL if provided for config only
 if [[ -n "$CUSTOM_PULSE_URL" ]]; then
   # Parse the custom URL to extract protocol and host
   if [[ "$CUSTOM_PULSE_URL" =~ ^https:// ]]; then
     PROTOCOL="https"
-    PULSE_URL="\${CUSTOM_PULSE_URL#https://}"
+    PULSE_URL=\${CUSTOM_PULSE_URL#https://}
   elif [[ "$CUSTOM_PULSE_URL" =~ ^http:// ]]; then
     PROTOCOL="http"
-    PULSE_URL="\${CUSTOM_PULSE_URL#http://}"
+    PULSE_URL=\${CUSTOM_PULSE_URL#http://}
   else
     # Assume https if no protocol specified
     PROTOCOL="https"
@@ -2307,8 +2315,8 @@ esac
 # Create installation directory
 mkdir -p $INSTALL_DIR
 
-# Download Hive Agent binary
-BINARY_URL="$PROTOCOL://$PULSE_URL/api/hive/download/hive-agent-$OS-$ARCH"
+# Download Hive Agent binary (use original server URL for downloads)
+BINARY_URL="$DOWNLOAD_PROTOCOL://$DOWNLOAD_URL/api/hive/download/hive-agent-$OS-$ARCH"
 echo "Downloading Hive Agent..."
 
 # Download and check if we got a binary or error message
@@ -2346,7 +2354,7 @@ sudo mkdir -p "/etc/pulse-hive"
 sudo tee "/etc/pulse-hive/config.yaml" << EOF
 # Pulse Hive Agent Configuration
 server:
-  url: "http://$PULSE_URL"
+  url: "$PROTOCOL://$PULSE_URL"
   api_key: "$API_KEY"
   heartbeat_interval: 30s
   reconnect_interval: 10s
@@ -2391,7 +2399,7 @@ outputs:
   - name: "pulse_platform"
     type: "http"
     enabled: true
-    url: "http://$PULSE_URL/api/hive/telemetry"
+    url: "$PROTOCOL://$PULSE_URL/api/hive/telemetry"
     auth:
       type: "bearer"
       token: "$API_KEY"
