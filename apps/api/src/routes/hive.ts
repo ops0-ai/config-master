@@ -929,7 +929,13 @@ router.get('/agents/:id/config', authMiddleware, requirePermission('hive', 'read
     const forwardedProto = req.get('x-forwarded-proto');
     const forwardedHost = req.get('x-forwarded-host');
     const host = forwardedHost || req.get('host') || 'localhost:5005';
-    const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
+    
+    // More aggressive HTTPS detection for reverse proxies
+    const isSecure = forwardedProto === 'https' || 
+                     req.secure || 
+                     req.get('x-forwarded-ssl') === 'on' ||
+                     req.get('x-forwarded-port') === '443' ||
+                     (host && host.includes('.') && !host.includes('localhost')); // Assume HTTPS for domain names
     const protocol = isSecure ? 'https' : 'http';
     const detectedUrl = `${protocol}://${host}`;
     const serverUrl = agent[0].pulseUrl || detectedUrl;
@@ -1110,7 +1116,13 @@ router.post('/agents/:id/config', authMiddleware, requirePermission('hive', 'con
     const forwardedProto = req.get('x-forwarded-proto');
     const forwardedHost = req.get('x-forwarded-host');
     const host = forwardedHost || req.get('host') || 'localhost:5005';
-    const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
+    
+    // More aggressive HTTPS detection for reverse proxies
+    const isSecure = forwardedProto === 'https' || 
+                     req.secure || 
+                     req.get('x-forwarded-ssl') === 'on' ||
+                     req.get('x-forwarded-port') === '443' ||
+                     (host && host.includes('.')) && !host.includes('localhost'); // Assume HTTPS for domain names
     const protocol = isSecure ? 'https' : 'http';
     
     // Only override if not set or if it's localhost
@@ -1444,7 +1456,13 @@ router.get('/install', async (req: Request, res: Response) => {
     
     // Determine protocol - use HTTPS if X-Forwarded-Proto is https, otherwise detect from request
     const forwardedProto = req.get('x-forwarded-proto');
-    const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
+    
+    // More aggressive HTTPS detection for reverse proxies
+    const isSecure = forwardedProto === 'https' || 
+                     req.secure || 
+                     req.get('x-forwarded-ssl') === 'on' ||
+                     req.get('x-forwarded-port') === '443' ||
+                     (pulseHost && pulseHost.includes('.') && !pulseHost.includes('localhost')); // Assume HTTPS for domain names
     const protocol = isSecure ? 'https' : 'http';
     
     // If the host is the Docker internal hostname, use localhost instead
@@ -2188,7 +2206,13 @@ hivePublicRoutes.get('/install', async (req: Request, res: Response) => {
     
     // Determine protocol - use HTTPS if X-Forwarded-Proto is https, otherwise detect from request
     const forwardedProto = req.get('x-forwarded-proto');
-    const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
+    
+    // More aggressive HTTPS detection for reverse proxies
+    const isSecure = forwardedProto === 'https' || 
+                     req.secure || 
+                     req.get('x-forwarded-ssl') === 'on' ||
+                     req.get('x-forwarded-port') === '443' ||
+                     (pulseHost && pulseHost.includes('.') && !pulseHost.includes('localhost')); // Assume HTTPS for domain names
     const protocol = isSecure ? 'https' : 'http';
     
     // If the host is the Docker internal hostname, use localhost instead

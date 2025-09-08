@@ -912,6 +912,10 @@ BEGIN
     ELSE
         RAISE NOTICE '⚠️ pulse_url column already exists in hive_agents table';
     END IF;
+    
+    -- Leave pulse_url as null for now - it will be detected dynamically
+    -- This allows the improved HTTPS detection logic to work for existing agents
+    RAISE NOTICE '✅ Existing agents will use improved HTTPS detection logic';
 EXCEPTION
     WHEN undefined_table THEN
         RAISE NOTICE '⚠️ hive_agents table does not exist yet, skipping pulse_url column addition';
