@@ -460,10 +460,10 @@ export default function HivePage() {
           // Convert JSON config to YAML format for editing
           setConfigYaml(JSON.stringify(currentConfig.config, null, 2));
         } else {
-          // Default configuration template (in JSON for editing, will be converted to YAML on deployment)
-          const defaultConfig = {
+          // Use default configuration from API which has the correct server URL
+          const defaultConfig = data.defaultConfig || {
             server: {
-              url: "http://localhost:5005",
+              url: data.detectedServerUrl || window.location.origin.replace(':3000', ':5005'),
               api_key: data.agent?.apiKey || "",
               heartbeat_interval: "30s",
               reconnect_interval: "10s",
@@ -549,7 +549,7 @@ export default function HivePage() {
                 name: "pulse_platform",
                 type: "http",
                 enabled: true,
-                url: "http://localhost:5005/api/hive/telemetry",
+                url: `${data.detectedServerUrl || window.location.origin.replace(':3000', ':5005')}/api/hive/telemetry`,
                 auth: { type: "bearer", token: data.agent?.apiKey || "" },
                 batch_size: 1000,
                 timeout: "30s",

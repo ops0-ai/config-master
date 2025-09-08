@@ -924,7 +924,52 @@ router.get('/agents/:id/config', authMiddleware, requirePermission('hive', 'read
       .where(eq(hiveAgentConfigs.agentId, agentId))
       .orderBy(desc(hiveAgentConfigs.createdAt));
 
-    return res.json({ success: true, configs, agent: agent[0] });
+    // Generate default config with correct server URL for UI
+    const forwardedProto = req.get('x-forwarded-proto');
+    const forwardedHost = req.get('x-forwarded-host');
+    const host = forwardedHost || req.get('host') || 'localhost:5005';
+    const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
+    const protocol = isSecure ? 'https' : 'http';
+    const serverUrl = `${protocol}://${host}`;
+
+    const defaultConfig = {
+      server: {
+        url: serverUrl,
+        api_key: agent[0].apiKey,
+        heartbeat_interval: '30s',
+        reconnect_interval: '10s',
+        max_reconnects: 3,
+        timeout: '30s'
+      },
+      agent: {
+        name: agent[0].name,
+        hostname: agent[0].hostname,
+        data_dir: '/var/lib/pulse-hive',
+        buffer_size: 10000,
+        batch_size: 1000,
+        flush_interval: '10s',
+        compress_data: true,
+        enable_profiling: false,
+        metrics_port: 8080,
+        enable_self_monitoring: true
+      },
+      collectors: {
+        system_metrics: { enabled: true, interval: '30s' },
+        docker_metrics: { enabled: true, interval: '30s' },
+        process_metrics: { enabled: true, interval: '60s' },
+        network_metrics: { enabled: true, interval: '30s' },
+        log_collector: { enabled: true }
+      },
+      outputs: []
+    };
+
+    return res.json({ 
+      success: true, 
+      configs, 
+      agent: agent[0], 
+      defaultConfig,
+      detectedServerUrl: serverUrl 
+    });
   } catch (error) {
     console.error('Error fetching agent config:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -945,6 +990,24 @@ router.post('/agents/:id/config', authMiddleware, requirePermission('hive', 'con
 
     if (agent.length === 0) {
       return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    // Auto-detect and set the correct server URL if not provided or if it's localhost
+    if (!config.server) {
+      config.server = {};
+    }
+    
+    // Determine the correct host and protocol
+    const forwardedProto = req.get('x-forwarded-proto');
+    const forwardedHost = req.get('x-forwarded-host');
+    const host = forwardedHost || req.get('host') || 'localhost:5005';
+    const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
+    const protocol = isSecure ? 'https' : 'http';
+    
+    // Only override if not set or if it's localhost
+    if (!config.server.url || config.server.url.includes('localhost') || config.server.url.includes('127.0.0.1')) {
+      config.server.url = `${protocol}://${host}`;
+      console.log(`🔧 Auto-detected server URL for hive agent: ${config.server.url}`);
     }
 
     // Create new config
