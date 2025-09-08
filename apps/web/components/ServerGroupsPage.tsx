@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { serverGroupsApi, pemKeysApi, serversApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useOrganizationFeatures } from '@/contexts/OrganizationFeaturesContext';
 
 interface ServerGroup {
   id: string;
@@ -43,6 +44,7 @@ export default function ServerGroupsPage() {
   const [showServerModal, setShowServerModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<ServerGroup | null>(null);
   const [managingGroup, setManagingGroup] = useState<ServerGroup | null>(null);
+  const { isFeatureEnabled } = useOrganizationFeatures();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,15 +59,31 @@ export default function ServerGroupsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [groupsRes, keysRes, serversRes] = await Promise.all([
+      
+      // Always load server groups and PEM keys
+      const promises = [
         serverGroupsApi.getAll(),
         pemKeysApi.getAll(),
-        serversApi.getAll(),
-      ]);
+      ];
+      
+      // Only load servers if the servers feature is enabled
+      const serversEnabled = isFeatureEnabled('servers');
+      if (serversEnabled) {
+        promises.push(serversApi.getAll());
+      }
+      
+      const responses = await Promise.all(promises);
+      const [groupsRes, keysRes, serversRes] = responses;
 
       setServerGroups(groupsRes.data);
       setPemKeys(keysRes.data);
-      setServers(serversRes.data);
+      
+      // Only set servers if we fetched them
+      if (serversEnabled && serversRes) {
+        setServers(serversRes.data);
+      } else {
+        setServers([]); // Empty array if servers feature is disabled
+      }
     } catch (error) {
       toast.error('Failed to load data');
       console.error('Load error:', error);
@@ -147,6 +165,11 @@ export default function ServerGroupsPage() {
   };
 
   const handleAddServerToGroup = async (serverId: string, groupId: string) => {
+    if (!isFeatureEnabled('servers')) {
+      toast.error('Server management is not enabled for your organization');
+      return;
+    }
+    
     try {
       console.log('Adding server to group:', { serverId, groupId });
       const response = await serversApi.update(serverId, { groupId });
@@ -160,6 +183,11 @@ export default function ServerGroupsPage() {
   };
 
   const handleRemoveServerFromGroup = async (serverId: string) => {
+    if (!isFeatureEnabled('servers')) {
+      toast.error('Server management is not enabled for your organization');
+      return;
+    }
+    
     try {
       await serversApi.update(serverId, { groupId: null });
       toast.success('Server removed from group');

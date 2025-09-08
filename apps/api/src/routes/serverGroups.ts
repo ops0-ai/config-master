@@ -22,6 +22,13 @@ const serverGroupUpdateSchema = Joi.object({
 
 router.get('/', featureFlagMiddleware('serverGroups'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
+    // Add cache-busting headers to prevent stale feature flag responses
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     const groups = await db
       .select()
       .from(serverGroups)

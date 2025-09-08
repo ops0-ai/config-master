@@ -29,6 +29,7 @@ import { useOrganizationFeatures, OrganizationFeatures } from '@/contexts/Organi
 import OrganizationSwitcher from './OrganizationSwitcher';
 import TutorialButton from './TutorialButton';
 import Onboarding from './Onboarding';
+import AIAssistant from './AIAssistant';
 
 interface LayoutProps {
   children: ReactNode;
@@ -214,6 +215,9 @@ export default function Layout({ children }: LayoutProps) {
           onComplete={handleOnboardingComplete}
         />
       )}
+
+      {/* AI Assistant - Available on all pages */}
+      <AIAssistant />
     </div>
   );
 

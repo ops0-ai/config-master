@@ -210,6 +210,111 @@ export const messages = pgTable('messages', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// AI Assistant Context and Conversations
+export const aiAssistantSessions = pgTable('ai_assistant_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  contextPage: varchar('context_page', { length: 50 }).notNull(), // servers, configurations, deployments
+  contextData: jsonb('context_data').$type<{
+    pageUrl?: string;
+    selectedItems?: string[];
+    filters?: Record<string, any>;
+    visibleData?: Record<string, any>;
+  }>().default({}),
+  isActive: boolean('is_active').notNull().default(true),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  endedAt: timestamp('ended_at'),
+  metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
+});
+
+export const aiAssistantMessages = pgTable('ai_assistant_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').references(() => aiAssistantSessions.id).notNull(),
+  conversationId: uuid('conversation_id').references(() => conversations.id), // Link to main chat for history
+  role: varchar('role', { length: 20 }).notNull(), // user, assistant, system
+  content: text('content').notNull(),
+  contextPage: varchar('context_page', { length: 50 }).notNull(),
+  // AI Actions taken
+  actions: jsonb('actions').$type<Array<{
+    type: string; // create_config, modify_config, deploy, analyze, suggest
+    status: string; // pending, approved, rejected, executed
+    details: Record<string, any>;
+    executedAt?: string;
+  }>>().default([]),
+  // Analysis results
+  analysis: jsonb('analysis').$type<{
+    configurationIssues?: Array<{
+      severity: string;
+      message: string;
+      line?: number;
+      suggestion?: string;
+    }>;
+    driftDetection?: {
+      hasDrift: boolean;
+      differences: Array<any>;
+    };
+    recommendations?: string[];
+  }>(),
+  // Generated content
+  generatedContent: jsonb('generated_content').$type<{
+    configurations?: Array<{
+      name: string;
+      type: string;
+      content: string;
+    }>;
+    deploymentPlan?: any;
+    serverGroups?: any[];
+  }>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Configuration Drift Tracking
+export const configurationDrifts = pgTable('configuration_drifts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  configurationId: uuid('configuration_id').references(() => configurations.id).notNull(),
+  serverId: uuid('server_id').references(() => servers.id),
+  serverGroupId: uuid('server_group_id').references(() => serverGroups.id),
+  expectedContent: text('expected_content').notNull(),
+  actualContent: text('actual_content'),
+  driftType: varchar('drift_type', { length: 50 }).notNull(), // content, missing, unauthorized
+  differences: jsonb('differences').$type<Array<{
+    path: string;
+    expected: any;
+    actual: any;
+    type: string;
+  }>>().default([]),
+  severity: varchar('severity', { length: 20 }).notNull().default('medium'), // low, medium, high, critical
+  detectedAt: timestamp('detected_at').defaultNow().notNull(),
+  resolvedAt: timestamp('resolved_at'),
+  resolutionType: varchar('resolution_type', { length: 50 }), // manual, auto_fixed, ignored
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+});
+
+// AI Proactive Suggestions
+export const aiSuggestions = pgTable('ai_suggestions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  userId: uuid('user_id').references(() => users.id), // Who the suggestion is for
+  type: varchar('type', { length: 50 }).notNull(), // optimization, security, drift, error, best_practice
+  severity: varchar('severity', { length: 20 }).notNull().default('info'), // info, warning, error, critical
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  affectedResource: varchar('affected_resource', { length: 100 }), // servers, configurations, deployments
+  affectedResourceId: uuid('affected_resource_id'),
+  suggestedAction: jsonb('suggested_action').$type<{
+    type: string;
+    details: Record<string, any>;
+    autoFixAvailable: boolean;
+  }>(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'), // pending, viewed, applied, dismissed
+  viewedAt: timestamp('viewed_at'),
+  appliedAt: timestamp('applied_at'),
+  dismissedAt: timestamp('dismissed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+});
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id),

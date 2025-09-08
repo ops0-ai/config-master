@@ -382,6 +382,29 @@ else
     exit 1
 fi
 
+# Verify AI Assistant tables
+print_status "Verifying AI Assistant tables..."
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d ai_assistant_sessions" &>/dev/null; then
+    print_success "AI Assistant sessions table created successfully"
+else
+    print_error "AI Assistant sessions table not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d ai_assistant_messages" &>/dev/null; then
+    print_success "AI Assistant messages table created successfully"
+else
+    print_error "AI Assistant messages table not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d ai_suggestions" &>/dev/null; then
+    print_success "AI Suggestions table created successfully"
+else
+    print_error "AI Suggestions table not found"
+    exit 1
+fi
+
 # Verify email case-insensitive fixes
 print_status "Verifying email case-insensitive fixes..."
 EMAIL_DUPLICATES=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "
@@ -473,6 +496,16 @@ echo ""
 echo "✅ Pulse Platform upgrade completed successfully\!"
 echo ""
 echo "📋 New Features Available:"
+echo ""
+echo "🤖 AI Assistant & Pulse Assist:"
+echo "   • AI Chat Assistant: Smart configuration generation and analysis"
+echo "   • Pulse Assist: Context-aware AI bubble assistant across all pages"
+echo "   • Organization-level feature toggles for AI functionality"
+echo "   • Automated asset creation and management assistance"
+echo "   • Configuration approval/rejection workflow automation"
+echo "   • Deployment creation and monitoring with AI insights"
+echo "   • Expandable modal interface for extended AI conversations"
+echo "   • Intelligent suggestions based on your infrastructure"
 echo ""
 echo "🔧 GitHub Integration:"
 echo "   • Import configurations from GitHub repositories"

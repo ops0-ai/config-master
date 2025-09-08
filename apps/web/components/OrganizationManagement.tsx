@@ -35,6 +35,7 @@ interface Organization {
     mdm?: boolean;
     assets?: boolean;
     auditLogs?: boolean;
+    pulseAssist?: boolean;
   };
   createdAt: string;
   updatedAt: string;
@@ -92,6 +93,13 @@ const FEATURES: FeatureConfig[] = [
     key: 'chat', 
     name: 'AI Chat Assistant', 
     description: 'Conversational AI for configuration generation',
+    icon: ({ className }) => <CogIcon className={className} />,
+    category: 'core'
+  },
+  { 
+    key: 'pulseAssist', 
+    name: 'Pulse Assist', 
+    description: 'Context-aware AI assistant with smart suggestions across all pages',
     icon: ({ className }) => <CogIcon className={className} />,
     category: 'core'
   },

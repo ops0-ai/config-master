@@ -78,6 +78,13 @@
       "when": 1756227669101,
       "tag": "0010_red_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1756879669115,
+      "tag": "0011_thin_leader",
+      "breakpoints": true
     }
   ]
 }
