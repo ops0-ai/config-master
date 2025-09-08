@@ -953,14 +953,121 @@ router.get('/agents/:id/config', authMiddleware, requirePermission('hive', 'read
         metrics_port: 8080,
         enable_self_monitoring: true
       },
-      collectors: {
-        system_metrics: { enabled: true, interval: '30s' },
-        docker_metrics: { enabled: true, interval: '30s' },
-        process_metrics: { enabled: true, interval: '60s' },
-        network_metrics: { enabled: true, interval: '30s' },
-        log_collector: { enabled: true }
+      logging: {
+        level: 'info',
+        format: 'json',
+        output: 'stdout'
       },
-      outputs: []
+      collectors: {
+        logs: {
+          enabled: true,
+          paths: [
+            {
+              path: '/var/log/system.log',
+              tags: { source: 'system' }
+            },
+            {
+              path: '/var/log/install.log', 
+              tags: { source: 'install' }
+            },
+            {
+              path: '/var/log/syslog',
+              tags: { source: 'syslog' }
+            },
+            {
+              path: '/var/log/auth.log',
+              tags: { source: 'security' }
+            }
+          ],
+          patterns: [
+            {
+              name: 'error_detection',
+              pattern: '(?i)(error|failed|exception|critical)',
+              severity: 'error',
+              category: 'application'
+            }
+          ],
+          parsers: {
+            regex: {
+              type: 'regex',
+              pattern: '^(?P<timestamp>\\S+\\s+\\S+)\\s+(?P<host>\\S+)\\s+(?P<service>\\S+):\\s+(?P<message>.*)$'
+            },
+            json: {
+              type: 'json'
+            },
+            syslog: {
+              type: 'regex',
+              pattern: '^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<host>\\S+)\\s+(?P<service>\\w+)(?:\\[(?P<pid>\\d+)\\])?:\\s+(?P<message>.*)$'
+            }
+          },
+          scan_frequency: '10s',
+          rotate_wait: '5s'
+        },
+        metrics: {
+          enabled: true,
+          interval: '60s',
+          system: {
+            cpu: true,
+            memory: true,
+            disk: true,
+            network: true,
+            process: true
+          }
+        },
+        traces: {
+          enabled: false
+        },
+        events: {
+          enabled: false
+        }
+      },
+      outputs: [
+        {
+          name: 'pulse_platform',
+          type: 'http',
+          enabled: true,
+          url: `${serverUrl}/api/hive/telemetry`,
+          auth: {
+            type: 'bearer',
+            token: agent[0].apiKey
+          },
+          batch_size: 1000,
+          timeout: '30s',
+          data_types: ['logs', 'metrics', 'traces', 'events'],
+          retry: {
+            max_retries: 3,
+            initial_backoff: '5s',
+            max_backoff: '60s',
+            backoff_multiple: 2
+          }
+        },
+        {
+          name: 'openobserve',
+          type: 'http',
+          enabled: false,
+          url: 'https://api.openobserve.ai/api/default/_json',
+          batch_size: 1000,
+          timeout: '30s',
+          auth: {
+            type: 'basic',
+            username: 'user@example.com',
+            password: 'your_password'
+          },
+          data_types: ['logs'],
+          retry: {
+            max_retries: 3,
+            initial_backoff: '5s',
+            max_backoff: '60s',
+            backoff_multiple: 2
+          }
+        }
+      ],
+      healthcheck: {
+        enabled: true,
+        port: 8081,
+        path: '/health',
+        interval: '30s'
+      }
     };
 
     return res.json({ 
@@ -1028,10 +1135,11 @@ router.post('/agents/:id/config', authMiddleware, requirePermission('hive', 'con
       
       // Generate proper YAML configuration
       const generateYamlConfig = (config: any): string => {
+        const serverUrl = config.server?.url || `${protocol}://${host}`;
         return `# Pulse Hive Agent Configuration
 # Deployed via Pulse Platform
 server:
-  url: ${config.server?.url || 'http://localhost:5005'}
+  url: ${serverUrl}
   api_key: ${config.server?.api_key || ''}
   heartbeat_interval: ${config.server?.heartbeat_interval || '30s'}
   reconnect_interval: ${config.server?.reconnect_interval || '10s'}
@@ -1103,19 +1211,56 @@ outputs:${config.outputs ? config.outputs.map((output: any) => {
   - name: ${output.name || 'pulse_platform'}
     type: ${output.type || 'http'}
     enabled: ${output.enabled !== false}
-    url: ${output.url || 'http://localhost:5005/api/hive/telemetry'}
+    url: ${output.url || `${serverUrl}/api/hive/telemetry`}
     batch_size: ${output.batch_size || 1000}
     timeout: ${output.timeout || '30s'}${authSection}`;
 }).join('') : `
   - name: pulse_platform
     type: http
     enabled: true
-    url: http://localhost:5005/api/hive/telemetry
+    url: ${serverUrl}/api/hive/telemetry
     batch_size: 1000
     timeout: 30s
+    retry:
+      max_retries: 3
+      initial_backoff: 5s
+      max_backoff: 60s
+      backoff_multiple: 2.0
+    data_types: ["logs", "metrics", "traces", "events"]
     auth:
       type: bearer
-      token: ${config.server?.api_key || ''}`}
+      token: ${config.server?.api_key || ''}
+  - name: openobserve
+    type: http
+    enabled: false
+    url: https://api.openobserve.ai/api/default/_json
+    batch_size: 1000
+    timeout: 30s
+    retry:
+      max_retries: 3
+      initial_backoff: 5s
+      max_backoff: 60s
+      backoff_multiple: 2.0
+    data_types: ["logs", "metrics"]
+    auth:
+      type: basic
+      username: user@example.com
+      password: your_password
+  - name: custom_endpoint
+    type: http
+    enabled: false
+    url: https://your-custom-endpoint.com/api/telemetry
+    batch_size: 500
+    timeout: 15s
+    retry:
+      max_retries: 3
+      initial_backoff: 5s
+      max_backoff: 60s
+      backoff_multiple: 2.0
+    data_types: ["logs"]
+    auth:
+      type: bearer
+      token: your_token`}
 
 healthcheck:
   enabled: ${config.healthcheck?.enabled !== false}
