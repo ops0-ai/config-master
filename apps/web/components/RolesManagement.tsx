@@ -212,8 +212,11 @@ export default function RolesManagement() {
     switch (action) {
       case 'read': return '👁️';
       case 'write': return '✏️';
+      case 'create': return '➕';
+      case 'update': return '📝';
       case 'delete': return '🗑️';
       case 'execute': return '▶️';
+      case 'configure': return '⚙️';
       default: return '🔧';
     }
   };

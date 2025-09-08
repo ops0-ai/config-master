@@ -191,6 +191,12 @@ else
     echo "⚠️ GitHub integration tables not found"
 fi
 
+if $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d hive_agents" >/dev/null 2>&1; then
+    echo "✅ Hive monitoring tables verified"
+else
+    echo "⚠️ Hive monitoring tables not found"
+fi
+
 echo "✅ Installation verification complete"
 
 echo ""
@@ -218,24 +224,27 @@ echo "   ✅ Asset-to-GitHub Sync (purple 'Sync to GitHub' button)"
 echo "   ✅ GitHub Configuration Integration"
 echo "   ✅ Configuration Import/Export to GitHub"
 echo "   ✅ Asset Assignment & Reassignment with AI recommendations"
-echo "   ✅ Role-based Access Control (62 permissions total)"
+echo "   ✅ Role-based Access Control with Hive permissions"
 echo "   ✅ Administrator roles with complete access to all features"
 echo "   ✅ Organization-level Feature Management"
 echo "   ✅ Super Admin Organization Control"
 echo "   ✅ Configuration Management with AI analysis"
 echo "   ✅ Server Management with intelligent monitoring"
+echo "   ✅ Hive Agent Monitoring with remote command execution"
+echo "   ✅ Real-time Telemetry Collection and Issue Detection"
 echo "   ✅ Deployment Pipeline with AI-powered optimization"
 echo "   ✅ User Signup Webhook Notifications"
 echo "   ✅ Real-time Webhook Notifications with Company Detection"
 echo ""
 echo "🔗 Quick Start:"
 echo "   1. Open http://localhost:3000 in your browser"
-echo "   2. Register a new account (automatically gets Administrator role with all 62 permissions)"
+echo "   2. Register a new account (automatically gets Administrator role with all permissions)"
 echo "   3. Set up GitHub integration: Settings > Integrations"
 echo "   4. Configure webhook notifications: Organization Management > Platform Settings"
 echo "   5. Navigate to Assets to use MDM and GitHub sync features"
 echo "   6. Navigate to Configurations to import/sync with GitHub"
-echo "   7. Super Admins: Organization Management for feature control"
+echo "   7. Navigate to Hive to monitor agents and collect telemetry"
+echo "   8. Super Admins: Organization Management for feature control"
 echo ""
 echo "🔔 Webhook Setup:"
 echo "   1. Go to Organization Management > Platform Settings"

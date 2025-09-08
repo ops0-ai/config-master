@@ -33,6 +33,9 @@ export async function initializeDatabase(): Promise<void> {
     // Always ensure webhook system settings exist
     await ensureWebhookSystemSettings(client);
     
+    // Always ensure AI assistant tables exist
+    await ensureAIAssistantTables(client);
+    
     console.log('✅ Database schema initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
@@ -123,7 +126,8 @@ async function applyAllMigrations(client: postgres.Sql): Promise<void> {
     '0010_asset_management.sql',
     '0011_assets_with_mdm.sql',
     '0012_missing_columns.sql',
-    '0013_system_settings.sql'
+    '0013_system_settings.sql',
+    '0014_add_hive_tables.sql'
   ];
   
   for (const filename of migrationFiles) {
@@ -201,6 +205,10 @@ async function ensureAllTablesExist(client: postgres.Sql): Promise<void> {
     'audit_logs',
     'conversations',
     'messages',
+    'ai_assistant_sessions',
+    'ai_assistant_messages',
+    'configuration_drifts',
+    'ai_suggestions',
     'mdm_profiles',
     'mdm_devices',
     'mdm_commands',
@@ -218,7 +226,15 @@ async function ensureAllTablesExist(client: postgres.Sql): Promise<void> {
     'asset_locations',
     'sso_providers',
     'sso_domain_mappings', 
-    'user_sso_mappings'
+    'user_sso_mappings',
+    'system_settings',
+    'hive_agents',
+    'hive_agent_configs',
+    'hive_telemetry',
+    'hive_issues',
+    'hive_commands',
+    'hive_output_endpoints',
+    'hive_agent_outputs'
   ];
   
   for (const tableName of requiredTables) {
@@ -320,7 +336,7 @@ async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
     {
       table: 'organizations',
       column: 'features_enabled',
-      sql: `ALTER TABLE organizations ADD COLUMN IF NOT EXISTS features_enabled jsonb DEFAULT '{"servers": true, "serverGroups": true, "pemKeys": true, "configurations": true, "deployments": true, "chat": true, "training": true, "awsIntegrations": true, "githubIntegrations": true, "mdm": true, "assets": true, "auditLogs": true}'::jsonb;`
+      sql: `ALTER TABLE organizations ADD COLUMN IF NOT EXISTS features_enabled jsonb DEFAULT '{"servers": true, "serverGroups": true, "pemKeys": true, "configurations": true, "deployments": true, "chat": true, "training": true, "awsIntegrations": true, "githubIntegrations": true, "mdm": true, "assets": true, "auditLogs": true, "hive": true}'::jsonb;`
     },
     {
       table: 'organizations',
@@ -401,7 +417,7 @@ async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
   try {
     await client.unsafe(`
       UPDATE organizations 
-      SET features_enabled = '{"servers": true, "serverGroups": true, "pemKeys": true, "configurations": true, "deployments": true, "chat": true, "training": true, "awsIntegrations": true, "githubIntegrations": true, "mdm": true, "assets": true, "auditLogs": true}'::jsonb 
+      SET features_enabled = '{"servers": true, "serverGroups": true, "pemKeys": true, "configurations": true, "deployments": true, "chat": true, "training": true, "awsIntegrations": true, "githubIntegrations": true, "mdm": true, "assets": true, "auditLogs": true, "hive": true}'::jsonb 
       WHERE features_enabled IS NULL
     `);
     console.log('✅ Organization feature flags updated');
@@ -443,6 +459,89 @@ async function ensureWebhookSystemSettings(client: postgres.Sql): Promise<void> 
   } catch (error) {
     console.error('❌ Error ensuring webhook system settings:', error);
     // Don't throw error, just log it - webhook functionality is not critical for platform operation
+  }
+}
+
+async function ensureAIAssistantTables(client: postgres.Sql): Promise<void> {
+  console.log('🤖 Ensuring AI assistant tables exist...');
+  
+  try {
+    // Create ai_assistant_sessions table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS ai_assistant_sessions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid REFERENCES users(id) NOT NULL,
+        organization_id uuid REFERENCES organizations(id) NOT NULL,
+        context_page varchar(50) NOT NULL,
+        context_data jsonb DEFAULT '{}',
+        is_active boolean NOT NULL DEFAULT true,
+        started_at timestamp DEFAULT NOW() NOT NULL,
+        ended_at timestamp,
+        metadata jsonb DEFAULT '{}'
+      );
+    `);
+    
+    // Create ai_assistant_messages table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS ai_assistant_messages (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_id uuid REFERENCES ai_assistant_sessions(id) NOT NULL,
+        conversation_id uuid REFERENCES conversations(id),
+        role varchar(20) NOT NULL,
+        content text NOT NULL,
+        context_page varchar(50) NOT NULL,
+        actions jsonb DEFAULT '[]',
+        analysis jsonb,
+        generated_content jsonb,
+        created_at timestamp DEFAULT NOW() NOT NULL
+      );
+    `);
+    
+    // Create configuration_drifts table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS configuration_drifts (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        configuration_id uuid REFERENCES configurations(id) NOT NULL,
+        server_id uuid REFERENCES servers(id),
+        server_group_id uuid REFERENCES server_groups(id),
+        expected_content text NOT NULL,
+        actual_content text,
+        drift_type varchar(50) NOT NULL,
+        differences jsonb DEFAULT '[]',
+        severity varchar(20) NOT NULL DEFAULT 'medium',
+        detected_at timestamp DEFAULT NOW() NOT NULL,
+        resolved_at timestamp,
+        resolution_type varchar(50),
+        organization_id uuid REFERENCES organizations(id) NOT NULL
+      );
+    `);
+    
+    // Create ai_suggestions table
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS ai_suggestions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid REFERENCES organizations(id) NOT NULL,
+        user_id uuid REFERENCES users(id),
+        type varchar(50) NOT NULL DEFAULT 'optimization',
+        severity varchar(20) NOT NULL DEFAULT 'info',
+        title varchar(255) NOT NULL,
+        description text NOT NULL,
+        affected_resource varchar(100),
+        affected_resource_id uuid,
+        suggested_action jsonb DEFAULT '{}',
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        viewed_at timestamp,
+        applied_at timestamp,
+        dismissed_at timestamp,
+        created_at timestamp DEFAULT NOW() NOT NULL,
+        expires_at timestamp
+      );
+    `);
+    
+    console.log('✅ AI assistant tables ensured successfully');
+  } catch (error) {
+    console.error('❌ Error ensuring AI assistant tables:', error);
+    // Don't throw error, just log it
   }
 }
 

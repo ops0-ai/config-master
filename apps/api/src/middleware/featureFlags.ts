@@ -16,7 +16,8 @@ const FEATURE_RESOURCE_MAP: Record<string, string[]> = {
   githubIntegrations: ['github-integrations'],
   mdm: ['mdm'],
   assets: ['asset', 'assets'],
-  auditLogs: ['audit-logs']
+  auditLogs: ['audit-logs'],
+  hive: ['hive']
 };
 
 // Reverse mapping from resource to feature

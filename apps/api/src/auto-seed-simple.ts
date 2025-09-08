@@ -77,25 +77,15 @@ export async function ensureAdminUser() {
     const adminUserId = randomUUID();
     const orgId = randomUUID();
     
-    // Create organization with admin as owner
-    await db.insert(organizations).values({
-      id: orgId,
-      name: 'Pulse Admin Organization',
-      description: 'Default admin organization for Pulse MDM',
-      ownerId: adminUserId,
-      isActive: true,
-      isPrimary: true, // First organization is always primary
-    });
-    
-    // Create admin user with super_admin role for full access
-    // Check if is_super_admin column exists first
+    // Create admin user with super_admin role for full access FIRST
+    // DON'T set organizationId yet to avoid foreign key constraint violation
     let userValues: any = {
       id: adminUserId,
       email: adminEmail,
       passwordHash: hashedPassword,
       name: 'Pulse Admin',
       role: 'super_admin',
-      organizationId: orgId,
+      // organizationId will be set after organization is created
     };
     
     // Only add isSuperAdmin if the column exists (for compatibility)
@@ -108,6 +98,21 @@ export async function ensureAdminUser() {
     }
     
     await db.insert(users).values(userValues);
+    
+    // Now create organization with admin as owner (user exists now)
+    await db.insert(organizations).values({
+      id: orgId,
+      name: 'Pulse Admin Organization',
+      description: 'Default admin organization for Pulse MDM',
+      ownerId: adminUserId,
+      isActive: true,
+      isPrimary: true, // First organization is always primary
+    });
+    
+    // Finally, update the user to set the organizationId now that the organization exists
+    await db.update(users)
+      .set({ organizationId: orgId })
+      .where(eq(users.id, adminUserId));
     
     // Create user-organization relationship
     await db.insert(userOrganizations).values({

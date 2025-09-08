@@ -93,7 +93,8 @@ BEGIN
             "mdm": true,
             "assets": true,
             "auditLogs": true,
-            "pulseAssist": true
+            "pulseAssist": true,
+            "hive": true
         }'::jsonb;
         RAISE NOTICE 'Added features_enabled column to organizations table';
     END IF;
@@ -102,13 +103,14 @@ END $$;
 -- Update existing organizations to include AI features in features_enabled
 DO $$ 
 BEGIN
-    -- Update organizations that don't have Pulse Assist feature enabled
+    -- Update organizations that don't have Pulse Assist or Hive features enabled
     UPDATE organizations 
     SET features_enabled = features_enabled || '{
-        "pulseAssist": true
+        "pulseAssist": true,
+        "hive": true
     }'::jsonb
     WHERE features_enabled IS NOT NULL 
-    AND features_enabled->>'pulseAssist' IS NULL;
+    AND (features_enabled->>'pulseAssist' IS NULL OR features_enabled->>'hive' IS NULL);
     
     -- For organizations with NULL features_enabled, set the complete default
     UPDATE organizations 
@@ -125,12 +127,16 @@ BEGIN
         "mdm": true,
         "assets": true,
         "auditLogs": true,
-        "pulseAssist": true
+        "pulseAssist": true,
+        "hive": true
     }'::jsonb
     WHERE features_enabled IS NULL;
     
-    RAISE NOTICE 'Updated existing organizations with Pulse Assist features';
+    RAISE NOTICE 'Updated existing organizations with Pulse Assist and Hive features';
 END $$;
+
+-- Apply Hive agent system migration
+\i packages/database/migrations/0005_add_hive_tables.sql
 
 -- Add metadata column to configurations table
 DO $$ 

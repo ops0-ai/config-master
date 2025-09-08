@@ -949,3 +949,126 @@ export const userSsoMappings = pgTable('user_sso_mappings', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+// ==============================
+// HIVE AGENT TABLES
+// ==============================
+
+// Hive Agents Registry
+export const hiveAgents = pgTable('hive_agents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  apiKey: varchar('api_key', { length: 255 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  hostname: varchar('hostname', { length: 255 }).notNull(),
+  ipAddress: text('ip_address'), // Using text for inet type
+  osType: varchar('os_type', { length: 50 }),
+  osVersion: varchar('os_version', { length: 100 }),
+  arch: varchar('arch', { length: 20 }),
+  status: varchar('status', { length: 50 }).default('offline'),
+  lastHeartbeat: timestamp('last_heartbeat'),
+  installedAt: timestamp('installed_at').defaultNow(),
+  version: varchar('version', { length: 50 }),
+  capabilities: jsonb('capabilities').$type<string[]>().default([]),
+  systemInfo: jsonb('system_info').$type<{
+    cpu?: { cores: number; model: string; usage: number };
+    memory?: { total: number; used: number; free: number };
+    disk?: { total: number; used: number; free: number };
+  }>().default({}),
+  metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Hive Agent Configurations
+export const hiveAgentConfigs = pgTable('hive_agent_configs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => hiveAgents.id).notNull(),
+  configType: varchar('config_type', { length: 50 }).notNull(),
+  configName: varchar('config_name', { length: 255 }).notNull(),
+  enabled: boolean('enabled').default(true),
+  config: jsonb('config').$type<any>().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Hive Telemetry Data
+export const hiveTelemetry = pgTable('hive_telemetry', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => hiveAgents.id).notNull(),
+  type: varchar('type', { length: 50 }).notNull(),
+  source: varchar('source', { length: 255 }),
+  data: jsonb('data').$type<any>().notNull(),
+  timestamp: timestamp('timestamp').notNull(),
+  processed: boolean('processed').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Hive Issues/Alerts
+export const hiveIssues = pgTable('hive_issues', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => hiveAgents.id).notNull(),
+  severity: varchar('severity', { length: 20 }).notNull(),
+  category: varchar('category', { length: 100 }),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  errorPattern: text('error_pattern'),
+  context: jsonb('context').$type<Record<string, any>>().default({}),
+  suggestedFix: text('suggested_fix'),
+  autoFixable: boolean('auto_fixable').default(false),
+  detectedAt: timestamp('detected_at').defaultNow().notNull(),
+  acknowledgedAt: timestamp('acknowledged_at'),
+  resolvedAt: timestamp('resolved_at'),
+  resolutionType: varchar('resolution_type', { length: 50 }),
+  resolutionDetails: text('resolution_details'),
+});
+
+// Hive Commands
+export const hiveCommands = pgTable('hive_commands', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => hiveAgents.id).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  sessionId: uuid('session_id'),
+  commandType: varchar('command_type', { length: 50 }).notNull(),
+  command: text('command').notNull(),
+  parameters: jsonb('parameters').$type<Record<string, any>>().default({}),
+  response: text('response'),
+  exitCode: integer('exit_code'),
+  executedAt: timestamp('executed_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+  status: varchar('status', { length: 50 }).default('pending'),
+  executionTimeMs: integer('execution_time_ms'),
+  metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
+});
+
+// Hive Output Endpoints
+export const hiveOutputEndpoints = pgTable('hive_output_endpoints', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(),
+  endpointUrl: text('endpoint_url').notNull(),
+  authType: varchar('auth_type', { length: 50 }),
+  authConfig: jsonb('auth_config').$type<Record<string, any>>().default({}),
+  headers: jsonb('headers').$type<Record<string, string>>().default({}),
+  batchSize: integer('batch_size').default(1000),
+  flushIntervalSeconds: integer('flush_interval_seconds').default(10),
+  retryConfig: jsonb('retry_config').$type<{
+    maxRetries: number;
+    backoffSeconds: number;
+  }>().default({ maxRetries: 3, backoffSeconds: 5 }),
+  enabled: boolean('enabled').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Agent to Output mappings
+export const hiveAgentOutputs = pgTable('hive_agent_outputs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => hiveAgents.id).notNull(),
+  endpointId: uuid('endpoint_id').references(() => hiveOutputEndpoints.id).notNull(),
+  dataTypes: jsonb('data_types').$type<string[]>().default(['logs', 'metrics']),
+  filters: jsonb('filters').$type<Record<string, any>>().default({}),
+  enabled: boolean('enabled').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

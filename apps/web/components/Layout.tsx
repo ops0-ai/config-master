@@ -35,13 +35,22 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-const navigation = [
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  feature: keyof OrganizationFeatures | null;
+  beta?: boolean;
+}
+
+const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/', icon: HomeIcon, feature: null },
   { name: 'Configuration Chat', href: '/chat', icon: ChatBubbleLeftRightIcon, feature: 'chat' as keyof OrganizationFeatures },
   { name: 'Servers', href: '/servers', icon: ServerIcon, feature: 'servers' as keyof OrganizationFeatures },
   { name: 'Server Groups', href: '/server-groups', icon: CpuChipIcon, feature: 'serverGroups' as keyof OrganizationFeatures },
   { name: 'Configurations', href: '/configurations', icon: CpuChipIcon, feature: 'configurations' as keyof OrganizationFeatures },
   { name: 'Deployments', href: '/deployments', icon: ChartBarIcon, feature: 'deployments' as keyof OrganizationFeatures },
+  { name: 'Hive Monitoring', href: '/hive', icon: CpuChipIcon, feature: 'hive' as keyof OrganizationFeatures, beta: true },
   { name: 'Assets', href: '/assets', icon: ComputerDesktopIcon, feature: 'assets' as keyof OrganizationFeatures },
   { name: 'MDM', href: '/mdm', icon: DevicePhoneMobileIcon, feature: 'mdm' as keyof OrganizationFeatures },
   { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon, feature: 'training' as keyof OrganizationFeatures },
@@ -266,7 +275,14 @@ export default function Layout({ children }: LayoutProps) {
                     title="This feature is not enabled for your organization"
                   >
                     <item.icon className="mr-3 flex-shrink-0 h-5 w-5 text-gray-300" />
-                    {item.name}
+                    <span className="flex items-center justify-between w-full">
+                      <span>{item.name}</span>
+                      {item.name === 'Hive Monitoring' && (
+                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-400 text-gray-100 shadow-sm">
+                          BETA
+                        </span>
+                      )}
+                    </span>
                   </div>
                 );
               }
@@ -286,7 +302,14 @@ export default function Layout({ children }: LayoutProps) {
                       isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
                     }`}
                   />
-                  {item.name}
+                  <span className="flex items-center justify-between w-full">
+                    <span>{item.name}</span>
+                    {item.name === 'Hive Monitoring' && (
+                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm">
+                        BETA
+                      </span>
+                    )}
+                  </span>
                 </Link>
               );
             })}

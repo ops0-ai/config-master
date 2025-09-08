@@ -102,6 +102,12 @@ const systemPermissions = [
   { resource: 'sso', action: 'delete', description: 'Delete SSO providers' },
   { resource: 'sso', action: 'test', description: 'Test SSO provider connections' },
   { resource: 'sso', action: 'configure', description: 'Configure SSO domain mappings' },
+  
+  // Hive monitoring permissions
+  { resource: 'hive', action: 'read', description: 'View hive agents and telemetry data' },
+  { resource: 'hive', action: 'write', description: 'Create and modify hive agents and configurations' },
+  { resource: 'hive', action: 'delete', description: 'Delete hive agents from the system' },
+  { resource: 'hive', action: 'execute', description: 'Execute remote commands on hive agents' },
 ];
 
 // Define system roles with their permissions
@@ -126,7 +132,8 @@ const systemRoles = {
       'mdm:read', 'mdm:write', 'mdm:execute', 'mdm:delete',
       'github-integrations:validate', 'github-integrations:sync',
       'asset:read', 'asset:create', 'asset:update', 'asset:delete', 'asset:assign', 'asset:import', 'asset:export',
-      'sso:read', 'sso:write', 'sso:delete', 'sso:test', 'sso:configure'
+      'sso:read', 'sso:write', 'sso:delete', 'sso:test', 'sso:configure',
+      'hive:read', 'hive:write', 'hive:delete', 'hive:execute'
     ]
   },
   operator: {
@@ -144,7 +151,8 @@ const systemRoles = {
       'github-integrations:read', 'github-integrations:write', 'github-integrations:validate', 'github-integrations:sync',
       'mdm:read', 'mdm:write', 'mdm:execute',
       'audit-logs:view',
-      'asset:read', 'asset:create', 'asset:update', 'asset:assign', 'asset:import', 'asset:export'
+      'asset:read', 'asset:create', 'asset:update', 'asset:assign', 'asset:import', 'asset:export',
+      'hive:read', 'hive:write', 'hive:execute'
     ]
   },
   viewer: {
@@ -155,7 +163,7 @@ const systemRoles = {
       'servers:read', 'server-groups:read', 'pem-keys:read',
       'configurations:read', 'deployments:read',
       'training:read', 'chat:read',
-      'asset:read'
+      'asset:read', 'hive:read'
     ]
   },
   trainee: {
