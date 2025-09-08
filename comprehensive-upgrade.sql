@@ -872,6 +872,29 @@ BEGIN
     END IF;
 END $$;
 
+-- ==============================
+-- RE-APPLY CRITICAL FOREIGN KEY CONSTRAINTS
+-- ==============================
+-- This ensures the organizations_owner_id foreign key is properly applied
+-- after all data has been fixed
+
+DO $$ 
+BEGIN
+    -- Re-add the organizations_owner_id foreign key constraint if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'organizations_owner_id_users_id_fk') THEN
+        ALTER TABLE organizations ADD CONSTRAINT organizations_owner_id_users_id_fk 
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+        RAISE NOTICE '✅ Added organizations_owner_id_users_id_fk constraint';
+    ELSE
+        RAISE NOTICE '✅ organizations_owner_id_users_id_fk constraint already exists';
+    END IF;
+EXCEPTION
+    WHEN foreign_key_violation THEN
+        RAISE NOTICE '❌ Warning: Still have orphaned data in organizations table!';
+        RAISE NOTICE 'Run the repair script separately to fix orphaned organizations.';
+END $$;
+
 COMMIT;
 
 -- Display success message
