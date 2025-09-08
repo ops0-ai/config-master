@@ -961,6 +961,7 @@ export const hiveAgents = pgTable('hive_agents', {
   apiKey: varchar('api_key', { length: 255 }).unique().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   hostname: varchar('hostname', { length: 255 }).notNull(),
+  pulseUrl: varchar('pulse_url', { length: 512 }),
   ipAddress: text('ip_address'), // Using text for inet type
   osType: varchar('os_type', { length: 50 }),
   osVersion: varchar('os_version', { length: 100 }),

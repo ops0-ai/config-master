@@ -897,6 +897,26 @@ END $$;
 
 COMMIT;
 
+-- ==============================
+-- HIVE AGENT ENHANCEMENTS
+-- ==============================
+-- Add pulse_url column for user-controlled URL configuration
+
+DO $$
+BEGIN
+    -- Add pulse_url column to hive_agents table if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'hive_agents' AND column_name = 'pulse_url') THEN
+        ALTER TABLE hive_agents ADD COLUMN pulse_url varchar(512);
+        RAISE NOTICE '✅ Added pulse_url column to hive_agents table';
+    ELSE
+        RAISE NOTICE '⚠️ pulse_url column already exists in hive_agents table';
+    END IF;
+EXCEPTION
+    WHEN undefined_table THEN
+        RAISE NOTICE '⚠️ hive_agents table does not exist yet, skipping pulse_url column addition';
+END $$;
+
 -- Display success message
 DO $$
 BEGIN
@@ -910,9 +930,11 @@ BEGIN
     RAISE NOTICE '   - SSO authentication tables created';
     RAISE NOTICE '   - 🤖 AI Assistant tables created (sessions, messages, suggestions)';
     RAISE NOTICE '   - 🤖 Pulse Assist features enabled for all organizations';
+    RAISE NOTICE '   - 🐝 Hive Agent pulse_url column added for HTTPS configuration';
     RAISE NOTICE '   - All RBAC permissions added (including SSO)';
     RAISE NOTICE '   - All foreign key constraints added';
     RAISE NOTICE '   - ✅ FIXED: All Administrator roles now have complete permissions';
     RAISE NOTICE '🚀 Your Pulse installation is now fully upgraded with AI Assistant and SSO support!';
     RAISE NOTICE '🤖 Pulse Assist is ready to help with configuration analysis, asset management, and more!';
+    RAISE NOTICE '🐝 Hive Agents now support user-controlled HTTPS URL configuration!';
 END $$;

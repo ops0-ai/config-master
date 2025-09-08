@@ -186,6 +186,7 @@ export default function HivePage() {
         body: JSON.stringify({
           name: newAgentName.trim(),
           hostname: newAgentHostname.trim(),
+          pulseUrl: detectedPulseUrl,
         }),
       });
 

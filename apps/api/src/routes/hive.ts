@@ -171,7 +171,7 @@ const router = express.Router();
 
 router.post('/agents', authMiddleware, requirePermission('hive', 'create'), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { name, hostname } = req.body;
+    const { name, hostname, pulseUrl } = req.body;
     const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
@@ -186,6 +186,7 @@ router.post('/agents', authMiddleware, requirePermission('hive', 'create'), asyn
         apiKey,
         name,
         hostname,
+        pulseUrl,
         status: 'offline'
       })
       .returning();
@@ -930,7 +931,8 @@ router.get('/agents/:id/config', authMiddleware, requirePermission('hive', 'read
     const host = forwardedHost || req.get('host') || 'localhost:5005';
     const isSecure = forwardedProto === 'https' || req.secure || req.get('x-forwarded-ssl') === 'on';
     const protocol = isSecure ? 'https' : 'http';
-    const serverUrl = `${protocol}://${host}`;
+    const detectedUrl = `${protocol}://${host}`;
+    const serverUrl = agent[0].pulseUrl || detectedUrl;
 
     const defaultConfig = {
       server: {
@@ -1135,9 +1137,9 @@ router.post('/agents/:id/config', authMiddleware, requirePermission('hive', 'con
       
       // Generate proper YAML configuration
       const generateYamlConfig = (config: any): string => {
-        // Use detected protocol (HTTP or HTTPS) with detected host
+        // Use agent's stored pulseUrl if available, otherwise fall back to detected URL
         const detectedUrl = `${protocol}://${host}`;
-        const serverUrl = config.server?.url || detectedUrl;
+        const serverUrl = config.server?.url || agent[0].pulseUrl || detectedUrl;
         return `# Pulse Hive Agent Configuration
 # Deployed via Pulse Platform
 server:
