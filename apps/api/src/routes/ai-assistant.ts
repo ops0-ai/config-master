@@ -1415,6 +1415,129 @@ router.post('/execute-action', authMiddleware, async (req: any, res: Response) =
   }
 });
 
+// Get AI suggestions specifically for Hive agents (used by chat interface)
+router.post('/suggestions', async (req: Request, res: Response) => {
+  try {
+    const { query, context } = req.body;
+
+    // Get Anthropic client
+    const anthropic = getAnthropicClient();
+    if (!anthropic) {
+      return res.status(400).json({ 
+        error: 'AI Assistant not configured',
+        message: 'Please configure your Anthropic API key in Settings'
+      });
+    }
+
+    // Build system prompt for Hive agent assistance
+    const systemPrompt = `You are an AI assistant helping with Hive monitoring agents. Your goal is to:
+    - Analyze agent issues and suggest diagnostic commands
+    - Recommend system troubleshooting steps
+    - Help with configuration and monitoring tasks
+    - Provide intelligent command suggestions for infrastructure management
+
+    Agent Context:
+    ${JSON.stringify(context, null, 2)}
+
+    Guidelines:
+    - Suggest specific, safe commands for system diagnosis
+    - Focus on monitoring, status checks, and configuration tasks  
+    - Avoid destructive operations
+    - Provide clear explanations for suggested commands
+    - Be helpful but security-conscious`;
+
+    // Call Claude API
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 1000,
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: query,
+        }
+      ],
+    });
+
+    const assistantResponse = response.content[0].type === 'text' ? response.content[0].text : '';
+
+    // Extract command suggestions from the response
+    const suggestions = [];
+    
+    // Look for common system commands in the response
+    const commandPatterns = [
+      /`([^`]+)`/g, // Commands in backticks
+      /(?:run|execute|try):\s*([^\n]+)/gi, // Commands after "run:" or "execute:"
+    ];
+
+    for (const pattern of commandPatterns) {
+      let match;
+      while ((match = pattern.exec(assistantResponse)) !== null) {
+        const command = match[1].trim();
+        if (command.length > 3 && !command.includes('example') && !command.includes('...')) {
+          suggestions.push({
+            title: `Run: ${command}`,
+            description: `Execute this command to help diagnose the issue`,
+            command: command,
+            requires_confirmation: true
+          });
+        }
+      }
+    }
+
+    // If no specific commands found, suggest some common diagnostic commands based on query
+    if (suggestions.length === 0) {
+      const queryLower = query.toLowerCase();
+      if (queryLower.includes('status') || queryLower.includes('health')) {
+        suggestions.push({
+          title: 'Check System Status',
+          description: 'View system resource usage and status',
+          command: 'top -bn1 | head -20',
+          requires_confirmation: true
+        });
+      } else if (queryLower.includes('disk') || queryLower.includes('space')) {
+        suggestions.push({
+          title: 'Check Disk Usage',
+          description: 'Check disk space usage',
+          command: 'df -h',
+          requires_confirmation: true
+        });
+      } else if (queryLower.includes('memory') || queryLower.includes('ram')) {
+        suggestions.push({
+          title: 'Check Memory Usage',
+          description: 'Check memory usage details',
+          command: 'free -h',
+          requires_confirmation: true
+        });
+      } else if (queryLower.includes('process') || queryLower.includes('service')) {
+        suggestions.push({
+          title: 'List Running Processes',
+          description: 'View currently running processes',
+          command: 'ps aux | head -20',
+          requires_confirmation: true
+        });
+      } else {
+        suggestions.push({
+          title: 'System Overview',
+          description: 'Get a general system overview',
+          command: 'uptime && free -h && df -h',
+          requires_confirmation: true
+        });
+      }
+    }
+
+    return res.json({
+      response: assistantResponse,
+      suggestions: suggestions.slice(0, 3) // Limit to 3 suggestions
+    });
+
+  } catch (error) {
+    console.error('Hive AI suggestions error:', error);
+    res.status(500).json({ error: 'Failed to get AI suggestions', message: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
 // Get AI suggestions for the current page
 router.get('/suggestions', authMiddleware, async (req: any, res: Response) => {
   try {

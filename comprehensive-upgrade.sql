@@ -5,6 +5,81 @@
 BEGIN;
 
 -- ==============================
+-- FOREIGN KEY REPAIR (FIX ORPHANED DATA)
+-- ==============================
+-- This must run BEFORE any foreign key constraints are added
+-- Fixes organizations that reference non-existent users
+
+DO $$ 
+DECLARE
+    orphaned_count INTEGER;
+    admin_user_id UUID;
+    admin_email TEXT := 'admin@pulse.dev';
+BEGIN
+    RAISE NOTICE '🔧 Checking for orphaned organizations...';
+    
+    -- Count orphaned organizations (if the table exists)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'organizations') 
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+        
+        SELECT COUNT(*) INTO orphaned_count 
+        FROM organizations o 
+        WHERE o.owner_id IS NOT NULL 
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = o.owner_id);
+        
+        RAISE NOTICE 'Found % orphaned organizations', orphaned_count;
+        
+        IF orphaned_count > 0 THEN
+            -- Temporarily drop the foreign key constraint if it exists
+            IF EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                       WHERE constraint_name = 'organizations_owner_id_users_id_fk') THEN
+                ALTER TABLE organizations DROP CONSTRAINT organizations_owner_id_users_id_fk;
+                RAISE NOTICE '✅ Temporarily dropped organizations_owner_id_users_id_fk constraint';
+            END IF;
+            
+            -- Try to find existing admin user
+            SELECT id INTO admin_user_id 
+            FROM users 
+            WHERE email = admin_email OR role = 'super_admin' 
+            LIMIT 1;
+            
+            IF admin_user_id IS NULL THEN
+                -- Create a default admin user if none exists
+                admin_user_id := gen_random_uuid();
+                
+                INSERT INTO users (id, email, password_hash, name, role, is_active, created_at)
+                VALUES (
+                    admin_user_id,
+                    admin_email,
+                    '$2b$10$rQNTkqP2GWI4PJ4bFt8/lOhFgAGjZqjcmrztKTfr5vW2zJJPQ5vXa', -- 'admin123'
+                    'Pulse Admin (Auto-Created)',
+                    'super_admin',
+                    true,
+                    NOW()
+                )
+                ON CONFLICT (email) DO NOTHING;
+                
+                RAISE NOTICE '✅ Created admin user for orphaned organizations';
+            ELSE
+                RAISE NOTICE '✅ Using existing admin user for orphaned organizations';
+            END IF;
+            
+            -- Fix orphaned organizations by assigning them to the admin user
+            UPDATE organizations 
+            SET owner_id = admin_user_id 
+            WHERE owner_id IS NOT NULL 
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = organizations.owner_id);
+            
+            RAISE NOTICE '✅ Fixed % orphaned organizations', orphaned_count;
+        ELSE
+            RAISE NOTICE '✅ No orphaned organizations found';
+        END IF;
+    ELSE
+        RAISE NOTICE '⚠️ Organizations or users table not found, skipping orphan repair';
+    END IF;
+END $$;
+
+-- ==============================
 -- SYSTEM SETTINGS TABLE
 -- ==============================
 CREATE TABLE IF NOT EXISTS "system_settings" (
@@ -93,7 +168,8 @@ BEGIN
             "mdm": true,
             "assets": true,
             "auditLogs": true,
-            "pulseAssist": true
+            "pulseAssist": true,
+            "hive": true
         }'::jsonb;
         RAISE NOTICE 'Added features_enabled column to organizations table';
     END IF;
@@ -102,13 +178,14 @@ END $$;
 -- Update existing organizations to include AI features in features_enabled
 DO $$ 
 BEGIN
-    -- Update organizations that don't have Pulse Assist feature enabled
+    -- Update organizations that don't have Pulse Assist or Hive features enabled
     UPDATE organizations 
     SET features_enabled = features_enabled || '{
-        "pulseAssist": true
+        "pulseAssist": true,
+        "hive": true
     }'::jsonb
     WHERE features_enabled IS NOT NULL 
-    AND features_enabled->>'pulseAssist' IS NULL;
+    AND (features_enabled->>'pulseAssist' IS NULL OR features_enabled->>'hive' IS NULL);
     
     -- For organizations with NULL features_enabled, set the complete default
     UPDATE organizations 
@@ -125,12 +202,16 @@ BEGIN
         "mdm": true,
         "assets": true,
         "auditLogs": true,
-        "pulseAssist": true
+        "pulseAssist": true,
+        "hive": true
     }'::jsonb
     WHERE features_enabled IS NULL;
     
-    RAISE NOTICE 'Updated existing organizations with Pulse Assist features';
+    RAISE NOTICE 'Updated existing organizations with Pulse Assist and Hive features';
 END $$;
+
+-- Apply Hive agent system migration
+\i packages/database/migrations/0005_add_hive_tables.sql
 
 -- Add metadata column to configurations table
 DO $$ 
@@ -791,7 +872,54 @@ BEGIN
     END IF;
 END $$;
 
+-- ==============================
+-- RE-APPLY CRITICAL FOREIGN KEY CONSTRAINTS
+-- ==============================
+-- This ensures the organizations_owner_id foreign key is properly applied
+-- after all data has been fixed
+
+DO $$ 
+BEGIN
+    -- Re-add the organizations_owner_id foreign key constraint if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'organizations_owner_id_users_id_fk') THEN
+        ALTER TABLE organizations ADD CONSTRAINT organizations_owner_id_users_id_fk 
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+        RAISE NOTICE '✅ Added organizations_owner_id_users_id_fk constraint';
+    ELSE
+        RAISE NOTICE '✅ organizations_owner_id_users_id_fk constraint already exists';
+    END IF;
+EXCEPTION
+    WHEN foreign_key_violation THEN
+        RAISE NOTICE '❌ Warning: Still have orphaned data in organizations table!';
+        RAISE NOTICE 'Run the repair script separately to fix orphaned organizations.';
+END $$;
+
 COMMIT;
+
+-- ==============================
+-- HIVE AGENT ENHANCEMENTS
+-- ==============================
+-- Add pulse_url column for user-controlled URL configuration
+
+DO $$
+BEGIN
+    -- Add pulse_url column to hive_agents table if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'hive_agents' AND column_name = 'pulse_url') THEN
+        ALTER TABLE hive_agents ADD COLUMN pulse_url varchar(512);
+        RAISE NOTICE '✅ Added pulse_url column to hive_agents table';
+    ELSE
+        RAISE NOTICE '⚠️ pulse_url column already exists in hive_agents table';
+    END IF;
+    
+    -- Leave pulse_url as null for now - it will be detected dynamically
+    -- This allows the improved HTTPS detection logic to work for existing agents
+    RAISE NOTICE '✅ Existing agents will use improved HTTPS detection logic';
+EXCEPTION
+    WHEN undefined_table THEN
+        RAISE NOTICE '⚠️ hive_agents table does not exist yet, skipping pulse_url column addition';
+END $$;
 
 -- Display success message
 DO $$
@@ -806,9 +934,34 @@ BEGIN
     RAISE NOTICE '   - SSO authentication tables created';
     RAISE NOTICE '   - 🤖 AI Assistant tables created (sessions, messages, suggestions)';
     RAISE NOTICE '   - 🤖 Pulse Assist features enabled for all organizations';
+    RAISE NOTICE '   - 🐝 Hive Agent pulse_url column added for HTTPS configuration';
     RAISE NOTICE '   - All RBAC permissions added (including SSO)';
     RAISE NOTICE '   - All foreign key constraints added';
     RAISE NOTICE '   - ✅ FIXED: All Administrator roles now have complete permissions';
     RAISE NOTICE '🚀 Your Pulse installation is now fully upgraded with AI Assistant and SSO support!';
     RAISE NOTICE '🤖 Pulse Assist is ready to help with configuration analysis, asset management, and more!';
+    RAISE NOTICE '🐝 Hive Agents now support user-controlled HTTPS URL configuration!';
+END $$;
+
+-- ==============================
+-- HIVE DEPLOYMENT KEY
+-- ==============================
+-- Add deployment key for bulk agent registration
+DO $$
+BEGIN
+    -- Add hive_deployment_key column to organizations table if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'organizations' AND column_name = 'hive_deployment_key') THEN
+        ALTER TABLE organizations ADD COLUMN hive_deployment_key varchar(64);
+        RAISE NOTICE '✅ Added hive_deployment_key column to organizations table';
+        
+        -- Generate deployment keys for existing organizations
+        UPDATE organizations 
+        SET hive_deployment_key = 'hive_deploy_' || substr(md5(random()::text || id::text), 1, 32)
+        WHERE hive_deployment_key IS NULL;
+        
+        RAISE NOTICE '✅ Generated deployment keys for existing organizations';
+    ELSE
+        RAISE NOTICE '⚠️ hive_deployment_key column already exists in organizations table';
+    END IF;
 END $$;

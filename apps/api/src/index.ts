@@ -33,6 +33,7 @@ import { adminRoutes } from './routes/admin';
 import systemSettingsRoutes from './routes/systemSettings';
 import ssoRoutes from './routes/sso';
 import ssoAuthRoutes from './routes/ssoAuth';
+import hiveRoutes, { hivePublicRoutes } from './routes/hive';
 import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
@@ -40,10 +41,11 @@ import { rbacMiddleware } from './middleware/rbacMiddleware';
 import { auditMiddleware } from './middleware/audit';
 import { autoFeatureFlagMiddleware } from './middleware/featureFlags';
 import { errorHandler } from './middleware/errorHandler';
-import { setupSocketHandlers } from './socket/handlers';
+// Socket handlers removed - using HTTP polling instead
 import { startDriftDetectionService } from './services/driftDetection';
 import { ensureAnsibleInstalled } from './scripts/setup-ansible';
 import { deploymentScheduler } from './services/deploymentScheduler';
+import { startHiveMonitor } from './services/hiveMonitor';
 
 config();
 
@@ -127,14 +129,17 @@ app.use('/api/admin', adminRoutes); // Super admin routes
 app.use('/api/system-settings', systemSettingsRoutes); // System settings management
 app.use('/api/sso', ssoRoutes); // SSO provider management (super admin)
 app.use('/api/sso', ssoAuthRoutes); // SSO authentication flow (public)
+app.use('/api/hive', hivePublicRoutes); // Public hive endpoints (install, download)
+app.use('/api/hive', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, hiveRoutes);
 app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
 app.use('/api/mdm', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, mdmRoutes);
 
 app.use(errorHandler);
 
-setupSocketHandlers(io);
+// Socket handlers removed - using HTTP polling instead
 startDriftDetectionService(db);
 deploymentScheduler.start();
+startHiveMonitor(db);
 
 // Setup Ansible on startup
 // Initialize RBAC system

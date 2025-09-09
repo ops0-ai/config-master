@@ -10,6 +10,32 @@ import crypto from 'crypto';
 
 const router = Router();
 
+// Get current user's organization
+router.get('/current', authMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const userId = req.user?.id;
+    const organizationId = req.user?.organizationId;
+    
+    if (!organizationId) {
+      return res.status(404).json({ error: 'No organization found for user' });
+    }
+
+    const org = await db.select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (org.length === 0) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    return res.json({ organization: org[0] });
+  } catch (error) {
+    console.error('Error fetching current organization:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get organization statistics (needs to be first to avoid route conflicts)
 router.get('/:id/stats', authMiddleware, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {

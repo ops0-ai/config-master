@@ -1,0 +1,40 @@
+[Unit]
+Description=Pulse Hive Agent - Distributed Observability Agent
+Documentation=https://docs.pulse-platform.com/hive-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pulse-hive
+Group=pulse-hive
+ExecStart=/usr/local/bin/pulse-hive-agent -config /etc/pulse-hive/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+KillMode=process
+TimeoutStopSec=30
+
+# Environment
+Environment=HOME=/var/lib/pulse-hive
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/pulse-hive /var/log/pulse-hive
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pulse-hive-agent
+
+[Install]
+WantedBy=multi-user.target

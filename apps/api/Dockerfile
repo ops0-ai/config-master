@@ -40,6 +40,24 @@ COPY mdm-agent/ ./mdm-agent/
 # Copy pulse-agent-remove.sh 
 COPY pulse-agent-remove.sh ./pulse-agent-remove.sh
 
+# Create public directory and copy pre-built hive agent binaries for distribution
+RUN mkdir -p ./apps/api/public
+
+# Copy all pre-built cross-platform hive agent binaries
+COPY hive-agent/hive-agent-linux-amd64 ./apps/api/public/hive-agent-linux-amd64
+COPY hive-agent/hive-agent-linux-arm64 ./apps/api/public/hive-agent-linux-arm64
+COPY hive-agent/hive-agent-linux-386 ./apps/api/public/hive-agent-linux-386
+COPY hive-agent/hive-agent-linux-arm ./apps/api/public/hive-agent-linux-arm
+COPY hive-agent/hive-agent-windows-amd64.exe ./apps/api/public/hive-agent-windows-amd64.exe
+COPY hive-agent/hive-agent-darwin-amd64 ./apps/api/public/hive-agent-darwin-amd64
+COPY hive-agent/hive-agent-darwin-arm64 ./apps/api/public/hive-agent-darwin-arm64
+COPY hive-agent/hive-agent-freebsd-amd64 ./apps/api/public/hive-agent-freebsd-amd64
+
+# Create symlink for backward compatibility
+RUN ln -sf hive-agent-linux-amd64 ./apps/api/public/hive-agent-binary && \
+    echo "✅ All hive agent binaries copied successfully" && \
+    ls -la ./apps/api/public/hive-agent-*
+
 # Build packages in dependency order
 WORKDIR /app/packages/database
 RUN npm run build || npx tsc

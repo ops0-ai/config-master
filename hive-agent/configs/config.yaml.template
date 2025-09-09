@@ -1,0 +1,191 @@
+# Pulse Hive Agent Configuration
+# This is a template configuration file for the Pulse Hive Agent
+
+# Platform connection settings
+server:
+  url: "${PULSE_SERVER_URL}"
+  api_key: "${PULSE_API_KEY}"
+  heartbeat_interval: 30s
+  reconnect_interval: 10s
+  max_reconnects: 3
+  timeout: 30s
+
+# Agent configuration
+agent:
+  name: "${AGENT_NAME:-pulse-hive-agent}"
+  hostname: "${HOSTNAME}"
+  tags:
+    environment: "${ENV:-production}"
+    region: "${REGION:-us-east-1}"
+    team: "${TEAM:-ops}"
+  data_dir: "/var/lib/pulse-hive"
+  buffer_size: 10000
+  batch_size: 1000
+  flush_interval: 10s
+  compress_data: true
+  enable_profiling: false
+  profiling_port: 6060
+  metrics_port: 8080
+  enable_self_monitoring: true
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"  # json or text
+  output: "stdout"  # stdout or file
+  file: "/var/log/pulse-hive/agent.log"
+  max_size: 100  # MB
+  max_backups: 5
+  max_age: 30  # days
+  compress: true
+
+# Data collectors configuration
+collectors:
+  # Log collection
+  logs:
+    enabled: true
+    scan_frequency: 10s
+    rotate_wait: 5s
+    max_file_size: 100000000  # 100MB
+    paths:
+      - path: "/var/log/**/*.log"
+        parser: "json"
+        tags:
+          source: "system"
+        recursive: true
+        max_depth: 3
+      - path: "/var/log/nginx/access.log"
+        parser: "nginx"
+        tags:
+          source: "nginx"
+          service: "web"
+      - path: "/var/log/nginx/error.log"
+        parser: "nginx_error"
+        tags:
+          source: "nginx"
+          service: "web"
+          level: "error"
+      - path: "/var/log/syslog"
+        parser: "syslog"
+        tags:
+          source: "system"
+    patterns:
+      - name: "error_detection"
+        pattern: "(?i)(error|exception|fatal|panic|fail)"
+        severity: "error"
+        category: "application"
+        description: "Generic error pattern"
+      - name: "out_of_memory"
+        pattern: "(?i)(out of memory|oom|memory allocation failed)"
+        severity: "critical"
+        category: "system"
+        description: "Out of memory condition"
+      - name: "disk_full"
+        pattern: "(?i)(no space left|disk full|filesystem full)"
+        severity: "critical"
+        category: "system"
+        description: "Disk space exhausted"
+    parsers:
+      json:
+        type: "json"
+      nginx:
+        type: "regex"
+        pattern: '^(?P<remote_addr>\S+) - (?P<remote_user>\S+) \[(?P<time_local>[^\]]+)\] "(?P<request>[^"]*)" (?P<status>\d+) (?P<body_bytes_sent>\d+) "(?P<http_referer>[^"]*)" "(?P<http_user_agent>[^"]*)"'
+      syslog:
+        type: "regex"
+        pattern: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<hostname>\S+)\s+(?P<program>\S+):\s+(?P<message>.*)'
+
+  # Metrics collection
+  metrics:
+    enabled: true
+    interval: 60s
+    system:
+      cpu: true
+      memory: true
+      disk: true
+      network: true
+      process: true
+      docker: false
+      services: false
+    custom:
+      - name: "nginx_connections"
+        type: "gauge"
+        help: "Current nginx connections"
+        command: "curl -s http://localhost/nginx_status | grep 'Active connections' | awk '{print $3}'"
+        interval: 30s
+        parser:
+          type: "regex"
+          pattern: "^(\\d+)$"
+
+  # Distributed tracing (optional)
+  traces:
+    enabled: false
+    receivers:
+      - name: "otlp"
+        type: "otlp"
+        endpoint: "0.0.0.0:4317"
+    sampling:
+      rate: 0.1
+      max_traces: 1000
+
+  # System events monitoring
+  events:
+    enabled: true
+    system:
+      filesystem: true
+      process: true
+      network: false
+      services: true
+
+# Data outputs configuration
+outputs:
+  # Primary output to Pulse platform
+  - name: "pulse_platform"
+    type: "http"
+    enabled: true
+    url: "${PULSE_SERVER_URL}/api/hive/telemetry"
+    auth:
+      type: "bearer"
+      token: "${PULSE_API_KEY}"
+    headers:
+      Content-Type: "application/json"
+    batch_size: 1000
+    timeout: 30s
+    retry:
+      max_retries: 3
+      initial_backoff: 5s
+      max_backoff: 60s
+      backoff_multiple: 2.0
+    data_types: ["logs", "metrics", "traces", "events"]
+    
+  # Optional: Forward to external systems
+  - name: "elasticsearch"
+    type: "elasticsearch"
+    enabled: false
+    url: "${ELASTICSEARCH_URL}"
+    auth:
+      type: "basic"
+      username: "${ES_USERNAME}"
+      password: "${ES_PASSWORD}"
+    data_types: ["logs", "events"]
+    
+  - name: "prometheus"
+    type: "prometheus"
+    enabled: false
+    url: "${PROMETHEUS_PUSH_GATEWAY}"
+    data_types: ["metrics"]
+
+# TLS configuration (optional)
+tls:
+  enabled: false
+  cert_file: "/etc/pulse-hive/certs/agent.crt"
+  key_file: "/etc/pulse-hive/certs/agent.key"
+  ca_file: "/etc/pulse-hive/certs/ca.crt"
+  insecure_skip_verify: false
+
+# Health check configuration
+healthcheck:
+  enabled: true
+  port: 8081
+  path: "/health"
+  interval: 30s

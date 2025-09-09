@@ -15,6 +15,7 @@ export const FEATURE_MAPPINGS = {
   '/mdm': 'mdm',
   '/assets': 'assets',
   '/audit': 'auditLogs',
+  '/hive': 'hive',
   '/settings/integrations': 'githubIntegrations',
 } as const;
 
@@ -31,6 +32,7 @@ export interface OrganizationFeatures {
   mdm?: boolean;
   assets?: boolean;
   auditLogs?: boolean;
+  hive?: boolean;
 }
 
 export function useFeatureFlags() {
@@ -57,6 +59,7 @@ export function useFeatureFlags() {
         mdm: true,
         assets: true,
         auditLogs: true,
+        hive: true,
       });
     } else {
       // For regular users, all features are enabled by default
@@ -74,6 +77,7 @@ export function useFeatureFlags() {
         mdm: true,
         assets: true,
         auditLogs: true,
+        hive: true,
       });
     }
     setLoading(false);

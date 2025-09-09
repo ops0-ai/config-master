@@ -17,6 +17,7 @@ export interface OrganizationFeatures {
   assets?: boolean;
   auditLogs?: boolean;
   pulseAssist?: boolean;
+  hive?: boolean;
 }
 
 interface OrganizationFeaturesContextType {

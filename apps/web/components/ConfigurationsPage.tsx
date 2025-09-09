@@ -171,6 +171,46 @@ const ANSIBLE_TEMPLATES = {
         state: started
         enabled: yes`,
   },
+
+  pulse_hive_agent: {
+    name: 'Pulse Hive Agent',
+    description: 'Deploy and configure Pulse Hive monitoring agent on Linux servers',
+    type: 'playbook' as const,
+    content: `---
+- name: Deploy Pulse Hive Agent
+  hosts: all
+  become: yes
+  vars:
+    pulse_url: "{{ pulse_server_url | default('https://pulse.example.com') }}"
+    deployment_key: "{{ hive_deployment_key }}"
+    
+  tasks:
+    - name: Install Hive Agent using curl
+      shell: |
+        curl -sSL {{ pulse_url }}/api/hive/install | bash -s -- \\
+          --api-key={{ deployment_key }} \\
+          --pulse-url={{ pulse_url }}
+      args:
+        creates: /opt/hive-agent/hive-agent
+      register: install_result
+      
+    - name: Verify Hive Agent service is running
+      service:
+        name: hive-agent
+        state: started
+        enabled: yes
+      
+    - name: Check agent status
+      command: systemctl status hive-agent
+      register: service_status
+      changed_when: false
+      
+    - name: Display installation result
+      debug:
+        msg: 
+          - "Hive Agent installed on {{ inventory_hostname }}"
+          - "Service status: {{ 'Running' if service_status.rc == 0 else 'Check service' }}"`,
+  },
   
   nodejs: {
     name: 'Node.js Application',
@@ -695,6 +735,47 @@ export default function ConfigurationsPage() {
 
   useEffect(() => {
     loadConfigurations();
+    
+    // Check for template pre-fill from Hive page
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateParam = urlParams.get('template');
+    const sourceParam = urlParams.get('source');
+    
+    if (templateParam === 'pulse_hive_agent' && sourceParam === 'hive') {
+      // Get pre-filled data from sessionStorage
+      const templateData = sessionStorage.getItem('hive_template_data');
+      if (templateData) {
+        try {
+          const data = JSON.parse(templateData);
+          const template = ANSIBLE_TEMPLATES[data.template as keyof typeof ANSIBLE_TEMPLATES];
+          if (template) {
+            // Replace template variables with actual values
+            let updatedContent = template.content;
+            if (data.variables) {
+              Object.entries(data.variables).forEach(([key, value]) => {
+                const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\|?[^}]*\\}\\}`, 'g');
+                updatedContent = updatedContent.replace(regex, value as string);
+              });
+            }
+            
+            // Pre-fill template with variables substituted
+            setTemplateForm({
+              name: template.name + ' (Auto-configured)',
+              description: template.description + ' - Pre-configured with deployment key',
+              type: template.type as 'playbook' | 'role' | 'task',
+              content: updatedContent,
+            });
+            setSelectedTemplate(template);
+            setShowTemplates(true);
+            setShowTemplatePreview(true);
+          }
+          // Clear the session data
+          sessionStorage.removeItem('hive_template_data');
+        } catch (error) {
+          console.error('Error parsing template data:', error);
+        }
+      }
+    }
   }, []);
 
   // Auto-refresh every 30 seconds

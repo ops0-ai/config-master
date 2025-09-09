@@ -36,6 +36,7 @@ interface Organization {
     assets?: boolean;
     auditLogs?: boolean;
     pulseAssist?: boolean;
+    hive?: boolean;
   };
   createdAt: string;
   updatedAt: string;
@@ -100,6 +101,13 @@ const FEATURES: FeatureConfig[] = [
     key: 'pulseAssist', 
     name: 'Pulse Assist', 
     description: 'Context-aware AI assistant with smart suggestions across all pages',
+    icon: ({ className }) => <CogIcon className={className} />,
+    category: 'core'
+  },
+  { 
+    key: 'hive', 
+    name: 'Hive Monitoring', 
+    description: 'Distributed monitoring agents for logs, metrics, and observability',
     icon: ({ className }) => <CogIcon className={className} />,
     category: 'core'
   },
