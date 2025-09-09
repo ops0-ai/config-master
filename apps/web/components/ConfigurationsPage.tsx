@@ -183,76 +183,33 @@ const ANSIBLE_TEMPLATES = {
   vars:
     pulse_url: "{{ pulse_server_url | default('https://pulse.example.com') }}"
     deployment_key: "{{ hive_deployment_key }}"
-    agent_name: "{{ inventory_hostname }}-hive"
-    agent_tags: "{{ hive_agent_tags | default('production,linux') }}"
     
   tasks:
-    - name: Ensure curl is installed
-      package:
-        name: curl
-        state: present
-        
-    - name: Create temporary directory for installation
-      tempfile:
-        state: directory
-        suffix: hive
-      register: temp_dir
-      
-    - name: Download Hive Agent installation script
-      get_url:
-        url: "{{ pulse_url }}/api/hive/install"
-        dest: "{{ temp_dir.path }}/install.sh"
-        mode: '0755'
-        
-    - name: Install Hive Agent
+    - name: Install Hive Agent using curl
       shell: |
-        bash {{ temp_dir.path }}/install.sh \\
+        curl -sSL {{ pulse_url }}/api/hive/install | bash -s -- \\
           --api-key={{ deployment_key }} \\
           --pulse-url={{ pulse_url }}
       args:
         creates: /opt/hive-agent/hive-agent
       register: install_result
       
-    - name: Update agent configuration with custom name  
-      replace:
-        path: /etc/pulse-hive/config.yaml
-        regexp: 'name: ".*-hive-agent"'
-        replace: 'name: "{{ agent_name }}"'
-      when: install_result.changed
-      
-    - name: Add deployment source tag to config
-      lineinfile:
-        path: /etc/pulse-hive/config.yaml
-        insertafter: 'enable_self_monitoring: true'
-        line: "  deployment_source: ansible"
-      when: install_result.changed
-      
-    - name: Ensure Hive Agent service is running
+    - name: Verify Hive Agent service is running
       service:
         name: hive-agent
         state: started
         enabled: yes
-        
-    - name: Verify agent connectivity
-      uri:
-        url: "{{ pulse_url }}/api/hive/health"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ deployment_key }}"
-        status_code: [200, 401, 403]
-      register: health_check
-      ignore_errors: yes
       
-    - name: Display agent status
+    - name: Check agent status
+      command: systemctl status hive-agent
+      register: service_status
+      changed_when: false
+      
+    - name: Display installation result
       debug:
-        msg: "Hive Agent installed successfully on {{ inventory_hostname }}"
-      when: install_result.changed
-      
-    - name: Clean up temporary files
-      file:
-        path: "{{ temp_dir.path }}"
-        state: absent
-      when: temp_dir.path is defined`,
+        msg: 
+          - "Hive Agent installed on {{ inventory_hostname }}"
+          - "Service status: {{ 'Running' if service_status.rc == 0 else 'Check service' }}"`,
   },
   
   nodejs: {
