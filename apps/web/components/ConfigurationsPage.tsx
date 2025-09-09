@@ -171,6 +171,89 @@ const ANSIBLE_TEMPLATES = {
         state: started
         enabled: yes`,
   },
+
+  pulse_hive_agent: {
+    name: 'Pulse Hive Agent',
+    description: 'Deploy and configure Pulse Hive monitoring agent on Linux servers',
+    type: 'playbook' as const,
+    content: `---
+- name: Deploy Pulse Hive Agent
+  hosts: all
+  become: yes
+  vars:
+    pulse_url: "{{ pulse_server_url | default('https://pulse.example.com') }}"
+    deployment_key: "{{ hive_deployment_key }}"
+    agent_name: "{{ inventory_hostname }}-hive"
+    agent_tags: "{{ hive_agent_tags | default('production,linux') }}"
+    
+  tasks:
+    - name: Ensure curl is installed
+      package:
+        name: curl
+        state: present
+        
+    - name: Create temporary directory for installation
+      tempfile:
+        state: directory
+        suffix: hive
+      register: temp_dir
+      
+    - name: Download Hive Agent installation script
+      get_url:
+        url: "{{ pulse_url }}/api/hive/install"
+        dest: "{{ temp_dir.path }}/install.sh"
+        mode: '0755'
+        
+    - name: Install Hive Agent
+      shell: |
+        bash {{ temp_dir.path }}/install.sh \\
+          --api-key={{ deployment_key }} \\
+          --pulse-url={{ pulse_url }}
+      args:
+        creates: /opt/hive-agent/hive-agent
+      register: install_result
+      
+    - name: Update agent configuration with custom name  
+      replace:
+        path: /etc/pulse-hive/config.yaml
+        regexp: 'name: ".*-hive-agent"'
+        replace: 'name: "{{ agent_name }}"'
+      when: install_result.changed
+      
+    - name: Add deployment source tag to config
+      lineinfile:
+        path: /etc/pulse-hive/config.yaml
+        insertafter: 'enable_self_monitoring: true'
+        line: "  deployment_source: ansible"
+      when: install_result.changed
+      
+    - name: Ensure Hive Agent service is running
+      service:
+        name: hive-agent
+        state: started
+        enabled: yes
+        
+    - name: Verify agent connectivity
+      uri:
+        url: "{{ pulse_url }}/api/hive/health"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ deployment_key }}"
+        status_code: [200, 401, 403]
+      register: health_check
+      ignore_errors: yes
+      
+    - name: Display agent status
+      debug:
+        msg: "Hive Agent installed successfully on {{ inventory_hostname }}"
+      when: install_result.changed
+      
+    - name: Clean up temporary files
+      file:
+        path: "{{ temp_dir.path }}"
+        state: absent
+      when: temp_dir.path is defined`,
+  },
   
   nodejs: {
     name: 'Node.js Application',
@@ -695,6 +778,47 @@ export default function ConfigurationsPage() {
 
   useEffect(() => {
     loadConfigurations();
+    
+    // Check for template pre-fill from Hive page
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateParam = urlParams.get('template');
+    const sourceParam = urlParams.get('source');
+    
+    if (templateParam === 'pulse_hive_agent' && sourceParam === 'hive') {
+      // Get pre-filled data from sessionStorage
+      const templateData = sessionStorage.getItem('hive_template_data');
+      if (templateData) {
+        try {
+          const data = JSON.parse(templateData);
+          const template = ANSIBLE_TEMPLATES[data.template as keyof typeof ANSIBLE_TEMPLATES];
+          if (template) {
+            // Replace template variables with actual values
+            let updatedContent = template.content;
+            if (data.variables) {
+              Object.entries(data.variables).forEach(([key, value]) => {
+                const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\|?[^}]*\\}\\}`, 'g');
+                updatedContent = updatedContent.replace(regex, value as string);
+              });
+            }
+            
+            // Pre-fill template with variables substituted
+            setTemplateForm({
+              name: template.name + ' (Auto-configured)',
+              description: template.description + ' - Pre-configured with deployment key',
+              type: template.type as 'playbook' | 'role' | 'task',
+              content: updatedContent,
+            });
+            setSelectedTemplate(template);
+            setShowTemplates(true);
+            setShowTemplatePreview(true);
+          }
+          // Clear the session data
+          sessionStorage.removeItem('hive_template_data');
+        } catch (error) {
+          console.error('Error parsing template data:', error);
+        }
+      }
+    }
   }, []);
 
   // Auto-refresh every 30 seconds

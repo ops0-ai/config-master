@@ -942,3 +942,26 @@ BEGIN
     RAISE NOTICE '🤖 Pulse Assist is ready to help with configuration analysis, asset management, and more!';
     RAISE NOTICE '🐝 Hive Agents now support user-controlled HTTPS URL configuration!';
 END $$;
+
+-- ==============================
+-- HIVE DEPLOYMENT KEY
+-- ==============================
+-- Add deployment key for bulk agent registration
+DO $$
+BEGIN
+    -- Add hive_deployment_key column to organizations table if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'organizations' AND column_name = 'hive_deployment_key') THEN
+        ALTER TABLE organizations ADD COLUMN hive_deployment_key varchar(64);
+        RAISE NOTICE '✅ Added hive_deployment_key column to organizations table';
+        
+        -- Generate deployment keys for existing organizations
+        UPDATE organizations 
+        SET hive_deployment_key = 'hive_deploy_' || substr(md5(random()::text || id::text), 1, 32)
+        WHERE hive_deployment_key IS NULL;
+        
+        RAISE NOTICE '✅ Generated deployment keys for existing organizations';
+    ELSE
+        RAISE NOTICE '⚠️ hive_deployment_key column already exists in organizations table';
+    END IF;
+END $$;

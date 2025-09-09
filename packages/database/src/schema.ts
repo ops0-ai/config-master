@@ -37,6 +37,8 @@ export const organizations = pgTable('organizations', {
     auditLogs: true
   }),
   metadata: jsonb('metadata').$type<any>().default({}),
+  // Hive agent deployment key for auto-registration
+  hiveDeploymentKey: varchar('hive_deployment_key', { length: 64 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

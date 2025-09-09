@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   ServerIcon,
+  ServerStackIcon,
   PlusIcon,
   CpuChipIcon,
   SignalIcon,
@@ -143,6 +144,51 @@ export default function HivePage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleGroupDeploy = async () => {
+    try {
+      // Get organization deployment key
+      const orgResponse = await fetch('/api/organizations/current', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!orgResponse.ok) {
+        toast.error('Failed to get organization info');
+        return;
+      }
+
+      const orgData = await orgResponse.json();
+      const deploymentKey = orgData.organization?.hiveDeploymentKey;
+
+      if (!deploymentKey) {
+        toast.error('No deployment key found. Contact your administrator.');
+        return;
+      }
+
+      // Redirect to configurations page with pre-filled Hive template
+      const templateData = {
+        template: 'pulse_hive_agent',
+        variables: {
+          pulse_server_url: detectedPulseUrl || window.location.origin,
+          hive_deployment_key: deploymentKey,
+          hive_agent_tags: 'production,linux,ansible-deployed'
+        }
+      };
+
+      // Store template data in sessionStorage for the configurations page
+      sessionStorage.setItem('hive_template_data', JSON.stringify(templateData));
+      
+      // Navigate to configurations page with template parameter
+      window.location.href = '/configurations?template=pulse_hive_agent&source=hive';
+      
+    } catch (error) {
+      console.error('Error preparing group deployment:', error);
+      toast.error('Failed to prepare deployment');
     }
   };
 
@@ -1006,6 +1052,13 @@ Please help me resolve this issue on ${issueAgent.hostname}.`;
               >
                 <PlusIcon className="h-5 w-5" />
                 <span>Deploy Agent</span>
+              </button>
+              <button
+                onClick={handleGroupDeploy}
+                className="px-4 py-2 bg-white text-indigo-600 rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center space-x-2"
+              >
+                <ServerStackIcon className="h-5 w-5" />
+                <span>Bulk Deploy</span>
               </button>
             </div>
           </div>
