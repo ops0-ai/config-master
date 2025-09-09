@@ -1,5 +1,6 @@
 import express from 'express';
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbacMiddleware';
 import { db } from '../index';
@@ -11,6 +12,7 @@ import {
   hiveCommands, 
   hiveOutputEndpoints, 
   hiveAgentOutputs,
+  organizations,
   organizationSettings
 } from '@config-management/database';
 import { eq, and, desc, asc, inArray, sql, gte, isNull } from 'drizzle-orm';
@@ -1595,6 +1597,34 @@ else
   echo "✓ Agent binary downloaded successfully"
 fi
 
+# Auto-register agent if using deployment key
+if [[ "$API_KEY" == hive_deploy_* ]]; then
+  echo "🔑 Deployment key detected - auto-registering agent..."
+  
+  AGENT_NAME="$(hostname)-hive-agent"
+  
+  # Register agent and get individual API key
+  REGISTER_RESPONSE=$(curl -s -X POST "$PROTOCOL://$PULSE_URL/api/hive/auto-register" \\
+    -H "Content-Type: application/json" \\
+    -d "{
+      \\"deploymentKey\\": \\"$API_KEY\\",
+      \\"agentName\\": \\"$AGENT_NAME\\",
+      \\"hostname\\": \\"$(hostname)\\",
+      \\"agentType\\": \\"linux\\",
+      \\"tags\\": [\\"production\\", \\"linux\\", \\"auto-deployed\\"]
+    }")
+  
+  # Extract the individual API key from response
+  INDIVIDUAL_API_KEY=$(echo "$REGISTER_RESPONSE" | sed -n 's/.*"apiKey":"\\([^"]*\\)".*/\\1/p')
+  
+  if [[ -n "$INDIVIDUAL_API_KEY" ]]; then
+    echo "✅ Agent auto-registered successfully"
+    API_KEY="$INDIVIDUAL_API_KEY"
+  else
+    echo "❌ Auto-registration failed, using deployment key"
+  fi
+fi
+
 # Create configuration directory and file
 sudo mkdir -p "/etc/pulse-hive" 
 sudo tee "/etc/pulse-hive/config.yaml" << EOF
@@ -1844,6 +1874,77 @@ router.get('/download/hive-agent-:platform-:arch', async (req: Request, res: Res
 export const hivePublicRoutes = express.Router();
 
 // Agent registration endpoint - completely public, no auth required
+// Auto-register agent using deployment key
+hivePublicRoutes.post('/auto-register', async (req: Request, res: Response) => {
+  try {
+    const { deploymentKey, agentName, hostname, agentType = 'linux', tags = [] } = req.body;
+
+    if (!deploymentKey || !deploymentKey.startsWith('hive_deploy_')) {
+      return res.status(400).json({ error: 'Valid deployment key required' });
+    }
+
+    // Find organization by deployment key
+    const org = await db.select()
+      .from(organizations)
+      .where(eq(organizations.hiveDeploymentKey, deploymentKey))
+      .limit(1);
+
+    if (org.length === 0) {
+      return res.status(401).json({ error: 'Invalid deployment key' });
+    }
+
+    const organizationId = org[0].id;
+
+    // Check if agent with same name already exists for this org
+    const existingAgent = await db.select()
+      .from(hiveAgents)
+      .where(and(
+        eq(hiveAgents.organizationId, organizationId),
+        eq(hiveAgents.name, agentName)
+      ))
+      .limit(1);
+
+    if (existingAgent.length > 0) {
+      // Return existing agent's API key
+      return res.json({ 
+        success: true, 
+        apiKey: existingAgent[0].apiKey,
+        message: 'Agent already registered'
+      });
+    }
+
+    // Generate new API key for the agent
+    const apiKey = 'hive_' + crypto.randomBytes(20).toString('hex');
+
+    // Create new agent
+    const newAgent = await db.insert(hiveAgents).values({
+      name: agentName,
+      hostname: hostname || agentName,
+      organizationId,
+      apiKey,
+      metadata: {
+        deploymentSource: 'auto-registration',
+        deploymentKey: deploymentKey.substring(0, 16) + '...', // Store partial key for reference
+        agentType,
+        tags
+      },
+      status: 'offline',
+      version: '1.0.0'
+    }).returning();
+
+    return res.json({ 
+      success: true, 
+      apiKey,
+      agentId: newAgent[0].id,
+      message: 'Agent auto-registered successfully'
+    });
+
+  } catch (error) {
+    console.error('Auto-registration error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 hivePublicRoutes.post('/register', async (req: Request, res: Response) => {
   try {
     // Extract API key from body or header
@@ -2347,6 +2448,34 @@ else
   mv "$INSTALL_DIR/hive-agent.tmp" "$INSTALL_DIR/hive-agent"
   chmod +x "$INSTALL_DIR/hive-agent"
   echo "✓ Agent binary downloaded successfully"
+fi
+
+# Auto-register agent if using deployment key
+if [[ "$API_KEY" == hive_deploy_* ]]; then
+  echo "🔑 Deployment key detected - auto-registering agent..."
+  
+  AGENT_NAME="$(hostname)-hive-agent"
+  
+  # Register agent and get individual API key
+  REGISTER_RESPONSE=$(curl -s -X POST "$PROTOCOL://$PULSE_URL/api/hive/auto-register" \\
+    -H "Content-Type: application/json" \\
+    -d "{
+      \\"deploymentKey\\": \\"$API_KEY\\",
+      \\"agentName\\": \\"$AGENT_NAME\\",
+      \\"hostname\\": \\"$(hostname)\\",
+      \\"agentType\\": \\"linux\\",
+      \\"tags\\": [\\"production\\", \\"linux\\", \\"auto-deployed\\"]
+    }")
+  
+  # Extract the individual API key from response
+  INDIVIDUAL_API_KEY=$(echo "$REGISTER_RESPONSE" | sed -n 's/.*"apiKey":"\\([^"]*\\)".*/\\1/p')
+  
+  if [[ -n "$INDIVIDUAL_API_KEY" ]]; then
+    echo "✅ Agent auto-registered successfully"
+    API_KEY="$INDIVIDUAL_API_KEY"
+  else
+    echo "❌ Auto-registration failed, using deployment key"
+  fi
 fi
 
 # Create configuration directory and file
