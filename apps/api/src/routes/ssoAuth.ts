@@ -561,6 +561,44 @@ router.get('/callback', async (req, res): Promise<any> => {
         });
       }
 
+      // Send webhook notification for new SSO user signup
+      console.log(`🔔 Attempting to send SSO webhook notification for user: ${email}`);
+      try {
+        const { userSignupWebhookService } = await import('../services/userSignupWebhook');
+        
+        // Extract company info from email
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        const commonProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com', 'mail.com', 'ymail.com', 'live.com', 'msn.com', 'rediffmail.com', 'zoho.com'];
+        
+        let company = null;
+        if (emailDomain && !commonProviders.includes(emailDomain)) {
+          company = emailDomain.split('.')[0].split(/[-_]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+        }
+
+        // Get organization details
+        const [organization] = await db
+          .select()
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .limit(1);
+        
+        await userSignupWebhookService.notifyUserSignup({
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          organizationId: organizationId,
+          organizationName: organization?.name || 'Unknown Organization',
+          company,
+          domain: emailDomain,
+          isFirstTimeSignup: true,
+          signupDate: new Date().toISOString()
+        });
+        console.log(`✅ SSO webhook notification sent successfully for user: ${email}`);
+      } catch (error) {
+        console.error('Warning: Failed to send SSO user signup webhook:', error);
+        // Don't fail signup if webhook fails
+      }
+
       console.log(`✅ Auto-provisioned SSO user ${email} in organization ${organizationId} with role ${userRole}`);
     }
 
