@@ -743,7 +743,7 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="h-full flex bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="h-screen max-h-screen flex bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
       {/* Conversations Sidebar */}
       <div className="w-80 bg-white border-r border-slate-200 shadow-xl flex flex-col">
         {/* Header */}
@@ -918,7 +918,7 @@ export default function ChatInterface() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-slate-50 to-white">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-slate-50 to-white" style={{maxHeight: 'calc(100vh - 180px)'}}>
               {currentMessages.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="bg-gradient-to-br from-slate-100 via-white to-slate-100 rounded-3xl p-12 mx-auto max-w-md shadow-xl border border-slate-200">
@@ -1015,7 +1015,7 @@ export default function ChatInterface() {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-white via-slate-50 to-white">
+            <div className="flex-shrink-0 p-4 border-t border-slate-200 bg-gradient-to-r from-white via-slate-50 to-white">
               <div className="max-w-4xl mx-auto">
                 <div className="flex space-x-4">
                   <div className="flex-1 relative">

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../index';
-import { conversations, messages, configurations } from '@config-management/database';
+import { conversations, messages, configurations, aiAssistantMessages } from '@config-management/database';
 import { eq, and, desc } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { featureFlagMiddleware } from '../middleware/featureFlags';
@@ -241,12 +241,17 @@ router.put('/:id', featureFlagMiddleware('chat'), async (req: AuthenticatedReque
 
 router.delete('/:id', featureFlagMiddleware('chat'), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
-    // First delete all messages in the conversation
+    // First delete all AI assistant messages that reference this conversation
+    await db
+      .delete(aiAssistantMessages)
+      .where(eq(aiAssistantMessages.conversationId, req.params.id));
+
+    // Then delete all regular messages in the conversation
     await db
       .delete(messages)
       .where(eq(messages.conversationId, req.params.id));
 
-    // Then delete the conversation
+    // Finally delete the conversation itself
     const deleted = await db
       .delete(conversations)
       .where(
