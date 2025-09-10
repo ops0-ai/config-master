@@ -160,18 +160,10 @@ router.post('/register', async (req, res): Promise<any> => {
     // Hash password
     const passwordHash = await bcrypt.hash(value.password, 10);
 
-    // Generate a temporary user ID first
+    // Generate a user ID
     const userId = crypto.randomUUID();
 
-    // Create organization with the user ID
-    const newOrg = await db.insert(organizations).values({
-      name: value.organizationName,
-      ownerId: userId,
-      isActive: true,
-    }).returning();
-
-    // Create user with the pre-generated ID and organizationId
-    // Handle missing columns safely during migration
+    // FIRST: Create user WITHOUT organizationId (null is allowed)
     let newUser;
     try {
       newUser = await db.insert(users).values({
@@ -180,7 +172,7 @@ router.post('/register', async (req, res): Promise<any> => {
         name: value.name,
         passwordHash,
         role: 'admin',
-        organizationId: newOrg[0].id,
+        organizationId: null, // Will be updated after org creation
         isActive: true,
         isSuperAdmin: false,
         hasCompletedOnboarding: false,
@@ -194,7 +186,7 @@ router.post('/register', async (req, res): Promise<any> => {
           name: value.name,
           passwordHash,
           role: 'admin',
-          organizationId: newOrg[0].id,
+          organizationId: null,
           isActive: true,
         }).returning();
         
@@ -207,6 +199,21 @@ router.post('/register', async (req, res): Promise<any> => {
         throw error;
       }
     }
+
+    // SECOND: Create organization with the now-existing user as owner
+    const newOrg = await db.insert(organizations).values({
+      name: value.organizationName,
+      ownerId: newUser[0].id,
+      isActive: true,
+    }).returning();
+
+    // THIRD: Update user with the organizationId
+    await db.update(users)
+      .set({ organizationId: newOrg[0].id })
+      .where(eq(users.id, newUser[0].id));
+    
+    // Update the user object to reflect the change
+    newUser[0].organizationId = newOrg[0].id;
 
     // Create RBAC roles and permissions for the new organization
     try {
