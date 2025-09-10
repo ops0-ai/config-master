@@ -78,6 +78,8 @@ export default function ChatInterface() {
   const [currentGeneratedConfig, setCurrentGeneratedConfig] = useState('');
   const [saveConfigName, setSaveConfigName] = useState('');
   const [refreshingConfigId, setRefreshingConfigId] = useState<string | null>(null);
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isFeatureEnabled } = useOrganizationFeatures();
 
@@ -210,6 +212,64 @@ export default function ChatInterface() {
     }
   };
 
+  const generateSmartTitle = (message: string): string => {
+    const words = message.toLowerCase().trim().split(/\s+/);
+    const firstWords = words.slice(0, 3).join(' ');
+    
+    // DevOps/Infrastructure related keywords for smart titles (shortened)
+    if (message.toLowerCase().includes('deploy')) return 'Deployment';
+    if (message.toLowerCase().includes('server') || message.toLowerCase().includes('infrastructure')) return 'Server Setup';
+    if (message.toLowerCase().includes('docker') || message.toLowerCase().includes('container')) return 'Docker Config';
+    if (message.toLowerCase().includes('kubernetes') || message.toLowerCase().includes('k8s')) return 'K8s Setup';
+    if (message.toLowerCase().includes('ci/cd') || message.toLowerCase().includes('pipeline')) return 'CI/CD Pipeline';
+    if (message.toLowerCase().includes('monitoring') || message.toLowerCase().includes('alert')) return 'Monitoring';
+    if (message.toLowerCase().includes('security') || message.toLowerCase().includes('ssl')) return 'Security';
+    if (message.toLowerCase().includes('database') || message.toLowerCase().includes('sql')) return 'Database';
+    if (message.toLowerCase().includes('nginx') || message.toLowerCase().includes('apache')) return 'Web Server';
+    if (message.toLowerCase().includes('backup') || message.toLowerCase().includes('restore')) return 'Backup';
+    if (message.toLowerCase().includes('ansible') || message.toLowerCase().includes('terraform')) return 'IaC Setup';
+    if (message.toLowerCase().includes('aws') || message.toLowerCase().includes('azure') || message.toLowerCase().includes('gcp')) return 'Cloud Config';
+    
+    // Fallback to first 3 words with proper capitalization, max 15 chars
+    const title = firstWords.charAt(0).toUpperCase() + firstWords.slice(1);
+    return title.length > 15 ? title.substring(0, 15) + '...' : title;
+  };
+
+  const renameConversation = async (conversationId: string, newTitle: string) => {
+    try {
+      await fetch(`/api/conversations/${conversationId}/rename`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: newTitle })
+      });
+      
+      // Update local state
+      setConversations(prev => prev.map(conv => 
+        conv.id === conversationId ? { ...conv, title: newTitle } : conv
+      ));
+      
+      setEditingConversationId(null);
+      setEditingTitle('');
+      toast.success('Conversation renamed successfully');
+    } catch (error) {
+      console.error('Failed to rename conversation:', error);
+      toast.error('Failed to rename conversation');
+    }
+  };
+
+  const startRenaming = (conversation: Conversation) => {
+    setEditingConversationId(conversation.id);
+    setEditingTitle(conversation.title);
+  };
+
+  const cancelRenaming = () => {
+    setEditingConversationId(null);
+    setEditingTitle('');
+  };
+
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
     
@@ -250,7 +310,22 @@ export default function ChatInterface() {
             updatedMessages.push(response.data.assistantMessage);
           }
           
-          return { ...conv, messages: updatedMessages };
+          // Auto-generate smart title if this is the first message and title is generic
+          let updatedTitle = conv.title;
+          if (updatedMessages.length <= 2 && (conv.title === 'New Conversation' || conv.title?.startsWith('Conversation'))) {
+            updatedTitle = generateSmartTitle(messageContent);
+            // Update title on backend too
+            fetch(`/api/conversations/${conversationId}/rename`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ title: updatedTitle })
+            }).catch(console.error);
+          }
+          
+          return { ...conv, messages: updatedMessages, title: updatedTitle };
         }
         return conv;
       }));
@@ -668,16 +743,19 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="h-full flex bg-white">
+    <div className="h-full flex bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Conversations Sidebar */}
-      <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-white border-r border-slate-200 shadow-xl flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-white">
+        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
+            <div>
+              <h2 className="text-lg font-bold text-white">Phoenix Sessions</h2>
+              <p className="text-xs text-slate-300 mt-1">AI DevOps Conversations</p>
+            </div>
             <button
               onClick={createNewConversation}
-              className="inline-flex items-center p-2 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="inline-flex items-center p-2.5 border border-transparent rounded-xl shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105"
             >
               <PlusIcon className="h-4 w-4" />
             </button>
@@ -685,44 +763,72 @@ export default function ChatInterface() {
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white">
           {conversations.length === 0 ? (
-            <div className="p-4 text-center">
-              <ChatBubbleLeftIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm text-gray-500">No conversations yet</p>
-              <p className="text-xs text-gray-400">Click + to start a new conversation</p>
+            <div className="p-6 text-center">
+              <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl p-8 mx-4">
+                <ChatBubbleLeftIcon className="mx-auto h-16 w-16 text-slate-400" />
+                <h3 className="mt-4 text-lg font-semibold text-slate-800">Welcome to Phoenix</h3>
+                <p className="mt-2 text-sm text-slate-600">Start your first AI DevOps conversation</p>
+                <p className="text-xs text-slate-500 mt-1">Click + to begin</p>
+              </div>
             </div>
           ) : (
-            <div className="p-2 space-y-1">
+            <div className="p-3 space-y-2">
               {conversations.map((conversation) => (
-                <button
+                <div
                   key={conversation.id}
-                  onClick={() => {
-                    setActiveConversation(conversation.id);
-                    loadMessages(conversation.id);
-                  }}
-                  className={`w-full text-left p-3 rounded-lg transition-colors group ${
+                  className={`relative p-4 rounded-xl transition-all duration-200 group shadow-sm ${
                     activeConversation === conversation.id
-                      ? 'bg-indigo-50 border-indigo-200 border'
-                      : 'hover:bg-white border border-transparent'
+                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md transform scale-[1.02]'
+                      : 'hover:bg-white hover:shadow-md border-2 border-transparent hover:border-slate-100'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`text-sm font-medium truncate ${
-                        activeConversation === conversation.id 
-                          ? 'text-indigo-900' 
-                          : 'text-gray-900'
-                      }`}>
-                        {conversation.title}
-                      </h3>
+                  <div className="flex items-start justify-between">
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer pr-2"
+                      onClick={() => {
+                        setActiveConversation(conversation.id);
+                        loadMessages(conversation.id);
+                      }}
+                    >
+                      {editingConversationId === conversation.id ? (
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={() => renameConversation(conversation.id, editingTitle)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              renameConversation(conversation.id, editingTitle);
+                            } else if (e.key === 'Escape') {
+                              cancelRenaming();
+                            }
+                          }}
+                          className="w-full text-sm font-semibold bg-white border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <h3 className={`text-sm font-semibold truncate ${
+                          activeConversation === conversation.id 
+                            ? 'text-blue-900' 
+                            : 'text-slate-800'
+                        }`}>
+                          {conversation.title}
+                        </h3>
+                      )}
                       {conversation.messages?.length > 0 && (
-                        <p className="text-xs text-gray-500 truncate mt-1">
+                        <p className={`text-xs truncate mt-1 ${
+                          activeConversation === conversation.id 
+                            ? 'text-blue-700' 
+                            : 'text-slate-600'
+                        }`}>
                           {conversation.messages[conversation.messages.length - 1]?.content}
                         </p>
                       )}
                     </div>
-                    <div className="relative">
+                    <div className="relative flex-shrink-0 ml-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -733,7 +839,20 @@ export default function ChatInterface() {
                         <EllipsisVerticalIcon className="h-4 w-4 text-gray-400" />
                       </button>
                       {showDropdown === conversation.id && (
-                        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-24">
+                        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-32">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenaming(conversation);
+                              setShowDropdown(null);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center"
+                          >
+                            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Rename
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -750,16 +869,20 @@ export default function ChatInterface() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-gray-400">
+                    <span className={`text-xs font-medium ${
+                      activeConversation === conversation.id 
+                        ? 'text-blue-600' 
+                        : 'text-slate-500'
+                    }`}>
                       {conversation.messages?.length || 0} messages
                     </span>
                     {conversation.isActive && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Active
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm">
+                        Live
                       </span>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -771,24 +894,52 @@ export default function ChatInterface() {
         {activeConversation ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 bg-white">
-              <h3 className="text-lg font-medium text-gray-900">
-                {getCurrentConversation()?.title || 'Configuration Chat'}
-              </h3>
-              <p className="text-sm text-gray-500">
-                Ask me anything about infrastructure configuration, deployment, or management
-              </p>
+            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-lg">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <img
+                    src="/images/phoenix.svg"
+                    alt="Phoenix AI DevOps Engineer"
+                    className="w-12 h-12 rounded-full border-2 border-white shadow-xl"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    {getCurrentConversation()?.title || 'Phoenix - AI DevOps Engineer'}
+                  </h3>
+                  <div className="flex items-center mt-2 space-x-4">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></div>
+                      Online
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-slate-50 to-white">
               {currentMessages.length === 0 ? (
-                <div className="text-center py-12">
-                  <ChatBubbleLeftIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-4 text-lg font-medium text-gray-900">Start a conversation</h3>
-                  <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
-                    Ask questions about server configuration, deployment strategies, or infrastructure management.
-                  </p>
+                <div className="text-center py-16">
+                  <div className="bg-gradient-to-br from-slate-100 via-white to-slate-100 rounded-3xl p-12 mx-auto max-w-md shadow-xl border border-slate-200">
+                    <div>
+                      <ChatBubbleLeftIcon className="mx-auto h-16 w-16 text-slate-600" />
+                    </div>
+                    <h3 className="mt-6 text-xl font-bold text-slate-900">Welcome to Phoenix</h3>
+                    <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+                      Your enterprise AI DevOps engineer is ready to assist with infrastructure automation, deployment strategies, and system optimization.
+                    </p>
+                    <div className="mt-6 grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-slate-100">
+                        <div className="font-semibold text-slate-800">Infrastructure</div>
+                        <div className="text-slate-600 mt-1">Server configs & automation</div>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-slate-100">
+                        <div className="font-semibold text-slate-800">Deployments</div>
+                        <div className="text-slate-600 mt-1">CI/CD & orchestration</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 currentMessages.map((message) => (
@@ -797,13 +948,15 @@ export default function ChatInterface() {
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-3xl p-4 rounded-lg ${
+                      className={`max-w-3xl p-5 rounded-2xl shadow-lg border ${
                         message.role === 'user'
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
+                          ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white border-blue-200 shadow-blue-200/50'
+                          : 'bg-white text-slate-900 border-slate-200 shadow-slate-200/50'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className={`text-sm whitespace-pre-wrap leading-relaxed ${
+                        message.role === 'user' ? 'font-medium' : ''
+                      }`}>{message.content}</p>
                       
                       {message.generatedConfiguration && (
                         <ConfigurationDisplay
@@ -827,7 +980,7 @@ export default function ChatInterface() {
                       )}
                       
                       <div className="mt-2 text-xs opacity-75">
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                        {message.timestamp && new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
@@ -836,11 +989,23 @@ export default function ChatInterface() {
               
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg p-4 max-w-xs">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="bg-gradient-to-r from-slate-100 to-slate-200 rounded-2xl p-6 max-w-md shadow-lg border border-slate-200">
+                    <div className="flex items-center space-x-3">
+                      <div>
+                        <img
+                          src="/images/phoenix.svg"
+                          alt="Phoenix AI"
+                          className="w-8 h-8 rounded-full"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex space-x-1 mb-2">
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium">Phoenix is analyzing...</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -850,37 +1015,110 @@ export default function ChatInterface() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-gray-200 bg-white">
-              <div className="flex space-x-4">
-                <div className="flex-1">
-                  <textarea
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    placeholder="Ask about server configurations, deployments, or infrastructure..."
-                    className="block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-sm placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500"
-                    rows={3}
-                    disabled={isLoading}
-                  />
+            <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-white via-slate-50 to-white">
+              <div className="max-w-4xl mx-auto">
+                <div className="flex space-x-4">
+                  <div className="flex-1 relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-xl"></div>
+                    <textarea
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      placeholder="Describe your infrastructure needs, deployment challenges, or system requirements..."
+                      className="relative block w-full border-2 border-slate-200 rounded-xl shadow-sm px-4 py-3 text-sm placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200 hover:border-slate-300"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim() || isLoading}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+                  >
+                    <PaperAirplaneIcon className="h-5 w-5" />
+                  </button>
                 </div>
-                <button
-                  onClick={sendMessage}
-                  disabled={!inputMessage.trim() || isLoading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <PaperAirplaneIcon className="h-4 w-4" />
-                </button>
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                  <span>Phoenix AI • Enterprise DevOps Assistant</span>
+                  <span>Press Enter + Shift for new line</span>
+                </div>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <ChatBubbleLeftIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No conversation selected</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Select a conversation from the sidebar or create a new one to get started.
-              </p>
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100">
+            <div className="text-center max-w-4xl mx-auto p-8">
+              <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-3xl p-8 shadow-2xl border border-slate-200">
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
+                  <ChatBubbleLeftIcon className="relative mx-auto h-20 w-20 text-slate-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-4">Phoenix Enterprise AI</h3>
+                <p className="text-slate-600 leading-relaxed mb-8">
+                  Select an existing conversation or create a new session to begin working with your AI DevOps engineer.
+                </p>
+                {/* Animated Workflow */}
+                <div className="overflow-visible py-8">
+                  <div className="flex items-center justify-center space-x-4 sm:space-x-6 lg:space-x-8">
+                    {/* Create Stage */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="relative mb-3">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                          <svg className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                        </div>
+                        <div className="absolute -inset-1 sm:-inset-2 bg-blue-400 rounded-full opacity-20 animate-ping"></div>
+                      </div>
+                      <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 mb-1">Create</h4>
+                      <p className="text-xs sm:text-sm text-slate-600 text-center whitespace-nowrap">Provision</p>
+                    </div>
+
+                    {/* Arrow 1 */}
+                    <div className="flex items-center flex-shrink-0">
+                      <div className="w-6 sm:w-8 lg:w-12 h-0.5 bg-gradient-to-r from-blue-400 to-purple-400 relative">
+                        <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 border-l-2 sm:border-l-3 lg:border-l-4 border-l-purple-400 border-t-1 sm:border-t-1.5 lg:border-t-2 border-t-transparent border-b-1 sm:border-b-1.5 lg:border-b-2 border-b-transparent animate-pulse"></div>
+                      </div>
+                    </div>
+
+                    {/* Manage/Configure Stage */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="relative mb-3">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg animate-pulse" style={{animationDelay: '0.5s'}}>
+                          <svg className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div className="absolute -inset-1 sm:-inset-2 bg-purple-400 rounded-full opacity-20 animate-ping" style={{animationDelay: '0.5s'}}></div>
+                      </div>
+                      <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 mb-1">Manage</h4>
+                      <p className="text-xs sm:text-sm text-slate-600 text-center whitespace-nowrap">Configure</p>
+                    </div>
+
+                    {/* Arrow 2 */}
+                    <div className="flex items-center flex-shrink-0">
+                      <div className="w-6 sm:w-8 lg:w-12 h-0.5 bg-gradient-to-r from-purple-400 to-green-400 relative">
+                        <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 border-l-2 sm:border-l-3 lg:border-l-4 border-l-green-400 border-t-1 sm:border-t-1.5 lg:border-t-2 border-t-transparent border-b-1 sm:border-b-1.5 lg:border-b-2 border-b-transparent animate-pulse" style={{animationDelay: '1s'}}></div>
+                      </div>
+                    </div>
+
+                    {/* Operate Stage */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="relative mb-3">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg animate-pulse" style={{animationDelay: '1s'}}>
+                          <svg className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="absolute -inset-1 sm:-inset-2 bg-green-400 rounded-full opacity-20 animate-ping" style={{animationDelay: '1s'}}></div>
+                      </div>
+                      <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 mb-1">Operate</h4>
+                      <p className="text-xs sm:text-sm text-slate-600 text-center whitespace-nowrap">Monitor</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

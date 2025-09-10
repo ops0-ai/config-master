@@ -92,8 +92,8 @@ const FEATURES: FeatureConfig[] = [
   },
   { 
     key: 'chat', 
-    name: 'AI Chat Assistant', 
-    description: 'Conversational AI for configuration generation',
+    name: 'Phoenix', 
+    description: 'AI DevOps Engineer for infrastructure management',
     icon: ({ className }) => <CogIcon className={className} />,
     category: 'core'
   },

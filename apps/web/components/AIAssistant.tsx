@@ -15,6 +15,7 @@ import {
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
 } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useOrganizationFeatures } from '../contexts/OrganizationFeaturesContext';
@@ -422,11 +423,17 @@ export default function AIAssistant() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`fixed bottom-6 right-6 p-4 rounded-full shadow-lg transition-all transform hover:scale-110 z-50 ${
-            hasNotification ? 'bg-gradient-to-r from-purple-600 to-blue-600 animate-pulse' : 'bg-blue-600'
-          } text-white`}
+          className={`fixed bottom-6 right-6 p-3 rounded-full shadow-lg transition-all transform hover:scale-110 z-50 ${
+            hasNotification ? 'bg-gradient-to-r from-purple-600 to-blue-600 animate-pulse' : 'bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600'
+          }`}
         >
-          <ChatBubbleOvalLeftEllipsisIcon className="h-6 w-6" />
+          <Image
+            src="/images/phoenix.svg"
+            alt="Phoenix AI"
+            width={32}
+            height={32}
+            className="rounded-lg brightness-110 contrast-125"
+          />
           {hasNotification && (
             <span className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full animate-ping"></span>
           )}
@@ -451,8 +458,14 @@ export default function AIAssistant() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
             <div className="flex items-center space-x-2">
-              <SparklesIcon className="h-5 w-5" />
-              <span className="font-semibold">AI Assistant</span>
+              <Image
+                src="/images/phoenix.svg"
+                alt="Phoenix"
+                width={20}
+                height={20}
+                className="rounded"
+              />
+              <span className="font-semibold">Phoenix</span>
               <span className="text-xs opacity-75">• {getContextPage()}</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -526,8 +539,16 @@ export default function AIAssistant() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 && suggestions.length === 0 && (
                   <div className="text-center text-gray-500 mt-8">
-                    <SparklesIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">Hi! I'm your AI assistant.</p>
+                    <div className="flex justify-center mb-3">
+                      <Image
+                        src="/images/phoenix.svg"
+                        alt="Phoenix"
+                        width={48}
+                        height={48}
+                        className="opacity-50"
+                      />
+                    </div>
+                    <p className="text-sm">Hi! I'm Phoenix, your AI DevOps Engineer.</p>
                     <p className="text-xs mt-2">I can help you with:</p>
                     <ul className="text-xs mt-2 space-y-1 text-left max-w-xs mx-auto">
                       <li>• Analyzing configurations for issues</li>

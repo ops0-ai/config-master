@@ -56,10 +56,10 @@ const systemPermissions = [
   // Training permissions
   { resource: 'training', action: 'read', description: 'Access infrastructure training modules' },
   
-  // Chat permissions
-  { resource: 'chat', action: 'read', description: 'View configuration chat' },
-  { resource: 'chat', action: 'write', description: 'Use AI configuration assistant' },
-  { resource: 'chat', action: 'delete', description: 'Delete chat conversations' },
+  // Phoenix AI permissions
+  { resource: 'chat', action: 'read', description: 'View Phoenix AI conversations' },
+  { resource: 'chat', action: 'write', description: 'Use Phoenix AI DevOps assistant' },
+  { resource: 'chat', action: 'delete', description: 'Delete Phoenix AI conversations' },
   
   // Audit log permissions
   { resource: 'audit-logs', action: 'view', description: 'View audit logs' },

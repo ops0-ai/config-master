@@ -45,7 +45,7 @@ interface NavigationItem {
 
 const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/', icon: HomeIcon, feature: null },
-  { name: 'Configuration Chat', href: '/chat', icon: ChatBubbleLeftRightIcon, feature: 'chat' as keyof OrganizationFeatures },
+  { name: 'Phoenix - AI DevOps Engineer', href: '/chat', icon: ChatBubbleLeftRightIcon, feature: 'chat' as keyof OrganizationFeatures },
   { name: 'Servers', href: '/servers', icon: ServerIcon, feature: 'servers' as keyof OrganizationFeatures },
   { name: 'Server Groups', href: '/server-groups', icon: CpuChipIcon, feature: 'serverGroups' as keyof OrganizationFeatures },
   { name: 'Configurations', href: '/configurations', icon: CpuChipIcon, feature: 'configurations' as keyof OrganizationFeatures },
