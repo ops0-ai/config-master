@@ -46,7 +46,7 @@ const RESOURCE_DISPLAY_NAMES: { [key: string]: string } = {
   'configurations': 'Configurations',
   'deployments': 'Deployments',
   'training': 'Training',
-  'chat': 'AI Chat',
+  'chat': 'Phoenix',
   'audit-logs': 'Audit Logs',
   'aws-integrations': 'Integrations',
   'asset': 'Asset Management',
@@ -285,15 +285,15 @@ export default function CreateEditRolePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.push('/settings?tab=roles')}
-                className="flex items-center text-gray-600 hover:text-gray-900"
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeftIcon className="h-5 w-5 mr-2" />
                 Back to Roles
@@ -303,14 +303,31 @@ export default function CreateEditRolePage() {
                 {isEditing ? `Edit Role: ${formData.name || 'Loading...'}` : 'Create New Role'}
               </h1>
             </div>
+            {/* Save Button in Header */}
+            <button
+              onClick={handleSave}
+              disabled={!formData.name.trim() || saving}
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckIcon className="h-5 w-5 mr-2" />
+                  {isEditing ? 'Update Role' : 'Create Role'}
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Basic Info Form */}
-        <div className="bg-white rounded-lg shadow mb-8 p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
+      {/* Fixed Basic Info Form */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -329,54 +346,59 @@ export default function CreateEditRolePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
               </label>
-              <textarea
+              <input
+                type="text"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="form-textarea"
-                rows={3}
+                className="form-input"
                 placeholder="Describe the role's purpose and responsibilities"
               />
             </div>
           </div>
+          
+          {/* Error Alert */}
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-red-700">{error}</div>
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="text-red-700">{error}</div>
-          </div>
-        )}
+      {/* Fixed Tab Navigation */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="-mb-px flex">
+            <button
+              onClick={() => setActiveTab('permissions')}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'permissions'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+              Permissions ({formData.permissions.length} selected)
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'users'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <UsersIcon className="h-5 w-5 inline mr-2" />
+              Users ({formData.assignedUsers.length} assigned)
+            </button>
+          </nav>
+        </div>
+      </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex">
-              <button
-                onClick={() => setActiveTab('permissions')}
-                className={`py-4 px-6 text-sm font-medium border-b-2 ${
-                  activeTab === 'permissions'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
-                Permissions
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`py-4 px-6 text-sm font-medium border-b-2 ${
-                  activeTab === 'users'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <UsersIcon className="h-5 w-5 inline mr-2" />
-                Users ({formData.assignedUsers.length})
-              </button>
-            </nav>
-          </div>
-
-          <div className="p-6">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="h-full overflow-y-auto custom-scrollbar">
             {activeTab === 'permissions' && (
               <div>
                 {/* Permissions Matrix Table */}
@@ -705,56 +727,41 @@ export default function CreateEditRolePage() {
 
             {activeTab === 'users' && (
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Assign Users to Role ({formData.assignedUsers.length} selected)
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {users.map(user => (
-                    <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={formData.assignedUsers.includes(user.id)}
-                        onChange={() => toggleUserAssignment(user.id)}
-                        className="form-checkbox h-4 w-4 text-blue-600"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                      </div>
-                    </label>
-                  ))}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Assign Users to Role</h3>
+                    <span className="text-sm text-gray-600">
+                      {formData.assignedUsers.length} of {users.length} users selected
+                    </span>
+                  </div>
                   
-                  {users.length === 0 && (
-                    <div className="col-span-full text-center text-gray-500 py-8">
-                      No users found
-                    </div>
-                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {users.map(user => (
+                      <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formData.assignedUsers.includes(user.id)}
+                          onChange={() => toggleUserAssignment(user.id)}
+                          className="form-checkbox h-4 w-4 text-blue-600"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
+                      </label>
+                    ))}
+                    
+                    {users.length === 0 && (
+                      <div className="col-span-full text-center text-gray-500 py-12">
+                        <UsersIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <p>No users found</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end mt-8">
-          <button
-            onClick={handleSave}
-            disabled={!formData.name.trim() || saving}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckIcon className="h-5 w-5 mr-2" />
-                {isEditing ? 'Update Role' : 'Create Role'}
-              </>
-            )}
-          </button>
         </div>
       </div>
     </div>

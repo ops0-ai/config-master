@@ -99,15 +99,32 @@ export default function SettingsPage() {
     loadOrganization();
   }, []);
 
+  // Update organization profile when organization context changes
+  useEffect(() => {
+    if (organization?.name && !orgProfile.name) {
+      setOrgProfile(prev => ({
+        ...prev,
+        name: organization.name
+      }));
+    }
+  }, [organization]);
+
   const loadOrganization = async () => {
     try {
       const response = await organizationApi.getCurrent();
       setOrgProfile({
-        name: response.data.name || '',
+        name: response.data.name || organization?.name || '',
         description: response.data.description || '',
       });
     } catch (error) {
       console.error('Failed to load organization:', error);
+      // Fallback to organization context if API fails
+      if (organization?.name) {
+        setOrgProfile(prev => ({
+          ...prev,
+          name: organization.name
+        }));
+      }
     }
   };
 
