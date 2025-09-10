@@ -884,7 +884,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
                    WHERE constraint_name = 'organizations_owner_id_users_id_fk') THEN
         ALTER TABLE organizations ADD CONSTRAINT organizations_owner_id_users_id_fk 
-        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
         RAISE NOTICE '✅ Added organizations_owner_id_users_id_fk constraint';
     ELSE
         RAISE NOTICE '✅ organizations_owner_id_users_id_fk constraint already exists';

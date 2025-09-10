@@ -328,7 +328,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="flex flex-col h-full max-h-screen bg-gray-50 border-r border-gray-300">
-          <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1 min-h-0" style={{maxHeight: 'calc(100vh - 120px)'}}>
+          <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1 min-h-0" style={{maxHeight: 'calc(100vh - 100px)'}}>
             {/* Global Navigation Items */}
             {globalNavigation.filter((item) => {
               if (!item.feature) return true;
