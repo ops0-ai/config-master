@@ -98,6 +98,8 @@ export default function HivePage() {
   const [pendingCommand, setPendingCommand] = useState<any>(null);
   const [showCommandConfirm, setShowCommandConfirm] = useState(false);
   const [agentConfig, setAgentConfig] = useState<any>(null);
+  const [deploymentTab, setDeploymentTab] = useState<'server' | 'kubernetes'>('server');
+  const [kubernetesYaml, setKubernetesYaml] = useState('');
   const [configYaml, setConfigYaml] = useState('');
   const [isDeployingConfig, setIsDeployingConfig] = useState(false);
   const [isRestartingAgent, setIsRestartingAgent] = useState(false);
@@ -240,6 +242,7 @@ export default function HivePage() {
         const data = await response.json();
         setApiKey(data.apiKey);
         generateInstallCommand(data.apiKey, detectedPulseUrl);
+        await generateKubernetesYaml(data.apiKey);
         setShowInstallModal(true);
         setNewAgentName('');
         setNewAgentHostname('');
@@ -260,6 +263,33 @@ export default function HivePage() {
     const apiUrl = customUrl || detectedPulseUrl || window.location.origin.replace(':3000', ':5005');
     const command = `curl -sSL ${apiUrl}/api/hive/install | bash -s -- --api-key=${apiKey} --pulse-url=${apiUrl}`;
     setInstallCommand(command);
+  };
+
+  const generateKubernetesYaml = async (apiKey: string) => {
+    try {
+      const apiUrl = detectedPulseUrl || window.location.origin.replace(':3000', ':5005');
+      const response = await fetch('/api/hive/kubernetes-yaml', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          apiKey,
+          apiUrl
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setKubernetesYaml(data.yaml);
+      } else {
+        toast.error('Failed to generate Kubernetes YAML');
+      }
+    } catch (error) {
+      console.error('Error generating Kubernetes YAML:', error);
+      toast.error('Failed to generate Kubernetes YAML');
+    }
   };
 
   const detectPulseUrl = () => {
@@ -1545,6 +1575,38 @@ Please help me resolve this issue on ${issueAgent.hostname}.`;
                       </div>
                     </div>
 
+                    {/* Deployment Type Tabs */}
+                    <div className="border-b border-gray-200">
+                      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button
+                          onClick={() => setDeploymentTab('server')}
+                          className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                            deploymentTab === 'server'
+                              ? 'border-indigo-600 text-indigo-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <ServerIcon className="h-4 w-4 mr-2" />
+                            Server
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => setDeploymentTab('kubernetes')}
+                          className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                            deploymentTab === 'kubernetes'
+                              ? 'border-indigo-600 text-indigo-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <CubeTransparentIcon className="h-4 w-4 mr-2" />
+                            Kubernetes
+                          </div>
+                        </button>
+                      </nav>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         API Key (keep this secure)
@@ -1565,47 +1627,113 @@ Please help me resolve this issue on ${issueAgent.hostname}.`;
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Installation Command
-                      </label>
-                      <div className="bg-gray-900 rounded-lg p-3">
-                        <code className="text-green-400 text-sm font-mono break-all">
-                          {installCommand}
-                        </code>
-                      </div>
-                      <button
-                        onClick={() => copyToClipboard(installCommand)}
-                        className="mt-2 inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
-                      >
-                        {copied ? (
-                          <>
-                            <CheckIcon className="h-4 w-4 mr-2" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
-                            Copy Command
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-start">
-                        <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm text-blue-800">
-                          <p className="font-medium mb-1">Deployment Steps:</p>
-                          <ol className="list-decimal list-inside space-y-1 text-xs">
-                            <li>Copy the installation command above</li>
-                            <li>SSH into your target server with root access</li>
-                            <li>Paste and execute the command</li>
-                            <li>Agent will auto-register and appear in dashboard</li>
-                          </ol>
+                    {deploymentTab === 'server' ? (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Installation Command
+                          </label>
+                          <div className="bg-gray-900 rounded-lg p-3">
+                            <code className="text-green-400 text-sm font-mono break-all">
+                              {installCommand}
+                            </code>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(installCommand)}
+                            className="mt-2 inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
+                          >
+                            {copied ? (
+                              <>
+                                <CheckIcon className="h-4 w-4 mr-2" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
+                                Copy Command
+                              </>
+                            )}
+                          </button>
                         </div>
-                      </div>
-                    </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-start">
+                            <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                            <div className="text-sm text-blue-800">
+                              <p className="font-medium mb-1">Deployment Steps:</p>
+                              <ol className="list-decimal list-inside space-y-1 text-xs">
+                                <li>Copy the installation command above</li>
+                                <li>SSH into your target server with root access</li>
+                                <li>Paste and execute the command</li>
+                                <li>Agent will auto-register and appear in dashboard</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Kubernetes Deployment YAML
+                          </label>
+                          <div className="bg-gray-900 rounded-lg p-3 max-h-96 overflow-y-auto">
+                            <pre className="text-green-400 text-xs font-mono">
+                              {kubernetesYaml || 'Generating YAML...'}
+                            </pre>
+                          </div>
+                          <div className="mt-2 flex space-x-2">
+                            <button
+                              onClick={() => copyToClipboard(kubernetesYaml)}
+                              className="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
+                            >
+                              {copied ? (
+                                <>
+                                  <CheckIcon className="h-4 w-4 mr-2" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
+                                  Copy YAML
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                const blob = new Blob([kubernetesYaml], { type: 'text/yaml' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'pulse-hive-agent.yaml';
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700"
+                            >
+                              <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                              Download YAML
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-start">
+                            <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                            <div className="text-sm text-blue-800">
+                              <p className="font-medium mb-1">Kubernetes Deployment Steps:</p>
+                              <ol className="list-decimal list-inside space-y-1 text-xs">
+                                <li>Save the YAML file as pulse-hive-agent.yaml</li>
+                                <li>Ensure kubectl is configured for your cluster</li>
+                                <li>Run: <code className="bg-blue-100 px-1 rounded">kubectl apply -f pulse-hive-agent.yaml</code></li>
+                                <li>Agents will deploy as DaemonSet across all nodes</li>
+                                <li>Check status: <code className="bg-blue-100 px-1 rounded">kubectl get pods -n pulse-hive</code></li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
