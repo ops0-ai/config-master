@@ -34,6 +34,7 @@ import systemSettingsRoutes from './routes/systemSettings';
 import ssoRoutes from './routes/sso';
 import ssoAuthRoutes from './routes/ssoAuth';
 import hiveRoutes, { hivePublicRoutes } from './routes/hive';
+import iacRoutes from './routes/iac';
 import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
@@ -131,6 +132,7 @@ app.use('/api/sso', ssoRoutes); // SSO provider management (super admin)
 app.use('/api/sso', ssoAuthRoutes); // SSO authentication flow (public)
 app.use('/api/hive', hivePublicRoutes); // Public hive endpoints (install, download)
 app.use('/api/hive', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, hiveRoutes);
+app.use('/api/iac', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, iacRoutes);
 app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
 app.use('/api/mdm', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, mdmRoutes);
 

@@ -230,6 +230,34 @@ export const aiAssistantSessions = pgTable('ai_assistant_sessions', {
   metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
 });
 
+// IAC Conversations and Messages
+export const iacConversations = pgTable('iac_conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 255 }),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const iacMessages = pgTable('iac_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').references(() => iacConversations.id).notNull(),
+  role: varchar('role', { length: 20 }).notNull(), // user, assistant, system
+  content: text('content').notNull(),
+  generatedTerraform: text('generated_terraform'), // Generated terraform code
+  prNumber: integer('pr_number'), // GitHub PR number if created
+  prUrl: varchar('pr_url', { length: 500 }), // GitHub PR URL
+  prStatus: varchar('pr_status', { length: 50 }), // open, merged, closed, draft
+  deploymentStatus: varchar('deployment_status', { length: 50 }), // pending, init, validated, planned, deployed, failed
+  terraformPlan: text('terraform_plan'), // Terraform plan output
+  terraformState: text('terraform_state'), // Terraform state information
+  awsRegion: varchar('aws_region', { length: 50 }), // AWS region for deployment
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const aiAssistantMessages = pgTable('ai_assistant_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
   sessionId: uuid('session_id').references(() => aiAssistantSessions.id).notNull(),

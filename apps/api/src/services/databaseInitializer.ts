@@ -36,6 +36,9 @@ export async function initializeDatabase(): Promise<void> {
     // Always ensure AI assistant tables exist
     await ensureAIAssistantTables(client);
     
+    // Always ensure IAC tables exist
+    await ensureIACTables(client);
+    
     console.log('✅ Database schema initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
@@ -551,6 +554,106 @@ async function ensureAIAssistantTables(client: postgres.Sql): Promise<void> {
     console.log('✅ AI assistant tables ensured successfully');
   } catch (error) {
     console.error('❌ Error ensuring AI assistant tables:', error);
+    // Don't throw error, just log it
+  }
+}
+
+async function ensureIACTables(client: postgres.Sql): Promise<void> {
+  try {
+    console.log('🔧 Ensuring IAC tables exist...');
+    
+    // Create iac_conversations table
+    await client`
+      CREATE TABLE IF NOT EXISTS iac_conversations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        title VARCHAR(255),
+        user_id UUID NOT NULL,
+        organization_id UUID NOT NULL,
+        is_active BOOLEAN DEFAULT true NOT NULL,
+        created_at TIMESTAMP DEFAULT now() NOT NULL,
+        updated_at TIMESTAMP DEFAULT now() NOT NULL
+      )
+    `;
+    
+    // Create iac_messages table
+    await client`
+      CREATE TABLE IF NOT EXISTS iac_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        conversation_id UUID NOT NULL,
+        role VARCHAR(20) NOT NULL,
+        content TEXT NOT NULL,
+        generated_terraform TEXT,
+        pr_number INTEGER,
+        pr_url VARCHAR(500),
+        pr_status VARCHAR(50),
+        deployment_status VARCHAR(50),
+        terraform_plan TEXT,
+        terraform_state TEXT,
+        aws_region VARCHAR(50),
+        created_at TIMESTAMP DEFAULT now() NOT NULL,
+        updated_at TIMESTAMP DEFAULT now() NOT NULL
+      )
+    `;
+    
+    // Add foreign key constraints if they don't exist
+    try {
+      await client`
+        ALTER TABLE iac_conversations 
+        ADD CONSTRAINT iac_conversations_user_id_users_id_fk 
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE no action ON UPDATE no action
+      `;
+    } catch (error) {
+      // Constraint might already exist, ignore error
+    }
+    
+    try {
+      await client`
+        ALTER TABLE iac_conversations 
+        ADD CONSTRAINT iac_conversations_organization_id_organizations_id_fk 
+        FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE no action ON UPDATE no action
+      `;
+    } catch (error) {
+      // Constraint might already exist, ignore error
+    }
+    
+    try {
+      await client`
+        ALTER TABLE iac_messages 
+        ADD CONSTRAINT iac_messages_conversation_id_iac_conversations_id_fk 
+        FOREIGN KEY (conversation_id) REFERENCES iac_conversations(id) ON DELETE no action ON UPDATE no action
+      `;
+    } catch (error) {
+      // Constraint might already exist, ignore error
+    }
+    
+    // Add indexes for performance
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_iac_conversations_user_id ON iac_conversations (user_id)
+    `;
+    
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_iac_conversations_organization_id ON iac_conversations (organization_id)
+    `;
+    
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_iac_conversations_is_active ON iac_conversations (is_active)
+    `;
+    
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_iac_messages_conversation_id ON iac_messages (conversation_id)
+    `;
+    
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_iac_messages_role ON iac_messages (role)
+    `;
+    
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_iac_messages_created_at ON iac_messages (created_at)
+    `;
+    
+    console.log('✅ IAC tables ensured successfully');
+  } catch (error) {
+    console.error('❌ Error ensuring IAC tables:', error);
     // Don't throw error, just log it
   }
 }

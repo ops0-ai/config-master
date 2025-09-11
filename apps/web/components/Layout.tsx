@@ -66,7 +66,7 @@ const navigationGroups: NavigationGroup[] = [
   {
     name: 'Create',
     items: [
-      { name: 'IaC', href: '/iac', icon: CodeBracketIcon, feature: null, comingSoon: true },
+      { name: 'IaC', href: '/iac', icon: CodeBracketIcon, feature: null },
       { name: 'Discovery', href: '/discovery', icon: MagnifyingGlassCircleIcon, feature: null, comingSoon: true },
     ]
   },
