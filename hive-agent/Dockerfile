@@ -16,10 +16,10 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags "-s -w -X main.version=1.0.0 -X main.buildTime=$(date -u +%Y%m%d.%H%M%S)" \
-    -o pulse-hive-agent .
+# Use the correct pre-built binary based on target architecture
+ARG TARGETARCH
+RUN echo "Building for architecture: ${TARGETARCH}" && ls -la hive-agent-linux-*
+COPY hive-agent-linux-${TARGETARCH} pulse-hive-agent
 
 # Runtime stage
 FROM alpine:3.18
@@ -57,6 +57,5 @@ EXPOSE 8081
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
 
-# Default command
+# Default command - let it use default config path
 ENTRYPOINT ["/usr/local/bin/pulse-hive-agent"]
-CMD ["-config", "/etc/pulse-hive/config.yaml"]

@@ -309,14 +309,46 @@ router.get('/callback', async (req, res): Promise<any> => {
       if (isB2CDomain) {
         // B2C flow - create a new organization for each user
         const userDisplayName = userName || email.split('@')[0];
-        const tempOwnerId = crypto.randomUUID();
+        
+        // First create a temporary user to satisfy the foreign key constraint
+        const tempUserId = crypto.randomUUID();
+        const tempUser = await db.insert(users).values({
+          id: tempUserId,
+          email: email,
+          name: userName,
+          passwordHash: 'temp',
+          role: 'administrator',
+          organizationId: null, // Will be updated after org creation
+          isActive: true,
+          hasCompletedOnboarding: false,
+          authMethod: 'sso' as const,
+          ssoProviderId: providerId,
+          externalUserId: externalUserId,
+          lastSsoLoginAt: new Date(),
+        }).returning();
+
+        // Now create the organization with the real user as owner
         const [newOrg] = await db.insert(organizations).values({
           name: `${userDisplayName}'s Organization`,
-          ownerId: tempOwnerId, // Will be updated after user creation
+          ownerId: tempUserId,
           isActive: true,
         }).returning();
 
         organizationId = newOrg.id;
+        
+        // Update the user with the correct organization ID and password
+        const randomPassword = crypto.randomBytes(32).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        
+        await db.update(users)
+          .set({ 
+            organizationId: newOrg.id,
+            passwordHash: hashedPassword
+          })
+          .where(eq(users.id, tempUserId));
+        
+        // Set user variable for later use
+        user = { ...tempUser[0], organizationId: newOrg.id, passwordHash: hashedPassword };
         
         // User becomes admin of their own organization
         userRole = 'administrator';
@@ -346,6 +378,26 @@ router.get('/callback', async (req, res): Promise<any> => {
             // First user in org becomes admin
             userRole = provider.firstUserRole || 'administrator';
           }
+          
+          // Create user for existing organization
+          const randomPassword = crypto.randomBytes(32).toString('hex');
+          const hashedPassword = await bcrypt.hash(randomPassword, 10);
+          
+          const [newUser] = await db.insert(users).values({
+            email: email,
+            name: userName,
+            passwordHash: hashedPassword,
+            role: userRole,
+            organizationId: organizationId,
+            isActive: true,
+            hasCompletedOnboarding: false,
+            authMethod: 'sso' as const,
+            ssoProviderId: providerId,
+            externalUserId: externalUserId,
+            lastSsoLoginAt: new Date(),
+          }).returning();
+          
+          user = newUser;
         } else {
           // Check for default mapping
           const [defaultMapping] = await db
@@ -359,16 +411,65 @@ router.get('/callback', async (req, res): Promise<any> => {
 
           if (defaultMapping) {
             organizationId = defaultMapping.organizationId;
+            
+            // Create user for default organization
+            const randomPassword = crypto.randomBytes(32).toString('hex');
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+            
+            const [newUser] = await db.insert(users).values({
+              email: email,
+              name: userName,
+              passwordHash: hashedPassword,
+              role: userRole,
+              organizationId: organizationId,
+              isActive: true,
+              hasCompletedOnboarding: false,
+              authMethod: 'sso' as const,
+              ssoProviderId: providerId,
+              externalUserId: externalUserId,
+              lastSsoLoginAt: new Date(),
+            }).returning();
+            
+            user = newUser;
           } else {
             // Create new organization for this business domain  
-            const tempOwnerId = crypto.randomUUID();
+            
+            // First create a temporary user to satisfy the foreign key constraint
+            const tempUserId = crypto.randomUUID();
+            const randomPassword = crypto.randomBytes(32).toString('hex');
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+            
+            const tempUser = await db.insert(users).values({
+              id: tempUserId,
+              email: email,
+              name: userName,
+              passwordHash: hashedPassword,
+              role: provider.firstUserRole || 'administrator',
+              organizationId: null, // Will be updated after org creation
+              isActive: true,
+              hasCompletedOnboarding: false,
+              authMethod: 'sso' as const,
+              ssoProviderId: providerId,
+              externalUserId: externalUserId,
+              lastSsoLoginAt: new Date(),
+            }).returning();
+
+            // Now create the organization with the real user as owner
             const [newOrg] = await db.insert(organizations).values({
               name: emailDomain,
-              ownerId: tempOwnerId, // Will be updated after user creation
+              ownerId: tempUserId,
               isActive: true,
             }).returning();
 
             organizationId = newOrg.id;
+            
+            // Update the user with the correct organization ID
+            await db.update(users)
+              .set({ organizationId: newOrg.id })
+              .where(eq(users.id, tempUserId));
+            
+            // Set user variable for later use
+            user = { ...tempUser[0], organizationId: newOrg.id };
             
             // First user becomes admin
             userRole = provider.firstUserRole || 'administrator';
@@ -395,26 +496,7 @@ router.get('/callback', async (req, res): Promise<any> => {
         }
       }
 
-      // Create user
-      const randomPassword = crypto.randomBytes(32).toString('hex');
-      const hashedPassword = await bcrypt.hash(randomPassword, 10);
-
-      const newUserData = {
-        email: email,
-        name: userName,
-        passwordHash: hashedPassword,
-        role: userRole,
-        organizationId: organizationId,
-        isActive: true,
-        hasCompletedOnboarding: false,
-        authMethod: 'sso' as const,
-        ssoProviderId: providerId,
-        externalUserId: externalUserId,
-        lastSsoLoginAt: new Date(),
-      };
-      const [newUser] = await db.insert(users).values(newUserData).returning();
-
-      user = newUser; // Assign to existing variable for consistency
+      // User already created in B2C or B2B flow above
 
       // Create SSO mapping
       await db.insert(userSsoMappings).values({
@@ -477,6 +559,44 @@ router.get('/callback', async (req, res): Promise<any> => {
           roleId: orgRole.id,
           assignedBy: user.id,
         });
+      }
+
+      // Send webhook notification for new SSO user signup
+      console.log(`🔔 Attempting to send SSO webhook notification for user: ${email}`);
+      try {
+        const { userSignupWebhookService } = await import('../services/userSignupWebhook');
+        
+        // Extract company info from email
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        const commonProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com', 'mail.com', 'ymail.com', 'live.com', 'msn.com', 'rediffmail.com', 'zoho.com'];
+        
+        let company = null;
+        if (emailDomain && !commonProviders.includes(emailDomain)) {
+          company = emailDomain.split('.')[0].split(/[-_]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+        }
+
+        // Get organization details
+        const [organization] = await db
+          .select()
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .limit(1);
+        
+        await userSignupWebhookService.notifyUserSignup({
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          organizationId: organizationId,
+          organizationName: organization?.name || 'Unknown Organization',
+          company,
+          domain: emailDomain,
+          isFirstTimeSignup: true,
+          signupDate: new Date().toISOString()
+        });
+        console.log(`✅ SSO webhook notification sent successfully for user: ${email}`);
+      } catch (error) {
+        console.error('Warning: Failed to send SSO user signup webhook:', error);
+        // Don't fail signup if webhook fails
       }
 
       console.log(`✅ Auto-provisioned SSO user ${email} in organization ${organizationId} with role ${userRole}`);

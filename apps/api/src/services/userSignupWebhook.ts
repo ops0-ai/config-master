@@ -101,6 +101,7 @@ export class UserSignupWebhookService {
    * Get system webhook settings and send notification if enabled
    */
   async notifyUserSignup(userData: UserSignupWebhookData): Promise<void> {
+    console.log(`🔔 UserSignupWebhookService: Starting notification for ${userData.userEmail}`);
     try {
       // Import here to avoid circular dependencies
       const { db } = await import('../index');
@@ -124,8 +125,14 @@ export class UserSignupWebhookService {
       const webhookUrl = webhookUrlSetting[0]?.value;
       const notificationsEnabled = notificationsSetting[0]?.value === true;
 
+      console.log(`🔔 UserSignupWebhookService: webhookUrl=${webhookUrl}, notificationsEnabled=${notificationsEnabled}`);
+
       if (webhookUrl && notificationsEnabled) {
+        console.log(`🔔 UserSignupWebhookService: Sending webhook to ${webhookUrl}`);
         await this.sendUserSignupWebhook(webhookUrl, userData);
+        console.log(`✅ UserSignupWebhookService: Webhook sent successfully`);
+      } else {
+        console.log(`⚠️ UserSignupWebhookService: Webhook not sent - URL missing or notifications disabled`);
       }
     } catch (error) {
       console.error('Error checking webhook settings:', error);

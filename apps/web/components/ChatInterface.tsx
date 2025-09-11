@@ -747,7 +747,7 @@ export default function ChatInterface() {
       {/* Conversations Sidebar */}
       <div className="w-80 bg-white border-r border-slate-200 shadow-xl flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+        <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">Phoenix Sessions</h2>
@@ -894,7 +894,7 @@ export default function ChatInterface() {
         {activeConversation ? (
           <>
             {/* Chat Header */}
-            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-lg">
+            <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-lg">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
                   <img
@@ -918,7 +918,7 @@ export default function ChatInterface() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-slate-50 to-white" style={{maxHeight: 'calc(100vh - 180px)'}}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-gradient-to-b from-slate-50 to-white" style={{maxHeight: 'calc(100vh - 160px)'}}>
               {currentMessages.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="bg-gradient-to-br from-slate-100 via-white to-slate-100 rounded-3xl p-12 mx-auto max-w-md shadow-xl border border-slate-200">

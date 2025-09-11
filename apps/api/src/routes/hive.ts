@@ -3113,4 +3113,373 @@ router.get('/agents/:id/commands/:commandId', authMiddleware, requirePermission(
   }
 });
 
+// Generate Kubernetes deployment YAML for agents
+router.post('/kubernetes-yaml', authMiddleware, requirePermission('hive', 'create'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { apiKey, apiUrl } = req.body;
+    
+    if (!apiKey || !apiUrl) {
+      return res.status(400).json({ error: 'API key and URL required' });
+    }
+
+    // Get organization deployment key
+    const organizationId = req.user?.organizationId;
+    const org = await db.select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId!))
+      .limit(1);
+    
+    if (!org.length || !org[0].hiveDeploymentKey) {
+      return res.status(400).json({ error: 'Organization deployment key not found' });
+    }
+
+    const deploymentKey = org[0].hiveDeploymentKey;
+
+    // Generate Kubernetes YAML with organization-specific configuration
+    const yaml = `---
+# Pulse Hive Agent - Kubernetes Deployment
+# Namespace for Pulse Hive agents
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pulse-hive
+  labels:
+    app: pulse-hive
+    managed-by: pulse
+
+---
+# Service Account for agents
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pulse-hive-agent
+  namespace: pulse-hive
+  labels:
+    app: pulse-hive-agent
+
+---
+# ClusterRole with necessary permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pulse-hive-agent
+  labels:
+    app: pulse-hive-agent
+rules:
+- apiGroups: [""]
+  resources: 
+  - nodes
+  - nodes/proxy
+  - nodes/metrics
+  - services
+  - endpoints
+  - pods
+  - pods/log
+  - events
+  - namespaces
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources:
+  - cronjobs
+  - jobs
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources:
+  - pods
+  - nodes
+  verbs: ["get", "list"]
+- apiGroups: ["events.k8s.io"]
+  resources:
+  - events
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pulse-hive-agent
+  labels:
+    app: pulse-hive-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pulse-hive-agent
+subjects:
+- kind: ServiceAccount
+  name: pulse-hive-agent
+  namespace: pulse-hive
+
+---
+# ConfigMap for agent configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pulse-hive-agent-config
+  namespace: pulse-hive
+  labels:
+    app: pulse-hive-agent
+data:
+  config.yaml: |
+    agent:
+      name: "k8s-node-{{ .NodeName }}"
+      hostname: "{{ .NodeName }}"
+      buffer_size: 10000
+      batch_size: 100
+      flush_interval: 10s
+      compress_data: true
+      enable_self_monitoring: true
+      enable_profiling: false
+      profiling_port: 6060
+      tags:
+        environment: "kubernetes"
+        cluster: "{{ .ClusterName }}"
+        
+    server:
+      url: "${apiUrl}"
+      api_key: "${apiKey}"
+      deployment_key: "${deploymentKey}"
+      heartbeat_interval: 30s
+      connection_timeout: 30s
+      max_retries: 3
+      retry_delay: 5s
+      
+    collectors:
+      logs:
+        enabled: true
+        scan_frequency: 10s
+        rotate_wait: 5s
+        max_file_size: 100000000
+        paths:
+          - path: "/var/log/containers/*.log"
+            parser: "json"
+            tags:
+              source: "kubernetes"
+              type: "container"
+            recursive: true
+            max_depth: 2
+          - path: "/var/log/pods/**/*.log"
+            parser: "json"
+            tags:
+              source: "kubernetes"
+              type: "pod"
+            recursive: true
+            max_depth: 3
+        patterns:
+          - name: "k8s_error_detection"
+            pattern: "(?i)(error|exception|fatal|panic|fail)"
+            severity: "error"
+            category: "kubernetes"
+            description: "Kubernetes error pattern"
+        
+      metrics:
+        enabled: true
+        collect_interval: 30s
+        collect_node_metrics: true
+        collect_pod_metrics: true
+        collect_container_metrics: true
+        
+      events:
+        enabled: true
+        watch_namespaces: ["*"]
+        
+      traces:
+        enabled: false
+        
+    outputs:
+      - name: "pulse-platform"
+        type: "http"
+        enabled: true
+        endpoint: "${apiUrl}/api/hive/telemetry"
+        batch_size: 100
+        flush_interval: 10s
+        compression: "gzip"
+        auth:
+          type: "bearer"
+          token: "${apiKey}"
+        retry:
+          max_attempts: 3
+          backoff: "exponential"
+          
+    healthcheck:
+      enabled: true
+      port: 8081
+      path: "/health"
+      
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"
+
+---
+# DaemonSet for deploying agents on every node
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: pulse-hive-agent
+  namespace: pulse-hive
+  labels:
+    app: pulse-hive-agent
+    version: "1.0.0"
+spec:
+  selector:
+    matchLabels:
+      app: pulse-hive-agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: pulse-hive-agent
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: pulse-hive-agent
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: pulse-hive-agent
+        image: public.ecr.aws/l8i8q3c1/ops0/hive-agent:latest
+        imagePullPolicy: Always
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CLUSTER_NAME
+          value: "kubernetes-cluster"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/pulse-hive
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibcontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: varlibpods
+          mountPath: /var/log/pods
+          readOnly: true
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: agent-storage
+          mountPath: /var/lib/pulse-hive
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - SYS_RESOURCE
+            - SYS_TIME
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: pulse-hive-agent-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: varlibcontainers
+        hostPath:
+          path: /var/lib/docker/containers
+          type: DirectoryOrCreate
+      - name: varlibpods
+        hostPath:
+          path: /var/log/pods
+          type: DirectoryOrCreate
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+          type: File
+      - name: agent-storage
+        emptyDir: {}
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      priorityClassName: system-node-critical
+
+---
+# Optional: Service for exposing metrics (if using Prometheus)
+apiVersion: v1
+kind: Service
+metadata:
+  name: pulse-hive-agent-metrics
+  namespace: pulse-hive
+  labels:
+    app: pulse-hive-agent
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: pulse-hive-agent
+  ports:
+  - name: metrics
+    port: 8081
+    targetPort: 8081
+    protocol: TCP`;
+
+    return res.json({ 
+      success: true, 
+      yaml 
+    });
+  } catch (error) {
+    console.error('Error generating Kubernetes YAML:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
