@@ -38,7 +38,56 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "🚀 Starting services..."
+echo "🚀 Starting database service first..."
+$COMPOSE_CMD up -d database
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to start database. Please check the logs above."
+    exit 1
+fi
+
+echo "⏳ Waiting for database to be ready..."
+sleep 15
+
+# Ensure database exists and apply schema
+echo "🗄️ Setting up database and schema..."
+WAIT_FOR_DB=0
+MAX_DB_WAIT=30
+while [ $WAIT_FOR_DB -lt $MAX_DB_WAIT ]; do
+    if $COMPOSE_CMD exec -T database psql -U postgres -c "SELECT 1;" >/dev/null 2>&1; then
+        echo "✅ PostgreSQL is ready"
+        
+        # Create database if it doesn't exist
+        $COMPOSE_CMD exec -T database psql -U postgres -c "CREATE DATABASE config_management;" 2>/dev/null || echo "⚠️ Database already exists"
+        
+        # Apply base schema first (all migration files combined)
+        echo "📦 Applying base database schema..."
+        if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < base-schema.sql 2>/dev/null; then
+            echo "✅ Base schema applied successfully"
+        else
+            echo "⚠️ Base schema partially applied or already exists"
+        fi
+        
+        # Then apply comprehensive upgrade to ensure all features are enabled
+        echo "📦 Applying feature upgrades and fixes..."
+        if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < comprehensive-upgrade.sql 2>/dev/null; then
+            echo "✅ Feature upgrades applied successfully"
+        else
+            echo "⚠️ Some upgrades may have been already applied"
+        fi
+        break
+    fi
+    echo -n "."
+    sleep 2
+    WAIT_FOR_DB=$((WAIT_FOR_DB + 2))
+done
+
+if [ $WAIT_FOR_DB -ge $MAX_DB_WAIT ]; then
+    echo "❌ Database not ready in time"
+    exit 1
+fi
+
+echo "🚀 Starting remaining services..."
 $COMPOSE_CMD up -d
 
 if [ $? -ne 0 ]; then
@@ -47,7 +96,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "⏳ Waiting for services to initialize..."
-sleep 45
+sleep 30
 
 # Wait for API to be fully ready with migrations
 echo "🔧 Waiting for database migrations and platform initialization..."
@@ -75,29 +124,7 @@ if [ $WAIT_TIME -ge $MAX_WAIT ]; then
     exit 1
 fi
 
-# Apply comprehensive schema during installation to ensure all tables exist
-echo "🗄️ Ensuring complete database schema (including AI assistant tables)..."
-WAIT_FOR_SCHEMA=0
-MAX_SCHEMA_WAIT=60
-while [ $WAIT_FOR_SCHEMA -lt $MAX_SCHEMA_WAIT ]; do
-    if $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "SELECT 1;" >/dev/null 2>&1; then
-        echo "✅ Database is accessible, applying comprehensive schema..."
-        if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < comprehensive-upgrade.sql; then
-            echo "✅ Comprehensive database schema applied successfully"
-            break
-        else
-            echo "⚠️ Schema application failed, but continuing (API migrations will handle this)"
-            break
-        fi
-    fi
-    echo -n "."
-    sleep 3
-    WAIT_FOR_SCHEMA=$((WAIT_FOR_SCHEMA + 3))
-done
-
-if [ $WAIT_FOR_SCHEMA -ge $MAX_SCHEMA_WAIT ]; then
-    echo "⚠️ Could not apply comprehensive schema, relying on API migrations"
-fi
+# Schema already applied before starting services, skipping duplicate application
 
 # Check if services are healthy
 echo "🔍 Verifying service health..."

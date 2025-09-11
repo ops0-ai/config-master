@@ -382,6 +382,16 @@ async function ensureCriticalColumns(client: postgres.Sql): Promise<void> {
       table: 'users',
       column: 'last_sso_login_at',
       sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_sso_login_at timestamp;`
+    },
+    {
+      table: 'organizations', 
+      column: 'hive_deployment_key',
+      sql: `ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hive_deployment_key varchar(64);`
+    },
+    {
+      table: 'hive_agents',
+      column: 'pulse_url',
+      sql: `ALTER TABLE hive_agents ADD COLUMN IF NOT EXISTS pulse_url varchar(512);`
     }
   ];
 
