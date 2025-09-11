@@ -84,6 +84,13 @@ const navigationGroups: NavigationGroup[] = [
     items: [
       { name: 'Hive Monitoring', href: '/hive', icon: EyeIcon, feature: 'hive' as keyof OrganizationFeatures, beta: true },
     ]
+  },
+  {
+    name: 'Resources',
+    items: [
+      { name: 'Servers', href: '/servers', icon: ServerIcon, feature: 'servers' as keyof OrganizationFeatures },
+      { name: 'Server Groups', href: '/server-groups', icon: BuildingOfficeIcon, feature: 'serverGroups' as keyof OrganizationFeatures },
+    ]
   }
 ];
 
