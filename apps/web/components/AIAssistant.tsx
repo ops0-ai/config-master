@@ -538,8 +538,8 @@ export default function AIAssistant() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 && suggestions.length === 0 && (
-                  <div className="text-center text-gray-500 mt-8">
-                    <div className="flex justify-center mb-3">
+                  <div className="text-center text-gray-500 mt-4">
+                    <div className="flex justify-center mb-4">
                       <Image
                         src="/images/phoenix.svg"
                         alt="Phoenix"
@@ -548,15 +548,94 @@ export default function AIAssistant() {
                         className="opacity-50"
                       />
                     </div>
-                    <p className="text-sm">Hi! I'm Phoenix, your AI DevOps Engineer.</p>
-                    <p className="text-xs mt-2">I can help you with:</p>
-                    <ul className="text-xs mt-2 space-y-1 text-left max-w-xs mx-auto">
-                      <li>• Analyzing configurations for issues</li>
-                      <li>• Creating new deployments</li>
-                      <li>• Troubleshooting server problems</li>
-                      <li>• Detecting configuration drift</li>
-                      <li>• Suggesting optimizations</li>
-                    </ul>
+                    {/* Animated Workflow - Responsive to popup size */}
+                    <div className={`overflow-visible ${isMaximized ? 'py-8' : 'py-4'}`}>
+                      <div className={`flex items-center justify-center ${isMaximized ? 'space-x-8' : 'space-x-4'}`}>
+                        {/* Create Stage */}
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <div className="relative mb-2">
+                            <div className={`${isMaximized ? 'w-12 h-12' : 'w-8 h-8'} bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg animate-pulse`}>
+                              <svg className={`${isMaximized ? 'w-6 h-6' : 'w-4 h-4'} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </div>
+                            <div className={`absolute ${isMaximized ? '-inset-1' : '-inset-0.5'} bg-blue-400 rounded-full opacity-20 animate-ping`}></div>
+                          </div>
+                          <h4 className={`${isMaximized ? 'text-sm' : 'text-xs'} font-semibold text-slate-900 mb-0.5`}>Create</h4>
+                          <p className={`${isMaximized ? 'text-xs' : 'text-[10px]'} text-slate-600 text-center whitespace-nowrap`}>Provision</p>
+                        </div>
+
+                        {/* Arrow 1 */}
+                        <div className="flex items-center flex-shrink-0">
+                          <div className={`${isMaximized ? 'w-8' : 'w-4'} h-0.5 bg-gradient-to-r from-blue-400 to-purple-400 relative`}>
+                            <div className={`absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 ${isMaximized ? 'border-l-2' : 'border-l-1'} border-l-purple-400 border-t-1 border-t-transparent border-b-1 border-b-transparent animate-pulse`}></div>
+                          </div>
+                        </div>
+
+                        {/* Manage/Configure Stage */}
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <div className="relative mb-2">
+                            <div className={`${isMaximized ? 'w-12 h-12' : 'w-8 h-8'} bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg animate-pulse`} style={{animationDelay: '0.5s'}}>
+                              <svg className={`${isMaximized ? 'w-6 h-6' : 'w-4 h-4'} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </div>
+                            <div className={`absolute ${isMaximized ? '-inset-1' : '-inset-0.5'} bg-purple-400 rounded-full opacity-20 animate-ping`} style={{animationDelay: '0.5s'}}></div>
+                          </div>
+                          <h4 className={`${isMaximized ? 'text-sm' : 'text-xs'} font-semibold text-slate-900 mb-0.5`}>Manage</h4>
+                          <p className={`${isMaximized ? 'text-xs' : 'text-[10px]'} text-slate-600 text-center whitespace-nowrap`}>Configure</p>
+                        </div>
+
+                        {/* Arrow 2 */}
+                        <div className="flex items-center flex-shrink-0">
+                          <div className={`${isMaximized ? 'w-8' : 'w-4'} h-0.5 bg-gradient-to-r from-purple-400 to-green-400 relative`}>
+                            <div className={`absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 ${isMaximized ? 'border-l-2' : 'border-l-1'} border-l-green-400 border-t-1 border-t-transparent border-b-1 border-b-transparent animate-pulse`} style={{animationDelay: '1s'}}></div>
+                          </div>
+                        </div>
+
+                        {/* Operate Stage */}
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <div className="relative mb-2">
+                            <div className={`${isMaximized ? 'w-12 h-12' : 'w-8 h-8'} bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg animate-pulse`} style={{animationDelay: '1s'}}>
+                              <svg className={`${isMaximized ? 'w-6 h-6' : 'w-4 h-4'} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                            <div className={`absolute ${isMaximized ? '-inset-1' : '-inset-0.5'} bg-green-400 rounded-full opacity-20 animate-ping`} style={{animationDelay: '1s'}}></div>
+                          </div>
+                          <h4 className={`${isMaximized ? 'text-sm' : 'text-xs'} font-semibold text-slate-900 mb-0.5`}>Operate</h4>
+                          <p className={`${isMaximized ? 'text-xs' : 'text-[10px]'} text-slate-600 text-center whitespace-nowrap`}>Monitor</p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Welcome Text */}
+                    <div className={`mt-${isMaximized ? '8' : '4'} text-center`}>
+                      <h3 className={`${isMaximized ? 'text-2xl' : 'text-sm'} font-bold text-slate-900 mb-${isMaximized ? '4' : '3'}`}>
+                        Phoenix AI DevOps Engineer
+                      </h3>
+                      <p className={`${isMaximized ? 'text-base' : 'text-xs'} text-slate-700 leading-relaxed max-w-${isMaximized ? '2xl' : 'xs'} mx-auto mb-${isMaximized ? '5' : '3'}`}>
+                        Your enterprise-grade autonomous infrastructure assistant delivering continuous operations excellence.
+                      </p>
+                      <div className={`${isMaximized ? 'text-sm' : 'text-[10px]'} text-slate-600 space-y-${isMaximized ? '2' : '1'}`}>
+                        <div className={`flex items-center justify-center ${isMaximized ? 'space-x-8' : 'space-x-4'}`}>
+                          <span className="flex items-center">
+                            <div className={`${isMaximized ? 'w-2 h-2' : 'w-1.5 h-1.5'} bg-blue-500 rounded-full mr-${isMaximized ? '2' : '1.5'}`}></div>
+                            Intelligent Provisioning
+                          </span>
+                          <span className="flex items-center">
+                            <div className={`${isMaximized ? 'w-2 h-2' : 'w-1.5 h-1.5'} bg-purple-500 rounded-full mr-${isMaximized ? '2' : '1.5'}`}></div>
+                            Autonomous Management
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <span className="flex items-center">
+                            <div className={`${isMaximized ? 'w-2 h-2' : 'w-1.5 h-1.5'} bg-green-500 rounded-full mr-${isMaximized ? '2' : '1.5'}`}></div>
+                            24×7 Infrastructure Guardian
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
