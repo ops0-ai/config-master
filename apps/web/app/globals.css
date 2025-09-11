@@ -229,3 +229,40 @@
 .message-bubble {
   @apply max-w-xs lg:max-w-md px-4 py-2 rounded-lg text-sm;
 }
+
+/* Feedback button glowing animation */
+.feedback-glow {
+  position: relative;
+  animation: glow 2s ease-in-out infinite alternate;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.3),
+                0 0 20px rgba(168, 85, 247, 0.3),
+                0 0 30px rgba(168, 85, 247, 0.3);
+  }
+  to {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.5),
+                0 0 30px rgba(236, 72, 153, 0.5),
+                0 0 40px rgba(236, 72, 153, 0.5);
+  }
+}
+
+.feedback-glow:hover {
+  animation: glow-intense 1s ease-in-out infinite alternate;
+}
+
+@keyframes glow-intense {
+  from {
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.6),
+                0 0 30px rgba(168, 85, 247, 0.6),
+                0 0 45px rgba(168, 85, 247, 0.6);
+  }
+  to {
+    box-shadow: 0 0 25px rgba(236, 72, 153, 0.7),
+                0 0 40px rgba(236, 72, 153, 0.7),
+                0 0 55px rgba(236, 72, 153, 0.7);
+  }
+}

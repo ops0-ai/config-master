@@ -27,6 +27,7 @@ import {
   MagnifyingGlassCircleIcon,
   WrenchScrewdriverIcon,
   EyeIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -36,6 +37,7 @@ import { useOrganizationFeatures, OrganizationFeatures } from '@/contexts/Organi
 import OrganizationSwitcher from './OrganizationSwitcher';
 import Onboarding from './Onboarding';
 import AIAssistant from './AIAssistant';
+import FeedbackModal from './FeedbackModal';
 
 interface LayoutProps {
   children: ReactNode;
@@ -48,6 +50,8 @@ interface NavigationItem {
   feature: keyof OrganizationFeatures | null;
   beta?: boolean;
   comingSoon?: boolean;
+  isSpecial?: boolean;
+  onClick?: () => void;
 }
 
 interface NavigationGroup {
@@ -94,20 +98,32 @@ const navigationGroups: NavigationGroup[] = [
   }
 ];
 
-// Settings and utility items
-const utilityNavigation: NavigationItem[] = [
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, feature: null },
-  { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon, feature: 'training' as keyof OrganizationFeatures },
-];
-
 export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<{[key: string]: boolean}>({});
   const pathname = usePathname();
   const { user } = useMinimalAuth();
+  
+  // Settings and utility items - defined inside component to access state
+  const utilityNavigation: NavigationItem[] = [
+    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, feature: null },
+    { 
+      name: 'Feedback', 
+      href: '#feedback', 
+      icon: SparklesIcon, 
+      feature: null,
+      isSpecial: true, // Flag to identify this as the feedback button
+      onClick: () => {
+        // Open Typeform in a modal
+        setShowFeedbackModal(true);
+      }
+    },
+    { name: 'Infrastructure Training', href: '/training', icon: AcademicCapIcon, feature: 'training' as keyof OrganizationFeatures },
+  ];
   const { isFeatureEnabled, loading: featuresLoading } = useOrganizationFeatures();
   
   const toggleGroup = (groupName: string) => {
@@ -268,6 +284,12 @@ export default function Layout({ children }: LayoutProps) {
         />
       )}
 
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+      />
+
       {/* AI Assistant - Available on all pages */}
       <AIAssistant />
     </div>
@@ -344,6 +366,29 @@ export default function Layout({ children }: LayoutProps) {
             }).map((item) => {
               const isActive = pathname === item.href;
               const isDisabled = item.feature && !isFeatureEnabled(item.feature) && !user?.isSuperAdmin;
+              
+              // Special handling for Feedback button
+              if (item.isSpecial && item.onClick) {
+                return (
+                  <button
+                    key={item.name}
+                    onClick={item.onClick}
+                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all ${
+                      sidebarCollapsed ? 'justify-center' : ''
+                    } feedback-glow bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transform hover:scale-105`}
+                    title={sidebarCollapsed ? item.name : ''}
+                  >
+                    <item.icon
+                      className={`h-5 w-5 ${sidebarCollapsed ? '' : 'mr-3'} flex-shrink-0 text-white animate-pulse`}
+                    />
+                    {!sidebarCollapsed && (
+                      <span className="flex items-center justify-between w-full">
+                        <span className="font-semibold">{item.name}</span>
+                      </span>
+                    )}
+                  </button>
+                );
+              }
               
               return (
                 <Link
@@ -531,6 +576,18 @@ export default function Layout({ children }: LayoutProps) {
                 } ${sidebarCollapsed ? '' : 'mr-3'} flex-shrink-0`} />
                 {!sidebarCollapsed && <span>Settings</span>}
               </Link>
+              
+              {/* Feedback Button - Glowing and Colorful */}
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className={`group w-full flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all transform hover:scale-105 feedback-glow bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 ${
+                  sidebarCollapsed ? 'justify-center' : ''
+                }`}
+                title={sidebarCollapsed ? 'Feedback' : ''}
+              >
+                <SparklesIcon className={`h-5 w-5 text-white animate-pulse ${sidebarCollapsed ? '' : 'mr-3'} flex-shrink-0`} />
+                {!sidebarCollapsed && <span className="font-semibold">Feedback</span>}
+              </button>
               
               {/* Tutorials & Help Button */}
               <button
