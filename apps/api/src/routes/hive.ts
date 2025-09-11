@@ -3411,6 +3411,8 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
         securityContext:
+          runAsUser: 0
+          runAsGroup: 0
           privileged: false
           readOnlyRootFilesystem: false
           runAsNonRoot: false
