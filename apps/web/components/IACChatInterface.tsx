@@ -52,6 +52,10 @@ export default function IACChatInterface() {
   const [githubIntegrations, setGithubIntegrations] = useState<GitHubIntegration[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string>('');
   const [awsRegion, setAwsRegion] = useState('us-east-1');
+  const [showNewConversationModal, setShowNewConversationModal] = useState(false);
+  const [newConversationTitle, setNewConversationTitle] = useState('');
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -133,6 +137,15 @@ export default function IACChatInterface() {
   };
 
   const createNewConversation = async () => {
+    setShowNewConversationModal(true);
+  };
+
+  const handleCreateConversation = async () => {
+    if (!newConversationTitle.trim()) {
+      toast.error('Please enter a conversation title');
+      return;
+    }
+
     try {
       const response = await fetch('/api/iac/conversations', {
         method: 'POST',
@@ -140,18 +153,74 @@ export default function IACChatInterface() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          title: newConversationTitle.trim(),
+        }),
       });
       if (response.ok) {
         const newConversation = await response.json();
         setConversations(prev => [newConversation, ...prev]);
         setSelectedConversation(newConversation.id);
         setMessages([]);
+        setShowNewConversationModal(false);
+        setNewConversationTitle('');
+        toast.success('New conversation created!');
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
       toast.error('Failed to create new conversation');
     }
+  };
+
+  const cancelNewConversation = () => {
+    setShowNewConversationModal(false);
+    setNewConversationTitle('');
+  };
+
+  const startEditingTitle = (conversationId: string, currentTitle: string) => {
+    setEditingConversationId(conversationId);
+    setEditingTitle(currentTitle);
+  };
+
+  const saveTitleEdit = async () => {
+    if (!editingConversationId || !editingTitle.trim()) {
+      toast.error('Please enter a valid title');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/iac/conversations/${editingConversationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({
+          title: editingTitle.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        setConversations(prev => prev.map(conv => 
+          conv.id === editingConversationId 
+            ? { ...conv, title: editingTitle.trim() }
+            : conv
+        ));
+        setEditingConversationId(null);
+        setEditingTitle('');
+        toast.success('Title updated successfully!');
+      } else {
+        throw new Error('Failed to update title');
+      }
+    } catch (error) {
+      console.error('Error updating title:', error);
+      toast.error('Failed to update title');
+    }
+  };
+
+  const cancelTitleEdit = () => {
+    setEditingConversationId(null);
+    setEditingTitle('');
   };
 
   const sendMessage = async () => {
@@ -415,12 +484,60 @@ export default function IACChatInterface() {
                 selectedConversation === conversation.id ? 'bg-blue-50 border-blue-200' : ''
               }`}
             >
-              <h3 className="font-medium text-gray-900 truncate">
-                {conversation.title}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {new Date(conversation.updatedAt).toLocaleDateString()}
-              </p>
+              {editingConversationId === conversation.id ? (
+                <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        saveTitleEdit();
+                      } else if (e.key === 'Escape') {
+                        cancelTitleEdit();
+                      }
+                    }}
+                  />
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={saveTitleEdit}
+                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelTitleEdit}
+                      className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="group">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium text-gray-900 truncate flex-1">
+                      {conversation.title}
+                    </h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditingTitle(conversation.id, conversation.title);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-opacity"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {new Date(conversation.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -603,6 +720,49 @@ export default function IACChatInterface() {
           </div>
         )}
       </div>
+
+      {/* New Conversation Modal */}
+      {showNewConversationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Create New IAC Conversation
+            </h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Conversation Title
+              </label>
+              <input
+                type="text"
+                value={newConversationTitle}
+                onChange={(e) => setNewConversationTitle(e.target.value)}
+                placeholder="Enter a title for your conversation..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateConversation();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelNewConversation}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateConversation}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

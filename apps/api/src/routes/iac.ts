@@ -96,6 +96,49 @@ router.post('/conversations', authMiddleware, async (req: any, res: Response) =>
   }
 });
 
+// Update conversation title
+router.put('/conversations/:id', authMiddleware, async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    // Verify conversation belongs to user
+    const conversation = await db
+      .select()
+      .from(iacConversations)
+      .where(
+        and(
+          eq(iacConversations.id, id),
+          eq(iacConversations.userId, req.user.id),
+          eq(iacConversations.organizationId, req.user.organizationId)
+        )
+      )
+      .limit(1);
+
+    if (conversation.length === 0) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // Update the title
+    await db
+      .update(iacConversations)
+      .set({ 
+        title: title.trim(),
+        updatedAt: new Date()
+      })
+      .where(eq(iacConversations.id, id));
+
+    res.json({ success: true, title: title.trim() });
+  } catch (error) {
+    console.error('Error updating conversation title:', error);
+    res.status(500).json({ error: 'Failed to update conversation title' });
+  }
+});
+
 // Get messages for a specific conversation
 router.get('/conversations/:id/messages', authMiddleware, async (req: any, res: Response) => {
   try {
@@ -262,13 +305,27 @@ router.post('/chat', authMiddleware, async (req: any, res: Response) => {
       })
       .returning();
 
-    // Update conversation title if it's the first message
+    // Update conversation title if it's the first message and title is still default
     if (history.length === 1) {
-      const title = validatedData.message.substring(0, 50) + (validatedData.message.length > 50 ? '...' : '');
-      await db
-        .update(iacConversations)
-        .set({ title, updatedAt: new Date() })
-        .where(eq(iacConversations.id, conversationId));
+      const currentConversation = await db
+        .select()
+        .from(iacConversations)
+        .where(eq(iacConversations.id, conversationId))
+        .limit(1);
+      
+      if (currentConversation.length > 0 && 
+          (currentConversation[0].title === 'New IAC Conversation' || !currentConversation[0].title)) {
+        const title = validatedData.message.substring(0, 50) + (validatedData.message.length > 50 ? '...' : '');
+        await db
+          .update(iacConversations)
+          .set({ title, updatedAt: new Date() })
+          .where(eq(iacConversations.id, conversationId));
+      } else {
+        await db
+          .update(iacConversations)
+          .set({ updatedAt: new Date() })
+          .where(eq(iacConversations.id, conversationId));
+      }
     } else {
       await db
         .update(iacConversations)
