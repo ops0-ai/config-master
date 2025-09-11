@@ -99,6 +99,9 @@ export async function ensureAdminUser() {
     
     await db.insert(users).values(userValues);
     
+    // Generate deployment key for Hive agents
+    const deploymentKey = 'hive_deploy_' + crypto.randomBytes(16).toString('hex');
+    
     // Now create organization with admin as owner (user exists now)
     await db.insert(organizations).values({
       id: orgId,
@@ -107,6 +110,7 @@ export async function ensureAdminUser() {
       ownerId: adminUserId,
       isActive: true,
       isPrimary: true, // First organization is always primary
+      hiveDeploymentKey: deploymentKey,
     });
     
     // Finally, update the user to set the organizationId now that the organization exists
@@ -144,6 +148,7 @@ export async function ensureAdminUser() {
     console.log(`📧 Email: ${adminEmail}`);
     console.log(`🔑 Password: ${adminPassword}`);
     console.log('👑 Role: Super Admin (Full Access)');
+    console.log(`🤖 Hive Deployment Key: ${deploymentKey}`);
     console.log('🌐 Access: http://localhost:3000');
     
   } catch (error) {
