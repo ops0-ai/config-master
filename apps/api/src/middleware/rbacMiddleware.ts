@@ -103,6 +103,28 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   'POST:/api/conversations/*/messages': { resource: 'chat', action: 'write' },
   'POST:/api/conversations/*/save-configuration': { resource: 'configurations', action: 'write' },
   
+  // AI Assistant
+  'GET:/api/ai-assistant/sessions': { resource: 'ai-assistant', action: 'read' },
+  'POST:/api/ai-assistant/sessions': { resource: 'ai-assistant', action: 'write' },
+  'GET:/api/ai-assistant/sessions/*': { resource: 'ai-assistant', action: 'read' },
+  'POST:/api/ai-assistant/sessions/*/messages': { resource: 'ai-assistant', action: 'write' },
+  'GET:/api/ai-assistant/sessions/*/messages': { resource: 'ai-assistant', action: 'read' },
+  'POST:/api/ai-assistant/chat': { resource: 'ai-assistant', action: 'write' },
+  'GET:/api/ai-assistant/suggestions': { resource: 'ai-assistant', action: 'read' },
+  'POST:/api/ai-assistant/suggest': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/approve-config': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/reject-config': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/create-asset': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/create-server': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/create-configuration': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/deploy-configuration': { resource: 'ai-assistant', action: 'write' },
+  'POST:/api/ai-assistant/test-connection': { resource: 'ai-assistant', action: 'execute' },
+  'GET:/api/ai-assistant/context': { resource: 'ai-assistant', action: 'read' },
+  'POST:/api/ai-assistant/context': { resource: 'ai-assistant', action: 'write' },
+  'GET:/api/ai-assistant/context/*': { resource: 'ai-assistant', action: 'read' },
+  'PUT:/api/ai-assistant/context/*': { resource: 'ai-assistant', action: 'write' },
+  'DELETE:/api/ai-assistant/context/*': { resource: 'ai-assistant', action: 'delete' },
+  
   // Audit Logs
   'GET:/api/audit-logs': { resource: 'audit-logs', action: 'view' },
   'GET:/api/audit-logs/actions': { resource: 'audit-logs', action: 'view' },
@@ -168,6 +190,16 @@ const routeResourceMap: Record<string, { resource: string; action: string }> = {
   // Asset CSV Operations
   'GET:/api/assets-csv/export': { resource: 'assets', action: 'export' },
   'POST:/api/assets-csv/import': { resource: 'assets', action: 'import' },
+  
+  // IAC (Infrastructure as Code) Assistant
+  'GET:/api/iac/conversations': { resource: 'iac', action: 'read' },
+  'POST:/api/iac/conversations': { resource: 'iac', action: 'write' },
+  'PUT:/api/iac/conversations/*': { resource: 'iac', action: 'write' },
+  'GET:/api/iac/conversations/*/messages': { resource: 'iac', action: 'read' },
+  'POST:/api/iac/chat': { resource: 'iac', action: 'write' },
+  'POST:/api/iac/create-pr': { resource: 'iac', action: 'write' },
+  'POST:/api/iac/deploy': { resource: 'iac', action: 'execute' },
+  'GET:/api/iac/pr-status/*': { resource: 'iac', action: 'read' },
 };
 
 // Routes that don't require authorization

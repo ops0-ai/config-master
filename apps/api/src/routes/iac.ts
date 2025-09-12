@@ -267,19 +267,46 @@ router.post('/chat', authMiddleware, async (req: any, res: Response) => {
     Previous conversation:
     ${history.map(m => `${m.role}: ${m.content}`).join('\n')}`;
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: validatedData.message,
+    // Call Claude API with retry logic for overload errors
+    let response: any;
+    let retryCount = 0;
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second base delay
+
+    while (retryCount <= maxRetries) {
+      try {
+        response = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4000,
+          temperature: 0.7,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: validatedData.message,
+            }
+          ],
+        });
+        break; // Success, exit retry loop
+      } catch (error: any) {
+        // Check if it's a 529 overload error and we have retries left
+        if (error.status === 529 && retryCount < maxRetries) {
+          retryCount++;
+          const delay = baseDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+          console.log(`⚠️ Claude API overloaded (529), retrying in ${delay}ms (attempt ${retryCount}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
         }
-      ],
-    });
+        // If it's not a 529 error or we've exhausted retries, throw the error
+        console.error(`Failed after ${retryCount} retries:`, error);
+        throw error;
+      }
+    }
+
+    // Ensure response is defined (should never happen due to throw in catch, but satisfies TypeScript)
+    if (!response) {
+      throw new Error('Failed to get response from Claude API after all retries');
+    }
 
     const assistantResponse = response.content[0].type === 'text' ? response.content[0].text : '';
 
@@ -339,9 +366,32 @@ router.post('/chat', authMiddleware, async (req: any, res: Response) => {
       generatedTerraform,
       conversationId,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('IAC chat error:', error);
-    res.status(500).json({ error: 'Failed to process message' });
+    
+    // Handle specific error types
+    if (error.status === 529) {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Claude API is currently overloaded. Please try again in a few moments.',
+        retryAfter: 30
+      });
+    } else if (error.status === 401) {
+      res.status(401).json({ 
+        error: 'Authentication failed',
+        message: 'Invalid API key. Please check your Claude API configuration.'
+      });
+    } else if (error.status === 429) {
+      res.status(429).json({ 
+        error: 'Rate limit exceeded',
+        message: 'Too many requests. Please wait before trying again.'
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to process message',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
   }
 });
 
@@ -366,33 +416,40 @@ router.post('/create-pr', authMiddleware, async (req: any, res: Response) => {
       return res.status(400).json({ error: 'No Terraform code found in message' });
     }
 
-    // Get GitHub integration
-    const integration = await db
-      .select()
-      .from(githubIntegrations)
-      .where(
-        and(
-          eq(githubIntegrations.id, validatedData.integrationId),
-          eq(githubIntegrations.organizationId, req.user.organizationId)
-        )
-      )
-      .limit(1);
+    // Get GitHub integration with decrypted token
+    const githubService = new GitHubService();
+    const integration = await githubService.getGitHubIntegration(
+      validatedData.integrationId,
+      req.user.organizationId
+    );
 
-    if (integration.length === 0) {
+    if (!integration) {
       return res.status(404).json({ error: 'GitHub integration not found' });
     }
 
-    const githubService = new GitHubService();
-    const [owner, repo] = integration[0].repositoryFullName.split('/');
+    const [owner, repo] = integration.repositoryFullName.split('/');
 
     // Create a new branch
     const branchName = `iac-${Date.now()}`;
     const commitMessage = validatedData.commitMessage || `Add Terraform infrastructure: ${message.content.substring(0, 50)}...`;
 
+    // Create the branch first
+    console.log(`Creating branch: ${branchName}`);
+    await githubService.createBranch(
+      integration.accessToken,
+      owner,
+      repo,
+      branchName,
+      validatedData.branch || integration.defaultBranch
+    );
+
     // Create or update the Terraform file
-    const terraformPath = `${integration[0].basePath}/infrastructure/main.tf`;
+    // Ensure the path doesn't start with / for GitHub API
+    const basePath = integration.basePath ? (integration.basePath.startsWith('/') ? integration.basePath.slice(1) : integration.basePath) : 'configs';
+    const terraformPath = `${basePath}/infrastructure/main.tf`;
+    console.log(`Creating file: ${terraformPath} in branch: ${branchName}`);
     const result = await githubService.createOrUpdateFile(
-      integration[0].accessToken,
+      integration.accessToken,
       owner,
       repo,
       terraformPath,
@@ -403,7 +460,7 @@ router.post('/create-pr', authMiddleware, async (req: any, res: Response) => {
 
     // Create pull request
     const prResult = await githubService.createPullRequest(
-      integration[0].accessToken,
+      integration.accessToken,
       owner,
       repo,
       {
@@ -432,9 +489,35 @@ router.post('/create-pr', authMiddleware, async (req: any, res: Response) => {
       branchName,
       commitSha: result.sha,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating PR:', error);
-    res.status(500).json({ error: 'Failed to create pull request' });
+    
+    // Handle specific GitHub API errors
+    if (error.message?.includes('GitHub API error: 422')) {
+      res.status(422).json({ 
+        error: 'Invalid request to GitHub',
+        message: 'The request to GitHub was invalid. This might be due to branch conflicts or invalid file path.',
+        details: error.message
+      });
+    } else if (error.message?.includes('GitHub API error: 409')) {
+      res.status(409).json({ 
+        error: 'Conflict with GitHub repository',
+        message: 'There was a conflict with the GitHub repository. The branch might already exist.',
+        details: error.message
+      });
+    } else if (error.message?.includes('GitHub API error: 404')) {
+      res.status(404).json({ 
+        error: 'Repository not found',
+        message: 'The GitHub repository was not found. Please check your integration settings.',
+        details: error.message
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to create pull request',
+        message: 'An unexpected error occurred while creating the pull request.',
+        details: error.message
+      });
+    }
   }
 });
 
@@ -537,6 +620,100 @@ router.get('/pr-status/:messageId', authMiddleware, async (req: any, res: Respon
   } catch (error) {
     console.error('Error fetching PR status:', error);
     res.status(500).json({ error: 'Failed to fetch PR status' });
+  }
+});
+
+// Refresh PR status from GitHub
+router.post('/refresh-pr-status/:messageId', authMiddleware, async (req: any, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    
+    const [message] = await db
+      .select()
+      .from(iacMessages)
+      .where(eq(iacMessages.id, messageId))
+      .limit(1);
+
+    if (!message || !message.prNumber) {
+      return res.status(404).json({ error: 'Message or PR not found' });
+    }
+
+    // Get the GitHub integration for this message's conversation
+    const [conversation] = await db
+      .select()
+      .from(iacConversations)
+      .where(eq(iacConversations.id, message.conversationId))
+      .limit(1);
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // Get GitHub integration
+    const githubService = new GitHubService();
+    const integration = await githubService.getGitHubIntegration(
+      req.body.integrationId || 'default', // You might need to pass this in the request
+      req.user.organizationId
+    );
+
+    if (!integration) {
+      return res.status(404).json({ error: 'GitHub integration not found' });
+    }
+
+    const [owner, repo] = integration.repositoryFullName.split('/');
+    
+    // Get PR status from GitHub
+    const prStatus = await githubService.getPullRequestStatus(
+      integration.accessToken,
+      owner,
+      repo,
+      message.prNumber
+    );
+
+    // Determine the status based on GitHub response
+    let newPrStatus: 'open' | 'merged' | 'closed' | 'draft';
+    if (prStatus.merged) {
+      newPrStatus = 'merged';
+    } else if (prStatus.state === 'closed') {
+      newPrStatus = 'closed';
+    } else if (prStatus.state === 'open') {
+      newPrStatus = 'open';
+    } else {
+      newPrStatus = 'draft';
+    }
+
+    // Update the message with new PR status
+    await db
+      .update(iacMessages)
+      .set({
+        prStatus: newPrStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(iacMessages.id, messageId));
+
+    res.json({
+      success: true,
+      prNumber: message.prNumber,
+      prUrl: message.prUrl,
+      prStatus: newPrStatus,
+      merged: prStatus.merged,
+      mergedAt: prStatus.merged_at,
+      closedAt: prStatus.closed_at,
+    });
+  } catch (error: any) {
+    console.error('Error refreshing PR status:', error);
+    
+    if (error.message?.includes('GitHub API error: 404')) {
+      res.status(404).json({ 
+        error: 'PR not found',
+        message: 'The pull request was not found on GitHub. It may have been deleted.'
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to refresh PR status',
+        message: 'An error occurred while fetching the PR status from GitHub.'
+      });
+    }
   }
 });
 

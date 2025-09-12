@@ -12,7 +12,14 @@ const makeGitHubRequest = async (url: string, token: string, options: any = {}) 
   });
 
   if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    let errorDetails = '';
+    try {
+      const errorBody = await response.json() as any;
+      errorDetails = errorBody.message ? ` - ${errorBody.message}` : '';
+    } catch (e) {
+      // Ignore JSON parsing errors
+    }
+    throw new Error(`GitHub API error: ${response.status} ${response.statusText}${errorDetails}`);
   }
 
   return response.json();
@@ -259,6 +266,8 @@ export class GitHubService {
     sha?: string
   ): Promise<{ sha: string; commit_url: string }> {
     try {
+      console.log(`Creating file in GitHub: ${owner}/${repo}/${path} on branch: ${branch}`);
+      
       const encodedContent = Buffer.from(content).toString('base64');
       
       const body: any = {
@@ -271,7 +280,14 @@ export class GitHubService {
         body.sha = sha;
       }
 
-      const data: any = await makeGitHubRequest(`/repos/${owner}/${repo}/contents/${path}`, accessToken, {
+      // Ensure path doesn't start with / and encode special characters
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      const encodedPath = encodeURIComponent(cleanPath).replace(/%2F/g, '/');
+      console.log(`Original path: ${path}`);
+      console.log(`Clean path: ${cleanPath}`);
+      console.log(`Encoded path: ${encodedPath}`);
+      
+      const data: any = await makeGitHubRequest(`/repos/${owner}/${repo}/contents/${encodedPath}`, accessToken, {
         method: 'PUT',
         body
       });
@@ -310,6 +326,30 @@ export class GitHubService {
     } catch (error) {
       console.error('Error creating pull request:', error);
       throw new Error('Failed to create pull request');
+    }
+  }
+
+  /**
+   * Get pull request status
+   */
+  async getPullRequestStatus(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    prNumber: number
+  ): Promise<{ state: string; merged: boolean; merged_at: string | null; closed_at: string | null }> {
+    try {
+      const data: any = await makeGitHubRequest(`/repos/${owner}/${repo}/pulls/${prNumber}`, accessToken);
+      
+      return {
+        state: data.state,
+        merged: data.merged || false,
+        merged_at: data.merged_at,
+        closed_at: data.closed_at,
+      };
+    } catch (error) {
+      console.error('Error getting pull request status:', error);
+      throw new Error('Failed to get pull request status');
     }
   }
 
@@ -389,8 +429,11 @@ export class GitHubService {
     baseBranch: string = 'main'
   ): Promise<string> {
     try {
+      console.log(`Creating branch ${branchName} from ${baseBranch} in ${owner}/${repo}`);
+      
       // Get the SHA of the base branch
       const baseRef: any = await makeGitHubRequest(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`, accessToken);
+      console.log(`Base branch SHA: ${baseRef.object.sha}`);
 
       // Create new branch
       const newRef: any = await makeGitHubRequest(`/repos/${owner}/${repo}/git/refs`, accessToken, {
@@ -401,6 +444,7 @@ export class GitHubService {
         }
       });
 
+      console.log(`Branch created successfully: ${newRef.object.sha}`);
       return newRef.object.sha;
     } catch (error) {
       console.error('Error creating branch:', error);

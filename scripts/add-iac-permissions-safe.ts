@@ -1,8 +1,8 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { roles, permissions, rolePermissions } from '@config-management/database';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { config } from 'dotenv';
+import { roles, permissions, rolePermissions } from '@config-management/database';
 
 config();
 
@@ -10,21 +10,9 @@ const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_P
 const client = postgres(connectionString);
 const db = drizzle(client);
 
-// Define the admin permissions
-const adminPermissions = [
-  'dashboard:read', 'settings:read', 'settings:write',
-  'users:read', 'users:write', 'users:delete',
-  'roles:read', 'roles:write', 'roles:delete',
-  'servers:read', 'servers:write', 'servers:delete',
-  'server-groups:read', 'server-groups:write', 'server-groups:delete',
-  'pem-keys:read', 'pem-keys:write', 'pem-keys:delete',
-  'configurations:read', 'configurations:write', 'configurations:delete',
-  'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
-  'training:read', 'chat:read', 'chat:write'
-];
-
-async function fixRolePermissions() {
-  console.log('🔧 Fixing role-permission associations...');
+async function addIACPermissionsSafely() {
+  console.log('🔧 SAFELY adding IAC permissions to existing roles...');
+  console.log('⚠️  This will ONLY ADD permissions, not remove any existing ones');
   
   try {
     // Get all Administrator and Operator roles
@@ -43,30 +31,29 @@ async function fixRolePermissions() {
     
     console.log(`📋 Found ${allPermissions.length} permissions`);
     
+    // IAC and AI Assistant permissions to add
+    const permissionsToAdd = [
+      'iac:read', 'iac:write', 'iac:execute',
+      'ai-assistant:read', 'ai-assistant:write', 'ai-assistant:execute', 'ai-assistant:delete'
+    ];
+    
     for (const role of allRoles) {
       console.log(`\n🎭 Processing role: ${role.name} (${role.id})`);
       
       // Check existing permissions for this role
       const existingPerms = await db
         .select({
-          permissionId: rolePermissions.permissionId,
           resource: permissions.resource,
           action: permissions.action,
         })
         .from(rolePermissions)
         .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-        .where(eq(rolePermissions.roleId, role.id));
+        .where(
+          eq(rolePermissions.roleId, role.id) && 
+          (eq(permissions.resource, 'iac') || eq(permissions.resource, 'ai-assistant'))
+        );
       
-      console.log(`  📊 Current permissions: ${existingPerms.length}`);
-      
-      // SAFE: Only add IAC and AI Assistant permissions, don't remove existing ones
-      console.log('  ➕ Adding IAC and AI Assistant permissions (keeping existing permissions)...');
-      
-      // IAC and AI Assistant permissions to add
-      const permissionsToAdd = [
-        'iac:read', 'iac:write', 'iac:execute',
-        'ai-assistant:read', 'ai-assistant:write', 'ai-assistant:execute', 'ai-assistant:delete'
-      ];
+      console.log(`  📊 Existing IAC/AI Assistant permissions: ${existingPerms.length}`);
       
       let added = 0;
       let skipped = 0;
@@ -127,12 +114,13 @@ async function fixRolePermissions() {
       }
     }
     
-    console.log('\n✅ Role-permission fix completed!');
+    console.log('\n✅ IAC and AI Assistant permissions safely added!');
+    console.log('🔒 All existing permissions were preserved');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Fix failed:', error);
+    console.error('❌ Update failed:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
 
-fixRolePermissions();
+addIACPermissionsSafely();

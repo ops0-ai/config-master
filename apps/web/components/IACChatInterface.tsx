@@ -33,6 +33,8 @@ interface IACMessage {
   deploymentStatus?: 'pending' | 'init' | 'validate' | 'plan' | 'deploy' | 'validated' | 'planned' | 'deployed' | 'failed';
   terraformPlan?: string;
   awsRegion?: string;
+  mergedAt?: string;
+  closedAt?: string;
   createdAt: string;
 }
 
@@ -56,6 +58,7 @@ export default function IACChatInterface() {
   const [newConversationTitle, setNewConversationTitle] = useState('');
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [refreshingPrId, setRefreshingPrId] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -326,6 +329,56 @@ export default function IACChatInterface() {
     } catch (error) {
       console.error('Error creating PR:', error);
       toast.error('Failed to create pull request');
+    }
+  };
+
+  const refreshPRStatus = async (messageId: string) => {
+    setRefreshingPrId(messageId);
+    
+    try {
+      const response = await fetch(`/api/iac/refresh-pr-status/${messageId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({
+          integrationId: selectedIntegration,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to refresh PR status');
+      }
+
+      const data = await response.json();
+      
+      // Update the message with new PR status
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              prStatus: data.prStatus,
+              ...(data.mergedAt && { mergedAt: data.mergedAt }),
+              ...(data.closedAt && { closedAt: data.closedAt })
+            }
+          : msg
+      ));
+
+      if (data.prStatus === 'merged') {
+        toast.success('PR has been merged!');
+      } else if (data.prStatus === 'closed') {
+        toast.success('PR has been closed');
+      } else {
+        toast.success('PR status updated');
+      }
+
+    } catch (error) {
+      console.error('Error refreshing PR status:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to refresh PR status');
+    } finally {
+      setRefreshingPrId(null);
     }
   };
 
@@ -632,12 +685,31 @@ export default function IACChatInterface() {
                         </div>
 
                         {/* Status Indicators */}
-                        <div className="mt-2 flex gap-2">
+                        <div className="mt-2 flex gap-2 items-center">
                           {message.prStatus && (
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(message.prStatus)}`}>
-                              {getStatusIcon(message.prStatus)}
-                              <span className="ml-1">PR: {message.prStatus}</span>
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(message.prStatus)}`}>
+                                {getStatusIcon(message.prStatus)}
+                                <span className="ml-1">PR: {message.prStatus}</span>
+                              </span>
+                              <button
+                                onClick={() => refreshPRStatus(message.id)}
+                                disabled={refreshingPrId === message.id}
+                                className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Refresh PR status"
+                              >
+                                {refreshingPrId === message.id ? (
+                                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           )}
                           {message.deploymentStatus && message.deploymentStatus !== 'pending' && (
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(message.deploymentStatus)}`}>

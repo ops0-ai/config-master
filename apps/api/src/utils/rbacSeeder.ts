@@ -61,6 +61,17 @@ const systemPermissions = [
   { resource: 'chat', action: 'write', description: 'Use Phoenix AI DevOps assistant' },
   { resource: 'chat', action: 'delete', description: 'Delete Phoenix AI conversations' },
   
+  // IAC (Infrastructure as Code) Assistant permissions
+  { resource: 'iac', action: 'read', description: 'View IAC conversations and generated code' },
+  { resource: 'iac', action: 'write', description: 'Use IAC assistant for Terraform generation' },
+  { resource: 'iac', action: 'execute', description: 'Deploy and manage Terraform infrastructure' },
+  
+  // AI Assistant permissions
+  { resource: 'ai-assistant', action: 'read', description: 'View AI assistant sessions and suggestions' },
+  { resource: 'ai-assistant', action: 'write', description: 'Use AI assistant for configuration management' },
+  { resource: 'ai-assistant', action: 'execute', description: 'Execute AI assistant actions and commands' },
+  { resource: 'ai-assistant', action: 'delete', description: 'Delete AI assistant sessions and data' },
+  
   // Audit log permissions
   { resource: 'audit-logs', action: 'view', description: 'View audit logs' },
   { resource: 'audit-logs', action: 'export', description: 'Export audit logs' },
@@ -125,6 +136,8 @@ const systemRoles = {
       'configurations:read', 'configurations:write', 'configurations:execute', 'configurations:approve', 'configurations:delete',
       'deployments:read', 'deployments:write', 'deployments:execute', 'deployments:delete',
       'training:read', 'chat:read', 'chat:write', 'chat:delete',
+      'iac:read', 'iac:write', 'iac:execute',
+      'ai-assistant:read', 'ai-assistant:write', 'ai-assistant:execute', 'ai-assistant:delete',
       'audit-logs:view', 'audit-logs:export',
       'aws-integrations:read', 'aws-integrations:write', 'aws-integrations:delete', 
       'aws-integrations:sync', 'aws-integrations:import',
@@ -147,6 +160,8 @@ const systemRoles = {
       'configurations:read', 'configurations:write', 'configurations:execute',
       'deployments:read', 'deployments:write', 'deployments:execute',
       'training:read', 'chat:read', 'chat:write', 'chat:delete',
+      'iac:read', 'iac:write', 'iac:execute',
+      'ai-assistant:read', 'ai-assistant:write', 'ai-assistant:execute', 'ai-assistant:delete',
       'aws-integrations:read', 'aws-integrations:sync', 'aws-integrations:import',
       'github-integrations:read', 'github-integrations:write', 'github-integrations:validate', 'github-integrations:sync',
       'mdm:read', 'mdm:write', 'mdm:execute',
