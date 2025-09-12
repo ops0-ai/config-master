@@ -268,6 +268,30 @@ export class GitHubService {
     try {
       console.log(`Creating file in GitHub: ${owner}/${repo}/${path} on branch: ${branch}`);
       
+      // Ensure path doesn't start with / and encode special characters
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      const encodedPath = encodeURIComponent(cleanPath).replace(/%2F/g, '/');
+      console.log(`Original path: ${path}`);
+      console.log(`Clean path: ${cleanPath}`);
+      console.log(`Encoded path: ${encodedPath}`);
+      
+      // Check if file exists to get SHA
+      let fileSha = sha;
+      if (!fileSha) {
+        try {
+          const existingFile = await makeGitHubRequest(`/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`, accessToken) as any;
+          fileSha = existingFile.sha;
+          console.log(`File exists, using SHA: ${fileSha}`);
+        } catch (error: any) {
+          if (error.message?.includes('404')) {
+            console.log('File does not exist, will create new file');
+            fileSha = undefined;
+          } else {
+            throw error;
+          }
+        }
+      }
+      
       const encodedContent = Buffer.from(content).toString('base64');
       
       const body: any = {
@@ -276,16 +300,13 @@ export class GitHubService {
         branch,
       };
 
-      if (sha) {
-        body.sha = sha;
+      // Only include SHA if file exists (for updates)
+      if (fileSha) {
+        body.sha = fileSha;
+        console.log(`Updating existing file with SHA: ${fileSha}`);
+      } else {
+        console.log('Creating new file');
       }
-
-      // Ensure path doesn't start with / and encode special characters
-      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-      const encodedPath = encodeURIComponent(cleanPath).replace(/%2F/g, '/');
-      console.log(`Original path: ${path}`);
-      console.log(`Clean path: ${cleanPath}`);
-      console.log(`Encoded path: ${encodedPath}`);
       
       const data: any = await makeGitHubRequest(`/repos/${owner}/${repo}/contents/${encodedPath}`, accessToken, {
         method: 'PUT',
