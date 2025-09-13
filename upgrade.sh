@@ -110,6 +110,15 @@ else
         print_error "Email case-insensitive fix failed"
         exit 1
     fi
+    
+    # Run the discovery feature migration
+    print_status "Applying Infrastructure Discovery feature migration..."
+    if docker exec -i configmaster-db psql -U postgres -d config_management < discovery-migration.sql; then
+        print_success "Discovery feature migration completed"
+    else
+        print_error "Discovery feature migration failed"
+        exit 1
+    fi
 fi
 
 print_status "All database migrations completed successfully"
@@ -382,6 +391,38 @@ else
     exit 1
 fi
 
+# Verify Discovery feature tables
+print_status "Verifying Infrastructure Discovery tables..."
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d discovery_sessions" &>/dev/null; then
+    print_success "Discovery sessions table created successfully"
+else
+    print_error "Discovery sessions table not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d discovery_resources" &>/dev/null; then
+    print_success "Discovery resources table created successfully"
+else
+    print_error "Discovery resources table not found"
+    exit 1
+fi
+
+if docker exec configmaster-db psql -U postgres -d config_management -c "\d discovery_code_generations" &>/dev/null; then
+    print_success "Discovery code generations table created successfully"
+else
+    print_error "Discovery code generations table not found"
+    exit 1
+fi
+
+# Verify discovery feature flag in organizations
+DISCOVERY_ORGS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM organizations WHERE features_enabled->>'discovery' = 'true';" | tr -d ' ')
+TOTAL_ORGS=$(docker exec configmaster-db psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM organizations;" | tr -d ' ')
+if [ "$DISCOVERY_ORGS" -eq "$TOTAL_ORGS" ]; then
+    print_success "Discovery feature enabled for all $TOTAL_ORGS organizations"
+else
+    print_warning "Discovery feature enabled for $DISCOVERY_ORGS out of $TOTAL_ORGS organizations"
+fi
+
 # Verify AI Assistant tables
 print_status "Verifying AI Assistant tables..."
 if docker exec configmaster-db psql -U postgres -d config_management -c "\d ai_assistant_sessions" &>/dev/null; then
@@ -497,6 +538,15 @@ echo "✅ Pulse Platform upgrade completed successfully\!"
 echo ""
 echo "📋 New Features Available:"
 echo ""
+echo "🔍 Infrastructure Discovery:"
+echo "   • Scan existing AWS cloud resources across multiple regions"
+echo "   • Generate Infrastructure as Code (Terraform/OpenTofu) automatically"
+echo "   • Sync discovered infrastructure directly to GitHub repositories"
+echo "   • Create pull requests with comprehensive documentation and security checklists"
+echo "   • Support for modular project structure with organized file layout"
+echo "   • Resource selection and filtering for targeted code generation"
+echo "   • Session management and progress tracking"
+echo ""
 echo "🤖 AI Assistant & Pulse Assist:"
 echo "   • AI Chat Assistant: Smart configuration generation and analysis"
 echo "   • Pulse Assist: Context-aware AI bubble assistant across all pages"
@@ -551,6 +601,7 @@ echo "   • Separate repository selection for assets vs configurations"
 echo ""
 echo "🌐 Access your upgraded Pulse at: http://localhost:3000"
 echo "⚙️  Configure GitHub integration: Settings > Integrations"
+echo "🔍 Infrastructure Discovery: Discovery page > Scan AWS Resources"
 echo "📦 Sync assets to GitHub: Assets > Sync to GitHub"
 echo "🔔 Configure webhooks: Organization Management > Platform Settings"
 echo "🔐 Configure SSO providers: Super Admin > SSO Management"

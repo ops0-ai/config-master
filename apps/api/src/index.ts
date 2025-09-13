@@ -34,6 +34,7 @@ import systemSettingsRoutes from './routes/systemSettings';
 import ssoRoutes from './routes/sso';
 import ssoAuthRoutes from './routes/ssoAuth';
 import hiveRoutes, { hivePublicRoutes } from './routes/hive';
+import discoveryRoutes from './routes/discovery';
 import { ensureAdminUser, ensureDefaultMDMProfiles } from './auto-seed-simple';
 
 import { authMiddleware } from './middleware/auth';
@@ -133,6 +134,7 @@ app.use('/api/hive', hivePublicRoutes); // Public hive endpoints (install, downl
 app.use('/api/hive', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, hiveRoutes);
 app.use('/api/mdm', mdmPublicRoutes); // Public MDM endpoints (downloads with tokens)
 app.use('/api/mdm', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, mdmRoutes);
+app.use('/api/discovery', authMiddleware, autoFeatureFlagMiddleware(), rbacMiddleware(), auditMiddleware, discoveryRoutes);
 
 app.use(errorHandler);
 

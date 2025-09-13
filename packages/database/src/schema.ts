@@ -22,6 +22,7 @@ export const organizations = pgTable('organizations', {
     mdm?: boolean;
     assets?: boolean;
     auditLogs?: boolean;
+    discovery?: boolean;
   }>().default({
     servers: true,
     serverGroups: true,
@@ -34,7 +35,8 @@ export const organizations = pgTable('organizations', {
     githubIntegrations: true,
     mdm: true,
     assets: true,
-    auditLogs: true
+    auditLogs: true,
+    discovery: true
   }),
   metadata: jsonb('metadata').$type<any>().default({}),
   // Hive agent deployment key for auto-registration
@@ -1075,3 +1077,63 @@ export const hiveAgentOutputs = pgTable('hive_agent_outputs', {
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Discovery Feature Tables
+export const discoverySession = pgTable('discovery_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  integrationId: uuid('integration_id').references(() => awsIntegrations.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 255 }),
+  description: text('description'),
+  provider: varchar('provider', { length: 50 }).notNull().default('aws'), // aws, gcp, azure
+  regions: jsonb('regions').$type<string[]>().notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending, scanning, completed, failed
+  resourceCount: integer('resource_count').default(0),
+  metadata: jsonb('metadata').$type<any>().default({}),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const discoveryResources = pgTable('discovery_resources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').references(() => discoverySession.id, { onDelete: 'cascade' }).notNull(),
+  resourceType: varchar('resource_type', { length: 100 }).notNull(), // aws::ec2::instance, aws::s3::bucket, etc.
+  resourceId: varchar('resource_id', { length: 255 }).notNull(), // AWS resource ID
+  name: varchar('name', { length: 255 }).notNull(),
+  region: varchar('region', { length: 50 }).notNull(),
+  provider: varchar('provider', { length: 50 }).notNull().default('aws'),
+  tags: jsonb('tags').$type<Record<string, string>>().default({}),
+  metadata: jsonb('metadata').$type<any>().default({}),
+  isSelected: boolean('is_selected').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const discoveryCodeGenerations = pgTable('discovery_code_generations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').references(() => discoverySession.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar('provider', { length: 50 }).notNull().default('opentofu'), // opentofu, terraform
+  terraformCode: text('terraform_code').notNull(),
+  stateFile: jsonb('state_file').$type<any>().notNull(),
+  selectedResourceIds: jsonb('selected_resource_ids').$type<string[]>().notNull(),
+  generatedBy: uuid('generated_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Discovery Relations
+export const discoverySessionRelations = relations(discoverySession, ({ one, many }) => ({
+  organization: one(organizations, { fields: [discoverySession.organizationId], references: [organizations.id] }),
+  integration: one(awsIntegrations, { fields: [discoverySession.integrationId], references: [awsIntegrations.id] }),
+  createdBy: one(users, { fields: [discoverySession.createdBy], references: [users.id] }),
+  resources: many(discoveryResources),
+  codeGenerations: many(discoveryCodeGenerations),
+}));
+
+export const discoveryResourcesRelations = relations(discoveryResources, ({ one }) => ({
+  session: one(discoverySession, { fields: [discoveryResources.sessionId], references: [discoverySession.id] }),
+}));
+
+export const discoveryCodeGenerationsRelations = relations(discoveryCodeGenerations, ({ one }) => ({
+  session: one(discoverySession, { fields: [discoveryCodeGenerations.sessionId], references: [discoverySession.id] }),
+  generatedBy: one(users, { fields: [discoveryCodeGenerations.generatedBy], references: [users.id] }),
+}));

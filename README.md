@@ -12,6 +12,7 @@ A comprehensive SaaS platform for infrastructure configuration management featur
 - **Real-time Deployments**: Execute Ansible configurations with live progress tracking
 - **GitHub Integration**: Import/export configurations and sync asset inventory to GitHub repositories
 - **Asset Management**: Complete asset lifecycle management with MDM integration and GitHub sync
+- **Infrastructure Discovery**: Automatically discover cloud resources (AWS) and convert them to Infrastructure as Code (OpenTofu/Terraform)
 - **Audit Logging**: Complete activity tracking for compliance and security
 
 ### Enterprise Features

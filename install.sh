@@ -75,6 +75,14 @@ while [ $WAIT_FOR_DB -lt $MAX_DB_WAIT ]; do
         else
             echo "⚠️ Some upgrades may have been already applied"
         fi
+        
+        # Apply discovery feature migration for fresh installations
+        echo "📦 Applying Infrastructure Discovery feature..."
+        if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < discovery-migration.sql 2>/dev/null; then
+            echo "✅ Discovery feature applied successfully"
+        else
+            echo "⚠️ Discovery feature may have been already applied"
+        fi
         break
     fi
     echo -n "."
@@ -224,6 +232,47 @@ else
     echo "⚠️ Hive monitoring tables not found"
 fi
 
+# Verify Infrastructure Discovery tables
+echo "🔍 Verifying Infrastructure Discovery tables..."
+DISCOVERY_TABLES_OK=true
+
+if ! $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d discovery_sessions" >/dev/null 2>&1; then
+    echo "❌ Discovery sessions table missing"
+    DISCOVERY_TABLES_OK=false
+fi
+
+if ! $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d discovery_resources" >/dev/null 2>&1; then
+    echo "❌ Discovery resources table missing"
+    DISCOVERY_TABLES_OK=false
+fi
+
+if ! $COMPOSE_CMD exec -T database psql -U postgres -d config_management -c "\d discovery_code_generations" >/dev/null 2>&1; then
+    echo "❌ Discovery code generations table missing"
+    DISCOVERY_TABLES_OK=false
+fi
+
+if [ "$DISCOVERY_TABLES_OK" = true ]; then
+    echo "✅ Infrastructure Discovery tables verified successfully"
+else
+    echo "⚠️ Infrastructure Discovery tables missing - attempting to create them..."
+    if $COMPOSE_CMD exec -i database psql -U postgres -d config_management < discovery-migration.sql; then
+        echo "✅ Infrastructure Discovery tables created successfully"
+    else
+        echo "⚠️ Failed to create Infrastructure Discovery tables"
+    fi
+fi
+
+# Verify discovery feature flag in organizations
+DISCOVERY_ORGS=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM organizations WHERE features_enabled->>'discovery' = 'true';" 2>/dev/null | tr -d ' ' || echo "0")
+TOTAL_ORGS=$($COMPOSE_CMD exec -T database psql -U postgres -d config_management -t -c "SELECT COUNT(*) FROM organizations;" 2>/dev/null | tr -d ' ' || echo "0")
+if [ "$DISCOVERY_ORGS" -gt "0" ] && [ "$DISCOVERY_ORGS" -eq "$TOTAL_ORGS" ]; then
+    echo "✅ Discovery feature enabled for all $TOTAL_ORGS organizations"
+elif [ "$TOTAL_ORGS" -eq "0" ]; then
+    echo "✅ Discovery feature will be enabled for new organizations"
+else
+    echo "⚠️ Discovery feature enabled for $DISCOVERY_ORGS out of $TOTAL_ORGS organizations"
+fi
+
 echo "✅ Installation verification complete"
 
 echo ""
@@ -243,6 +292,15 @@ echo "   ✅ Deployment creation and monitoring with AI insights"
 echo "   ✅ Context-aware assistance across all platform pages"
 echo "   ✅ Expandable modal interface for extended AI conversations"
 echo "   ✅ Intelligent suggestions based on your infrastructure"
+echo ""
+echo "🔍 Infrastructure Discovery Features:"
+echo "   ✅ Scan existing AWS cloud resources across multiple regions"
+echo "   ✅ Generate Infrastructure as Code (Terraform/OpenTofu) automatically"
+echo "   ✅ Sync discovered infrastructure directly to GitHub repositories"
+echo "   ✅ Create pull requests with comprehensive documentation"
+echo "   ✅ Support for modular project structure with organized file layout"
+echo "   ✅ Resource selection and filtering for targeted code generation"
+echo "   ✅ Session management and progress tracking"
 echo ""
 echo "📦 Core Platform Features:"
 echo "   ✅ Complete Asset Management with AI-powered insights"
@@ -266,12 +324,14 @@ echo ""
 echo "🔗 Quick Start:"
 echo "   1. Open http://localhost:3000 in your browser"
 echo "   2. Register a new account (automatically gets Administrator role with all permissions)"
-echo "   3. Set up GitHub integration: Settings > Integrations"
-echo "   4. Configure webhook notifications: Organization Management > Platform Settings"
-echo "   5. Navigate to Assets to use MDM and GitHub sync features"
-echo "   6. Navigate to Configurations to import/sync with GitHub"
-echo "   7. Navigate to Hive to monitor agents and collect telemetry"
-echo "   8. Super Admins: Organization Management for feature control"
+echo "   3. Set up AWS integration: Settings > Integrations > AWS"
+echo "   4. Set up GitHub integration: Settings > Integrations > GitHub"  
+echo "   5. Navigate to Discovery to scan AWS resources and generate infrastructure code"
+echo "   6. Navigate to Assets to use MDM and GitHub sync features"
+echo "   7. Navigate to Configurations to import/sync with GitHub"
+echo "   8. Navigate to Hive to monitor agents and collect telemetry"
+echo "   9. Configure webhook notifications: Organization Management > Platform Settings"
+echo "   10. Super Admins: Organization Management for feature control"
 echo ""
 echo "🔔 Webhook Setup:"
 echo "   1. Go to Organization Management > Platform Settings"
