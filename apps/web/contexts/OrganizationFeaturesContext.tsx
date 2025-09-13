@@ -13,6 +13,7 @@ export interface OrganizationFeatures {
   training?: boolean;
   awsIntegrations?: boolean;
   githubIntegrations?: boolean;
+  discovery?: boolean;
   mdm?: boolean;
   assets?: boolean;
   auditLogs?: boolean;
@@ -97,10 +98,12 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
           training: true,
           awsIntegrations: true,
           githubIntegrations: true,
+          discovery: false,
           mdm: true,
           assets: true,
           auditLogs: true,
           pulseAssist: true,
+          hive: false,
         });
       }
     } catch (error) {
@@ -116,9 +119,12 @@ export function OrganizationFeaturesProvider({ children }: OrganizationFeaturesP
         training: true,
         awsIntegrations: true,
         githubIntegrations: true,
+        discovery: false,
         mdm: true,
         assets: true,
         auditLogs: true,
+        pulseAssist: true,
+        hive: false,
       });
     } finally {
       setLoading(false);

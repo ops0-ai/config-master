@@ -32,6 +32,7 @@ interface Organization {
     training?: boolean;
     awsIntegrations?: boolean;
     githubIntegrations?: boolean;
+    discovery?: boolean;
     mdm?: boolean;
     assets?: boolean;
     auditLogs?: boolean;
@@ -125,6 +126,13 @@ const FEATURES: FeatureConfig[] = [
     name: 'GitHub Integration', 
     description: 'Import/export configurations and sync assets',
     icon: ({ className }) => <CogIcon className={className} />,
+    category: 'integration'
+  },
+  { 
+    key: 'discovery', 
+    name: 'Infrastructure Discovery', 
+    description: 'Scan cloud resources and generate Infrastructure as Code',
+    icon: ({ className }) => <MagnifyingGlassIcon className={className} />,
     category: 'integration'
   },
   

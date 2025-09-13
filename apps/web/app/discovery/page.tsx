@@ -5,6 +5,8 @@ import Layout from '@/components/Layout';
 import DiscoveryGitHubSyncModal from '@/components/DiscoveryGitHubSyncModal';
 import dynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
+import { useOrganizationFeatures } from '@/contexts/OrganizationFeaturesContext';
+import { MagnifyingGlassCircleIcon } from '@heroicons/react/24/outline';
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import('@monaco-editor/react'), {
@@ -46,6 +48,7 @@ interface GeneratedCode {
 }
 
 function DiscoveryContent() {
+  const { isFeatureEnabled, loading: featuresLoading } = useOrganizationFeatures();
   const [step, setStep] = useState<'select-connection' | 'scanning' | 'resources' | 'code-view'>('select-connection');
   const [awsIntegrations, setAwsIntegrations] = useState<AWSIntegration[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
@@ -61,6 +64,40 @@ function DiscoveryContent() {
   const [selectedFile, setSelectedFile] = useState<string>('infrastructure.tf');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showGitHubSyncModal, setShowGitHubSyncModal] = useState(false);
+
+  // Show loading state while checking feature access
+  if (featuresLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if discovery feature is enabled
+  if (!isFeatureEnabled('discovery')) {
+    return (
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+              <MagnifyingGlassCircleIcon className="h-8 w-8 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Infrastructure Discovery Unavailable</h2>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              The Infrastructure Discovery feature is not enabled for your organization.
+            </p>
+            <p className="text-sm text-gray-500">
+              Please contact your administrator to enable this feature.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Resource type icons and colors
   const resourceTypeConfig: Record<string, { icon: string; color: string; label: string }> = {
